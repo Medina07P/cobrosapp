@@ -1,0 +1,79 @@
+{
+  "clientes": [
+    {
+      "id": 1,
+      "nombre": "Carlos Morgan",
+      "correo": "dixmax417@gmail.com",
+      "creado_en": "2026-02-27T22:33:44.370Z"
+    }
+  ],
+  "suscripciones": [
+    {
+      "id": 1,
+      "cliente_id": 1,
+      "tipo": "Membresía Premium",
+      "monto": 5000,
+      "dia_cobro": 24,
+      "descripcion": "Su suscripción está a punto de caducar, por favor, realizar el pago.",
+      "activa": false,
+      "creado_en": "2026-02-27T22:34:39.911Z"
+    },
+    {
+      "id": 2,
+      "cliente_id": 1,
+      "tipo": "Membresía Premium",
+      "monto": 5000,
+      "dia_cobro": 27,
+      "descripcion": "Suscripción caducada.",
+      "activa": true,
+      "creado_en": "2026-02-27T22:35:34.720Z"
+    }
+  ],
+  "historial": [
+    {
+      "id": 1,
+      "suscripcion_id": 2,
+      "fecha_envio": "2026-02-27T22:35:47.397Z",
+      "estado": "Fallido",
+      "monto": 5000,
+      "error": "Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to\n535 5.7.8  https://support.google.com/mail/?p=BadCredentials 6a1803df08f44-899c73a04f1sm52368386d6.48 - gsmtp"
+    },
+    {
+      "id": 2,
+      "suscripcion_id": 2,
+      "fecha_envio": "2026-02-27T22:47:10.440Z",
+      "estado": "Fallido",
+      "monto": 5000,
+      "error": "Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to\n535 5.7.8  https://support.google.com/mail/?p=BadCredentials d75a77b69052e-50744963095sm61753691cf.3 - gsmtp"
+    },
+    {
+      "id": 3,
+      "suscripcion_id": 2,
+      "fecha_envio": "2026-02-27T22:48:01.566Z",
+      "estado": "Enviado",
+      "monto": 5000,
+      "error": null
+    },
+    {
+      "id": 4,
+      "suscripcion_id": 2,
+      "fecha_envio": "2026-02-27T22:50:46.643Z",
+      "estado": "Enviado",
+      "monto": 5000,
+      "error": null
+    },
+    {
+      "id": 5,
+      "suscripcion_id": 2,
+      "fecha_envio": "2026-02-28T03:35:15.039Z",
+      "estado": "Enviado",
+      "monto": 5000,
+      "error": null
+    }
+  ],
+  "_seq": {
+    "clientes": 2,
+    "suscripciones": 3,
+    "historial": 6
+  }
+}
