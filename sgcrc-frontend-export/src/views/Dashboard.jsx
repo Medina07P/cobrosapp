@@ -1,19 +1,29 @@
-// src/views/Dashboard.jsx
-import { useState, useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api.js'
-import { fmt, Spinner, ErrorMsg, Btn } from '../components.jsx'
+
+const fmt = (n) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n)
+
+function calcularDiasFaltantes(diaCobro) {
+  const hoy = new Date()
+  const year = hoy.getFullYear()
+  const month = hoy.getMonth()
+  const diasMesActual = new Date(year, month + 1, 0).getDate()
+  const diaActual = hoy.getDate()
+  const diaObjetivoMesActual = Math.min(diaCobro, diasMesActual)
+  if (diaObjetivoMesActual >= diaActual) return diaObjetivoMesActual - diaActual
+  const diasMesSiguiente = new Date(year, month + 2, 0).getDate()
+  const diaObjetivoMesSiguiente = Math.min(diaCobro, diasMesSiguiente)
+  return (diasMesActual - diaActual) + diaObjetivoMesSiguiente
+}
 
 export default function Dashboard() {
-  const [data, setData]     = useState(null)
-  const [error, setError]   = useState(null)
-  const [running, setRunning] = useState(false)
+  const [data, setData] = useState(null)
+  const [error, setError] = useState('')
 
   const cargar = async () => {
-    setError(null)
+    setError('')
     try {
-      const [clientes, suscripciones, historial] = await Promise.all([
-        api.getClientes(), api.getSuscripciones(), api.getHistorial()
-      ])
+      const [clientes, suscripciones, historial] = await Promise.all([api.getClientes(), api.getSuscripciones(), api.getHistorial()])
       setData({ clientes, suscripciones, historial })
     } catch (e) {
       setError(e.message)
@@ -22,97 +32,54 @@ export default function Dashboard() {
 
   useEffect(() => { cargar() }, [])
 
-  const forzarCobros = async () => {
-    setRunning(true)
-    try {
-      await api.runCobros()
-      alert('✅ Proceso de cobros iniciado. Revisa el historial en unos segundos.')
-      await cargar()
-    } catch (e) {
-      alert('Error: ' + e.message)
-    } finally {
-      setRunning(false)
+  const stats = useMemo(() => {
+    if (!data) return null
+    const activas = data.suscripciones.filter((s) => s.activa)
+    return {
+      clientes: data.clientes.length,
+      activas: activas.length,
+      ingresos: activas.reduce((a, s) => a + s.monto, 0),
+      enviados: data.historial.filter((h) => h.estado === 'Enviado').length,
+      fallidos: data.historial.filter((h) => h.estado === 'Fallido').length,
+      proximos: activas.map((s) => ({ ...s, dias: calcularDiasFaltantes(s.dia_cobro), cliente: data.clientes.find((c) => c.id === s.cliente_id) })).sort((a, b) => a.dias - b.dias).slice(0, 5),
     }
-  }
+  }, [data])
 
-  if (!data && !error) return <Spinner />
-  if (error) return <ErrorMsg msg={error} onRetry={cargar} />
-
-  const { clientes, suscripciones, historial } = data
-  const activas   = suscripciones.filter(s => s.activa)
-  const ingresos  = activas.reduce((a, s) => a + s.monto, 0)
-  const enviados  = historial.filter(h => h.estado === 'Enviado').length
-  const fallidos  = historial.filter(h => h.estado === 'Fallido').length
-  const now = new Date()
-  const today = now.getDate()
-  const diasMesActual = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
-
-  const proximos = activas
-    .map(s => {
-      const cl = clientes.find(c => c.id === s.cliente_id)
-      const diaEfectivo = Math.min(s.dia_cobro, diasMesActual)
-      const diasFalta = diaEfectivo >= today ? diaEfectivo - today : diasMesActual - today + diaEfectivo
-      return { ...s, cl, diasFalta }
-    })
-    .sort((a, b) => a.diasFalta - b.diasFalta)
-    .slice(0, 5)
-
-  const cards = [
-    { label:'Clientes',             value: clientes.length,    icon:'👥', color:'#6c63ff' },
-    { label:'Suscripciones activas',value: activas.length,     icon:'🔄', color:'#a78bfa' },
-    { label:'Ingresos mensuales',   value: fmt(ingresos),      icon:'💰', color:'#34d399' },
-    { label:'Correos enviados',     value: enviados,           icon:'📧', color:'#60a5fa' },
-    { label:'Envíos fallidos',      value: fallidos,           icon:'⚠️', color:'#f87171' },
-  ]
+  if (!data && !error) return <div className="p-6">Cargando...</div>
 
   return (
-    <div>
-      <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.5rem',flexWrap:'wrap',gap:'1rem' }}>
-        <h2 style={{ fontFamily:"'Playfair Display',serif",color:'#e8eaf0',margin:0,fontSize:'1.8rem' }}>Panel Principal</h2>
-        <Btn onClick={forzarCobros} disabled={running} style={{ opacity:running?0.6:1 }}>
-          {running ? '⏳ Procesando...' : '▶ Forzar cobros ahora'}
-        </Btn>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold">Dashboard</h2>
+        <button className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 py-2" onClick={async () => { await api.runCobros(); await cargar() }}>Forzar cobros</button>
       </div>
+      {error && <div className="bg-red-50 text-red-700 px-3 py-2 rounded-lg">{error}</div>}
 
-      <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(190px,1fr))',gap:'1rem',marginBottom:'2rem' }}>
-        {cards.map(c => (
-          <div key={c.label} style={{ background:'#0f1117',border:'1px solid #2a2d3a',borderRadius:'12px',padding:'1.2rem',borderLeft:`3px solid ${c.color}` }}>
-            <div style={{ fontSize:'1.5rem',marginBottom:'0.4rem' }}>{c.icon}</div>
-            <div style={{ color:c.color,fontSize:'1.5rem',fontWeight:800,fontFamily:'monospace' }}>{c.value}</div>
-            <div style={{ color:'#8b8fa8',fontSize:'0.78rem',marginTop:'0.2rem' }}>{c.label}</div>
+      {stats && <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+        {[
+          ['Clientes', stats.clientes],
+          ['Suscripciones activas', stats.activas],
+          ['Ingresos mensuales', fmt(stats.ingresos)],
+          ['Enviados', stats.enviados],
+          ['Fallidos', stats.fallidos],
+        ].map(([label, value]) => (
+          <div key={label} className="bg-white rounded-xl shadow-sm p-4">
+            <p className="text-sm text-slate-500">{label}</p>
+            <p className="text-xl font-bold">{value}</p>
           </div>
         ))}
-      </div>
+      </div>}
 
-      <div style={{ background:'#0f1117',border:'1px solid #2a2d3a',borderRadius:'12px',padding:'1.4rem' }}>
-        <h3 style={{ color:'#e8eaf0',margin:'0 0 1rem',fontSize:'1rem' }}>📅 Próximos Cobros</h3>
-        {proximos.length === 0
-          ? <p style={{ color:'#555' }}>Sin suscripciones activas.</p>
-          : (
-            <table style={{ width:'100%',borderCollapse:'collapse',fontSize:'0.88rem' }}>
-              <thead>
-                <tr style={{ borderBottom:'1px solid #1e2130' }}>
-                  {['Cliente','Tipo','Monto','Día','Faltan'].map(h =>
-                    <th key={h} style={{ textAlign:'left',padding:'0.5rem',color:'#555',fontWeight:600,fontSize:'0.78rem' }}>{h}</th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {proximos.map(s => (
-                  <tr key={s.id} style={{ borderBottom:'1px solid #1a1d27' }}>
-                    <td style={{ padding:'0.65rem 0.5rem',color:'#e8eaf0' }}>{s.cl?.nombre}</td>
-                    <td style={{ padding:'0.65rem 0.5rem',color:'#8b8fa8' }}>{s.tipo}</td>
-                    <td style={{ padding:'0.65rem 0.5rem',color:'#34d399',fontFamily:'monospace' }}>{fmt(s.monto)}</td>
-                    <td style={{ padding:'0.65rem 0.5rem',color:'#a78bfa',fontWeight:700 }}>Día {s.dia_cobro}</td>
-                    <td style={{ padding:'0.65rem 0.5rem',color:s.diasFalta===0?'#fbbf24':'#666',fontSize:'0.8rem' }}>
-                      {s.diasFalta === 0 ? '¡Hoy!' : `${s.diasFalta}d`}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )
-        }
+      <div className="bg-white rounded-xl shadow-sm p-4">
+        <h3 className="font-semibold mb-2">Próximos cobros</h3>
+        <div className="space-y-2">
+          {stats?.proximos?.map((s) => (
+            <div key={s.id} className="flex justify-between text-sm border-b pb-2">
+              <span>{s.cliente?.nombre} · {s.tipo}</span>
+              <span className="font-semibold">{fmt(s.monto)} · {s.dias === 0 ? 'Hoy' : `${s.dias} días`}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )

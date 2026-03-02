@@ -1,42 +1,42 @@
-// src/api.js — Todas las llamadas al backend en un solo lugar
+// src/api.js — Capa de acceso al backend
 
 const BASE = '/api'
-const API_KEY = import.meta.env.VITE_API_KEY
+let runtimeApiKey = import.meta.env.VITE_API_KEY || ''
+
+export function setApiKey(apiKey) {
+  runtimeApiKey = apiKey || ''
+}
 
 async function req(method, path, body) {
   const headers = { 'Content-Type': 'application/json' }
-  if (API_KEY) headers['X-API-Key'] = API_KEY
+  if (runtimeApiKey) headers['X-API-Key'] = runtimeApiKey
 
   const res = await fetch(BASE + path, {
     method,
     headers,
-    body: body ? JSON.stringify(body) : undefined
+    body: body ? JSON.stringify(body) : undefined,
   })
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error || `Error ${res.status}`)
   }
+
+  if (res.status === 204) return null
   return res.json()
 }
 
 export const api = {
-  // Clientes
-  getClientes:        ()       => req('GET',    '/clientes'),
-  createCliente:      (data)   => req('POST',   '/clientes', data),
-  updateCliente:      (id, d)  => req('PUT',    `/clientes/${id}`, d),
-  deleteCliente:      (id)     => req('DELETE', `/clientes/${id}`),
+  getClientes: () => req('GET', '/clientes'),
+  createCliente: (data) => req('POST', '/clientes', data),
+  updateCliente: (id, data) => req('PUT', `/clientes/${id}`, data),
+  deleteCliente: (id) => req('DELETE', `/clientes/${id}`),
 
-  // Suscripciones
-  getSuscripciones:   ()       => req('GET',    '/suscripciones'),
-  createSuscripcion:  (data)   => req('POST',   '/suscripciones', data),
-  updateSuscripcion:  (id, d)  => req('PUT',    `/suscripciones/${id}`, d),
+  getSuscripciones: () => req('GET', '/suscripciones'),
+  createSuscripcion: (data) => req('POST', '/suscripciones', data),
+  updateSuscripcion: (id, data) => req('PUT', `/suscripciones/${id}`, data),
 
-  // Historial
-  getHistorial:       ()       => req('GET',    '/historial'),
-
-  // Forzar cobros (prueba)
-  runCobros:          ()       => req('POST',   '/run'),
-
-  // Health
-  health:             ()       => req('GET',    '/health'),
+  getHistorial: () => req('GET', '/historial'),
+  runCobros: () => req('POST', '/run'),
+  health: () => req('GET', '/health'),
 }
