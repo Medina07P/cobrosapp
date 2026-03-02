@@ -1,9 +1,11 @@
 {
   "name": "sgcrc-backend",
   "version": "1.0.0",
-  "description": "",
+  "description": "Servidor de correos y cobros",
   "main": "index.js",
   "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
     "test": "node tests_api_smoke.js"
   },
   "keywords": [],

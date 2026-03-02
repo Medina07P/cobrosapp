@@ -3,7 +3,7 @@
 # Dependencias
 node_modules/
 dist/
-.env
+**/node_modules/
 
 # Logs
 npm-debug.log*

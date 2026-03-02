@@ -23,7 +23,7 @@
       "cliente_id": 1,
       "tipo": "Membresía Premium",
       "monto": 5000,
-      "dia_cobro": 27,
+      "dia_cobro": 2,
       "descripcion": "Suscripción caducada.",
       "activa": true,
       "creado_en": "2026-02-27T22:35:34.720Z"
@@ -69,11 +69,27 @@
       "estado": "Enviado",
       "monto": 5000,
       "error": null
+    },
+    {
+      "id": 6,
+      "suscripcion_id": 2,
+      "fecha_envio": "2026-03-02T19:43:23.344Z",
+      "estado": "Enviado",
+      "monto": 5000,
+      "error": null
+    },
+    {
+      "id": 7,
+      "suscripcion_id": 2,
+      "fecha_envio": "2026-03-02T19:43:31.349Z",
+      "estado": "Enviado",
+      "monto": 5000,
+      "error": null
     }
   ],
   "_seq": {
     "clientes": 2,
     "suscripciones": 3,
-    "historial": 6
+    "historial": 8
   }
 }
