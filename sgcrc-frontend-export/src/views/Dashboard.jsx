@@ -43,12 +43,15 @@ export default function Dashboard() {
   const ingresos  = activas.reduce((a, s) => a + s.monto, 0)
   const enviados  = historial.filter(h => h.estado === 'Enviado').length
   const fallidos  = historial.filter(h => h.estado === 'Fallido').length
-  const today     = new Date().getDate()
+  const now = new Date()
+  const today = now.getDate()
+  const diasMesActual = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
 
   const proximos = activas
     .map(s => {
       const cl = clientes.find(c => c.id === s.cliente_id)
-      const diasFalta = s.dia_cobro >= today ? s.dia_cobro - today : 31 - today + s.dia_cobro
+      const diaEfectivo = Math.min(s.dia_cobro, diasMesActual)
+      const diasFalta = diaEfectivo >= today ? diaEfectivo - today : diasMesActual - today + diaEfectivo
       return { ...s, cl, diasFalta }
     })
     .sort((a, b) => a.diasFalta - b.diasFalta)

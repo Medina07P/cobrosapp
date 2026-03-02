@@ -54,6 +54,29 @@ Para otros proveedores cambia `SMTP_HOST` y `SMTP_PORT`:
 
 ---
 
+
+### Seguridad opcional de API
+
+Puedes proteger los endpoints administrativos con una llave compartida:
+
+```env
+API_KEY=mi_llave_segura
+```
+
+Si `API_KEY` está definida, envía el header `X-API-Key` en cada request (excepto `/health`).
+
+También puedes restringir CORS:
+
+```env
+CORS_ORIGIN=http://localhost:5173
+```
+
+Y exigir conexión SMTP al iniciar:
+
+```env
+SMTP_REQUIRED=true
+```
+
 ## 📡 API REST
 
 Base URL: `http://localhost:3000`
@@ -80,6 +103,7 @@ GET    /historial             → Listar todos los envíos
 
 ### Acciones
 ```
+GET    /                      → Página de inicio HTML con enlaces útiles
 POST   /run                   → Forzar ejecución de cobros ahora (pruebas)
 GET    /health                → Estado del servidor
 ```

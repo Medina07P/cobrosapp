@@ -1,11 +1,15 @@
 // src/api.js — Todas las llamadas al backend en un solo lugar
 
 const BASE = '/api'
+const API_KEY = import.meta.env.VITE_API_KEY
 
 async function req(method, path, body) {
+  const headers = { 'Content-Type': 'application/json' }
+  if (API_KEY) headers['X-API-Key'] = API_KEY
+
   const res = await fetch(BASE + path, {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: body ? JSON.stringify(body) : undefined
   })
   if (!res.ok) {
