@@ -105,6 +105,7 @@ function autorizado(req) {
 // ── Router ─────────────────────────────────────────────────────────────
 
 async function handler(req, res) {
+  // Usamos WHATWG URL API para evitar warning/deprecación de url.parse().
   const requestUrl = new URL(req.url, "http://localhost");
   const { pathname } = requestUrl;
   const method = req.method;
