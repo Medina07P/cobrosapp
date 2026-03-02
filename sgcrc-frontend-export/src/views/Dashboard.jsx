@@ -38,20 +38,34 @@ export default function Dashboard() {
   if (!data && !error) return <Spinner />
   if (error) return <ErrorMsg msg={error} onRetry={cargar} />
 
+  const calcularDiasFaltantes = (diaCobro) => {
+    const hoy = new Date()
+    const year = hoy.getFullYear()
+    const month = hoy.getMonth()
+
+    const diasMesActual = new Date(year, month + 1, 0).getDate()
+    const diaActual = hoy.getDate()
+    const diaObjetivoMesActual = Math.min(diaCobro, diasMesActual)
+
+    if (diaObjetivoMesActual >= diaActual) {
+      return diaObjetivoMesActual - diaActual
+    }
+
+    const diasMesSiguiente = new Date(year, month + 2, 0).getDate()
+    const diaObjetivoMesSiguiente = Math.min(diaCobro, diasMesSiguiente)
+
+    return (diasMesActual - diaActual) + diaObjetivoMesSiguiente
+  }
+
   const { clientes, suscripciones, historial } = data
   const activas   = suscripciones.filter(s => s.activa)
   const ingresos  = activas.reduce((a, s) => a + s.monto, 0)
   const enviados  = historial.filter(h => h.estado === 'Enviado').length
   const fallidos  = historial.filter(h => h.estado === 'Fallido').length
-  const now = new Date()
-  const today = now.getDate()
-  const diasMesActual = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
-
   const proximos = activas
     .map(s => {
       const cl = clientes.find(c => c.id === s.cliente_id)
-      const diaEfectivo = Math.min(s.dia_cobro, diasMesActual)
-      const diasFalta = diaEfectivo >= today ? diaEfectivo - today : diasMesActual - today + diaEfectivo
+      const diasFalta = calcularDiasFaltantes(s.dia_cobro)
       return { ...s, cl, diasFalta }
     })
     .sort((a, b) => a.diasFalta - b.diasFalta)
