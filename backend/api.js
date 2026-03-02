@@ -232,10 +232,13 @@ async function handler(req, res) {
 function iniciarAPI(puerto) {
   const server = http.createServer(handler);
   server.listen(puerto, () => {
-    console.log(`🚀 API corriendo en http://localhost:${puerto}`);
+    const address = server.address();
+    const port = address && typeof address === "object" ? address.port : puerto;
+    console.log(`🚀 API corriendo en http://localhost:${port}`);
     if (API_KEY) console.log("🔐 API protegida por X-API-Key");
     console.log("   GET       /      ← info básica de la API");
   });
+  return server;
 }
 
 module.exports = { iniciarAPI };
