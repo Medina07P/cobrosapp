@@ -1,18 +1,36 @@
-// src/views/Dashboard.jsx
-import { useState, useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api.js'
-import { fmt, Spinner, ErrorMsg, Btn } from '../components.jsx'
+
+// Formateador de moneda colombiana
+const fmt = (n) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n)
+
+// Función para calcular días restantes
+function calcularDiasFaltantes(diaCobro) {
+  const hoy = new Date()
+  const year = hoy.getFullYear()
+  const month = hoy.getMonth()
+  const diasMesActual = new Date(year, month + 1, 0).getDate()
+  const diaActual = hoy.getDate()
+  const diaObjetivoMesActual = Math.min(diaCobro, diasMesActual)
+  
+  if (diaObjetivoMesActual >= diaActual) return diaObjetivoMesActual - diaActual
+  
+  const diasMesSiguiente = new Date(year, month + 2, 0).getDate()
+  const diaObjetivoMesSiguiente = Math.min(diaCobro, diasMesSiguiente)
+  return (diasMesActual - diaActual) + diaObjetivoMesSiguiente
+}
 
 export default function Dashboard() {
-  const [data, setData]     = useState(null)
-  const [error, setError]   = useState(null)
-  const [running, setRunning] = useState(false)
+  const [data, setData] = useState(null)
+  const [error, setError] = useState('')
 
   const cargar = async () => {
-    setError(null)
+    setError('')
     try {
       const [clientes, suscripciones, historial] = await Promise.all([
-        api.getClientes(), api.getSuscripciones(), api.getHistorial()
+        api.getClientes(), 
+        api.getSuscripciones(), 
+        api.getHistorial()
       ])
       setData({ clientes, suscripciones, historial })
     } catch (e) {
@@ -22,111 +40,99 @@ export default function Dashboard() {
 
   useEffect(() => { cargar() }, [])
 
-  const forzarCobros = async () => {
-    setRunning(true)
-    try {
-      await api.runCobros()
-      alert('✅ Proceso de cobros iniciado. Revisa el historial en unos segundos.')
-      await cargar()
-    } catch (e) {
-      alert('Error: ' + e.message)
-    } finally {
-      setRunning(false)
+  // Procesamiento de datos con useMemo para mejor rendimiento
+  const stats = useMemo(() => {
+    if (!data) return null
+    const { clientes, suscripciones, historial } = data
+    const activas = suscripciones.filter((s) => s.activa)
+    
+    return {
+      clientes: clientes.length,
+      activas: activas.length,
+      ingresos: activas.reduce((a, s) => a + s.monto, 0),
+      enviados: historial.filter((h) => h.estado === 'Enviado').length,
+      fallidos: historial.filter((h) => h.estado === 'Fallido').length,
+      proximos: activas.map((s) => ({ 
+        ...s, 
+        dias: calcularDiasFaltantes(s.dia_cobro), 
+        cliente: clientes.find((c) => c.id === s.cliente_id) 
+      })).sort((a, b) => a.dias - b.dias).slice(0, 5),
     }
-  }
+  }, [data])
 
-  if (!data && !error) return <Spinner />
-  if (error) return <ErrorMsg msg={error} onRetry={cargar} />
-
-  const calcularDiasFaltantes = (diaCobro) => {
-    const hoy = new Date()
-    const year = hoy.getFullYear()
-    const month = hoy.getMonth()
-
-    const diasMesActual = new Date(year, month + 1, 0).getDate()
-    const diaActual = hoy.getDate()
-    const diaObjetivoMesActual = Math.min(diaCobro, diasMesActual)
-
-    if (diaObjetivoMesActual >= diaActual) {
-      return diaObjetivoMesActual - diaActual
-    }
-
-    const diasMesSiguiente = new Date(year, month + 2, 0).getDate()
-    const diaObjetivoMesSiguiente = Math.min(diaCobro, diasMesSiguiente)
-
-    return (diasMesActual - diaActual) + diaObjetivoMesSiguiente
-  }
-
-  const { clientes, suscripciones, historial } = data
-  const activas   = suscripciones.filter(s => s.activa)
-  const ingresos  = activas.reduce((a, s) => a + s.monto, 0)
-  const enviados  = historial.filter(h => h.estado === 'Enviado').length
-  const fallidos  = historial.filter(h => h.estado === 'Fallido').length
-  const proximos = activas
-    .map(s => {
-      const cl = clientes.find(c => c.id === s.cliente_id)
-      const diasFalta = calcularDiasFaltantes(s.dia_cobro)
-      return { ...s, cl, diasFalta }
-    })
-    .sort((a, b) => a.diasFalta - b.diasFalta)
-    .slice(0, 5)
-
-  const cards = [
-    { label:'Clientes',             value: clientes.length,    icon:'👥', color:'#6c63ff' },
-    { label:'Suscripciones activas',value: activas.length,     icon:'🔄', color:'#a78bfa' },
-    { label:'Ingresos mensuales',   value: fmt(ingresos),      icon:'💰', color:'#34d399' },
-    { label:'Correos enviados',     value: enviados,           icon:'📧', color:'#60a5fa' },
-    { label:'Envíos fallidos',      value: fallidos,           icon:'⚠️', color:'#f87171' },
-  ]
+  if (!data && !error) return <div className="p-6 text-center">Cargando datos del sistema...</div>
+  if (error) return <div className="p-6 text-red-600">Error: {error} <button onClick={cargar} className="underline">Reintentar</button></div>
 
   return (
-    <div>
-      <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.5rem',flexWrap:'wrap',gap:'1rem' }}>
-        <h2 style={{ fontFamily:"'Playfair Display',serif",color:'#e8eaf0',margin:0,fontSize:'1.8rem' }}>Panel Principal</h2>
-        <Btn onClick={forzarCobros} disabled={running} style={{ opacity:running?0.6:1 }}>
-          {running ? '⏳ Procesando...' : '▶ Forzar cobros ahora'}
-        </Btn>
+    <div className="space-y-6 p-4">
+      {/* Encabezado */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-extrabold text-slate-800">Dashboard</h2>
+          <p className="text-slate-500 text-sm">Resumen general de cobros recurrentes</p>
+        </div>
+        <button 
+          className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl px-5 py-2.5 transition-all shadow-lg shadow-indigo-200"
+          onClick={async () => { await api.runCobros(); await cargar() }}
+        >
+          🚀 Forzar proceso de cobros
+        </button>
       </div>
 
-      <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(190px,1fr))',gap:'1rem',marginBottom:'2rem' }}>
-        {cards.map(c => (
-          <div key={c.label} style={{ background:'#0f1117',border:'1px solid #2a2d3a',borderRadius:'12px',padding:'1.2rem',borderLeft:`3px solid ${c.color}` }}>
-            <div style={{ fontSize:'1.5rem',marginBottom:'0.4rem' }}>{c.icon}</div>
-            <div style={{ color:c.color,fontSize:'1.5rem',fontWeight:800,fontFamily:'monospace' }}>{c.value}</div>
-            <div style={{ color:'#8b8fa8',fontSize:'0.78rem',marginTop:'0.2rem' }}>{c.label}</div>
+      {/* Tarjetas de Estadísticas */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {[
+          { label: 'Clientes', value: stats.clientes, icon: '👥', color: 'text-blue-600' },
+          { label: 'Suscripciones', value: stats.activas, icon: '🔄', color: 'text-purple-600' },
+          { label: 'Ingresos/Mes', value: fmt(stats.ingresos), icon: '💰', color: 'text-emerald-600' },
+          { label: 'Enviados', value: stats.enviados, icon: '📧', color: 'text-sky-600' },
+          { label: 'Fallidos', value: stats.fallidos, icon: '⚠️', color: 'text-rose-600' },
+        ].map((item) => (
+          <div key={item.label} className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-2xl">{item.icon}</span>
+              <span className={`text-xs font-bold px-2 py-1 rounded-full bg-slate-50 ${item.color}`}>Métrica</span>
+            </div>
+            <p className="text-sm text-slate-500 font-medium">{item.label}</p>
+            <p className="text-2xl font-bold text-slate-800">{item.value}</p>
           </div>
         ))}
       </div>
 
-      <div style={{ background:'#0f1117',border:'1px solid #2a2d3a',borderRadius:'12px',padding:'1.4rem' }}>
-        <h3 style={{ color:'#e8eaf0',margin:'0 0 1rem',fontSize:'1rem' }}>📅 Próximos Cobros</h3>
-        {proximos.length === 0
-          ? <p style={{ color:'#555' }}>Sin suscripciones activas.</p>
-          : (
-            <table style={{ width:'100%',borderCollapse:'collapse',fontSize:'0.88rem' }}>
-              <thead>
-                <tr style={{ borderBottom:'1px solid #1e2130' }}>
-                  {['Cliente','Tipo','Monto','Día','Faltan'].map(h =>
-                    <th key={h} style={{ textAlign:'left',padding:'0.5rem',color:'#555',fontWeight:600,fontSize:'0.78rem' }}>{h}</th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {proximos.map(s => (
-                  <tr key={s.id} style={{ borderBottom:'1px solid #1a1d27' }}>
-                    <td style={{ padding:'0.65rem 0.5rem',color:'#e8eaf0' }}>{s.cl?.nombre}</td>
-                    <td style={{ padding:'0.65rem 0.5rem',color:'#8b8fa8' }}>{s.tipo}</td>
-                    <td style={{ padding:'0.65rem 0.5rem',color:'#34d399',fontFamily:'monospace' }}>{fmt(s.monto)}</td>
-                    <td style={{ padding:'0.65rem 0.5rem',color:'#a78bfa',fontWeight:700 }}>Día {s.dia_cobro}</td>
-                    <td style={{ padding:'0.65rem 0.5rem',color:s.diasFalta===0?'#fbbf24':'#666',fontSize:'0.8rem' }}>
-                      {s.diasFalta === 0 ? '¡Hoy!' : `${s.diasFalta}d`}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )
-        }
+      {/* Lista de Próximos Cobros */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+        <div className="flex items-center mb-6">
+          <div className="p-2 bg-amber-50 rounded-lg mr-3">📅</div>
+          <h3 className="text-lg font-bold text-slate-800">Próximos cobros programados</h3>
+        </div>
+        
+        <div className="overflow-hidden">
+          <div className="space-y-3">
+            {stats.proximos.length > 0 ? (
+              stats.proximos.map((s) => (
+                <div key={s.id} className="flex items-center justify-between p-4 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors">
+                  <div className="flex items-center space-x-4">
+                    <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center font-bold text-indigo-600 shadow-sm">
+                      {s.cliente?.nombre?.charAt(0)}
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-800">{s.cliente?.nombre || 'Cliente desconocido'}</p>
+                      <p className="text-xs text-slate-500 uppercase tracking-wider">{s.tipo}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-slate-800">{fmt(s.monto)}</p>
+                    <p className={`text-xs font-bold ${s.dias === 0 ? 'text-rose-500 animate-pulse' : 'text-indigo-500'}`}>
+                      {s.dias === 0 ? '• COBRA HOY' : `en ${s.dias} días`}
+                    </p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-center text-slate-400 py-4">No hay cobros pendientes</p>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )

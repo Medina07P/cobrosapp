@@ -1,121 +1,74 @@
-// src/views/Suscripciones.jsx
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../api.js'
-import { Modal, Input, Select, Btn, Badge, Spinner, ErrorMsg, fmt } from '../components.jsx'
 
-const TIPOS = ['Membresía Básica','Membresía Pro','Membresía Premium','Servicio Mensual','Soporte Técnico','Licencia Software','Otro']
+const fmt = (n) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n)
 
-const EMPTY = { cliente_id:'', tipo:TIPOS[0], monto:'', dia_cobro:1, descripcion:'' }
+const empty = { cliente_id: '', tipo: '', monto: '', dia_cobro: 1, descripcion: '', activa: true }
 
 export default function Suscripciones() {
-  const [subs, setSubs]         = useState([])
+  const [subs, setSubs] = useState([])
   const [clientes, setClientes] = useState([])
-  const [loading, setLoading]   = useState(true)
-  const [error, setError]       = useState(null)
-  const [modal, setModal]       = useState(null)
-  const [form, setForm]         = useState(EMPTY)
-  const [saving, setSaving]     = useState(false)
+  const [error, setError] = useState('')
+  const [form, setForm] = useState(empty)
+  const [editing, setEditing] = useState(null)
 
   const cargar = async () => {
-    setLoading(true); setError(null)
+    setError('')
     try {
       const [s, c] = await Promise.all([api.getSuscripciones(), api.getClientes()])
-      setSubs(s); setClientes(c)
+      setSubs(s)
+      setClientes(c)
     } catch (e) { setError(e.message) }
-    finally { setLoading(false) }
   }
 
   useEffect(() => { cargar() }, [])
 
-  const openNew  = () => { setForm(EMPTY); setModal('new') }
-  const openEdit = (s) => { setForm({ ...s, monto: String(s.monto), cliente_id: String(s.cliente_id) }); setModal(s) }
-
   const guardar = async () => {
-    if (!form.cliente_id || !form.monto || !form.tipo) return alert('Completa todos los campos requeridos')
-    setSaving(true)
     try {
-      const data = { ...form, cliente_id: Number(form.cliente_id), monto: Number(form.monto), dia_cobro: Number(form.dia_cobro) }
-      if (modal === 'new') await api.createSuscripcion(data)
-      else await api.updateSuscripcion(modal.id, data)
-      setModal(null); cargar()
-    } catch (e) { alert('Error: ' + e.message) }
-    finally { setSaving(false) }
+      const payload = { ...form, cliente_id: Number(form.cliente_id), monto: Number(form.monto), dia_cobro: Number(form.dia_cobro) }
+      if (editing) await api.updateSuscripcion(editing.id, payload)
+      else await api.createSuscripcion(payload)
+      setForm(empty)
+      setEditing(null)
+      await cargar()
+    } catch (e) { setError(e.message) }
   }
-
-  const toggleActiva = async (s) => {
-    try { await api.updateSuscripcion(s.id, { activa: !s.activa }); cargar() }
-    catch (e) { alert('Error: ' + e.message) }
-  }
-
-  if (loading) return <Spinner />
 
   return (
-    <div>
-      <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.5rem' }}>
-        <h2 style={{ fontFamily:"'Playfair Display',serif",color:'#e8eaf0',margin:0,fontSize:'1.8rem' }}>Suscripciones</h2>
-        <Btn onClick={openNew}>+ Nueva Suscripción</Btn>
+    <div className="space-y-4">
+      <h2 className="text-2xl font-bold">Suscripciones</h2>
+      {error && <div className="bg-red-50 text-red-700 px-3 py-2 rounded-lg">{error}</div>}
+
+      <div className="bg-white rounded-xl shadow-sm p-4 grid md:grid-cols-3 gap-2">
+        <select className="border rounded-lg px-3 py-2" value={form.cliente_id} onChange={(e) => setForm((p) => ({ ...p, cliente_id: e.target.value }))}>
+          <option value="">Cliente</option>
+          {clientes.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+        </select>
+        <input className="border rounded-lg px-3 py-2" placeholder="Tipo" value={form.tipo} onChange={(e) => setForm((p) => ({ ...p, tipo: e.target.value }))} />
+        <input className="border rounded-lg px-3 py-2" type="number" placeholder="Monto" value={form.monto} onChange={(e) => setForm((p) => ({ ...p, monto: e.target.value }))} />
+        <input className="border rounded-lg px-3 py-2" type="number" min="1" max="31" placeholder="Día de cobro" value={form.dia_cobro} onChange={(e) => setForm((p) => ({ ...p, dia_cobro: e.target.value }))} />
+        <input className="border rounded-lg px-3 py-2 md:col-span-2" placeholder="Descripción" value={form.descripcion} onChange={(e) => setForm((p) => ({ ...p, descripcion: e.target.value }))} />
+        <label className="text-sm flex items-center gap-2"><input type="checkbox" checked={!!form.activa} onChange={(e) => setForm((p) => ({ ...p, activa: e.target.checked }))} /> Activa</label>
+        <button className="bg-indigo-600 text-white rounded-lg px-3 py-2" onClick={guardar}>{editing ? 'Actualizar' : 'Crear'} suscripción</button>
       </div>
 
-      {error && <ErrorMsg msg={error} onRetry={cargar} />}
-
-      <div style={{ background:'#0f1117',border:'1px solid #2a2d3a',borderRadius:'12px',overflow:'auto' }}>
-        <table style={{ width:'100%',borderCollapse:'collapse',fontSize:'0.88rem' }}>
-          <thead>
-            <tr style={{ background:'#0a0c12',borderBottom:'1px solid #2a2d3a' }}>
-              {['Cliente','Tipo','Monto','Día Cobro','Estado','Acciones'].map(h =>
-                <th key={h} style={{ textAlign:'left',padding:'0.9rem 1rem',color:'#555',fontWeight:600,fontSize:'0.78rem',textTransform:'uppercase',whiteSpace:'nowrap' }}>{h}</th>
-              )}
-            </tr>
-          </thead>
+      <div className="bg-white rounded-xl shadow-sm overflow-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 text-slate-500"><tr><th className="text-left p-3">Cliente</th><th className="text-left p-3">Tipo</th><th className="text-left p-3">Monto</th><th className="text-left p-3">Día</th><th className="text-left p-3">Estado</th><th className="text-right p-3">Acciones</th></tr></thead>
           <tbody>
-            {subs.length === 0
-              ? <tr><td colSpan={6} style={{ padding:'2rem',textAlign:'center',color:'#444' }}>Sin suscripciones registradas</td></tr>
-              : subs.map(s => {
-                  const cl = clientes.find(c => c.id === s.cliente_id)
-                  return (
-                    <tr key={s.id} style={{ borderBottom:'1px solid #1a1d27',opacity:s.activa?1:0.5 }}>
-                      <td style={{ padding:'0.85rem 1rem' }}>
-                        <div style={{ color:'#e8eaf0',fontWeight:600 }}>{cl?.nombre || '—'}</div>
-                        <div style={{ color:'#555',fontSize:'0.78rem' }}>{cl?.correo}</div>
-                      </td>
-                      <td style={{ padding:'0.85rem 1rem',color:'#8b8fa8' }}>{s.tipo}</td>
-                      <td style={{ padding:'0.85rem 1rem',color:'#34d399',fontFamily:'monospace',fontWeight:700 }}>{fmt(s.monto)}</td>
-                      <td style={{ padding:'0.85rem 1rem',color:'#a78bfa',fontWeight:700,textAlign:'center' }}>{s.dia_cobro}</td>
-                      <td style={{ padding:'0.85rem 1rem' }}><Badge status={s.activa ? 'Activa' : 'Inactiva'} /></td>
-                      <td style={{ padding:'0.85rem 1rem' }}>
-                        <div style={{ display:'flex',gap:'0.4rem' }}>
-                          <Btn variant='secondary' style={{ padding:'0.3rem 0.7rem',fontSize:'0.78rem' }} onClick={() => openEdit(s)}>Editar</Btn>
-                          <Btn variant={s.activa?'danger':'secondary'} style={{ padding:'0.3rem 0.7rem',fontSize:'0.78rem' }} onClick={() => toggleActiva(s)}>
-                            {s.activa ? 'Cancelar' : 'Activar'}
-                          </Btn>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })
-            }
+            {subs.map((s) => (
+              <tr key={s.id} className="border-t">
+                <td className="p-3">{clientes.find((c) => c.id === s.cliente_id)?.nombre || '-'}</td>
+                <td className="p-3">{s.tipo}</td>
+                <td className="p-3">{fmt(s.monto)}</td>
+                <td className="p-3">{s.dia_cobro}</td>
+                <td className="p-3"><span className={`px-2 py-1 rounded-full text-xs ${s.activa ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>{s.activa ? 'Activa' : 'Inactiva'}</span></td>
+                <td className="p-3 text-right"><button className="px-2 py-1 rounded bg-slate-100" onClick={() => { setEditing(s); setForm({ ...s }) }}>Editar</button></td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
-
-      {modal && (
-        <Modal title={modal === 'new' ? 'Nueva Suscripción' : 'Editar Suscripción'} onClose={() => setModal(null)}>
-          <Select label='Cliente' value={form.cliente_id} onChange={e => setForm(p => ({...p, cliente_id:e.target.value}))}>
-            <option value=''>Seleccionar cliente...</option>
-            {clientes.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-          </Select>
-          <Select label='Tipo de Suscripción' value={form.tipo} onChange={e => setForm(p => ({...p, tipo:e.target.value}))}>
-            {TIPOS.map(t => <option key={t}>{t}</option>)}
-          </Select>
-          <Input label='Monto (COP)' type='number' value={form.monto} onChange={e => setForm(p => ({...p, monto:e.target.value}))} placeholder='250000' />
-          <Input label='Día del mes de cobro (1-28)' type='number' min='1' max='28' value={form.dia_cobro} onChange={e => setForm(p => ({...p, dia_cobro:e.target.value}))} />
-          <Input label='Descripción (opcional)' value={form.descripcion} onChange={e => setForm(p => ({...p, descripcion:e.target.value}))} placeholder='Notas adicionales...' />
-          <div style={{ display:'flex',gap:'0.8rem',justifyContent:'flex-end',marginTop:'0.5rem' }}>
-            <Btn variant='secondary' onClick={() => setModal(null)}>Cancelar</Btn>
-            <Btn onClick={guardar} disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</Btn>
-          </div>
-        </Modal>
-      )}
     </div>
   )
 }
