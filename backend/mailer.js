@@ -3,23 +3,38 @@
 const nodemailer = require("nodemailer");
 require("dotenv").config();
 
+const smtpPort = Number(process.env.SMTP_PORT) || 587;
+
 // ── Transporter ────────────────────────────────────────────────────────
 
 const transporter = nodemailer.createTransport({
-  host:   process.env.SMTP_HOST || "smtp.gmail.com",
-  port:   Number(process.env.SMTP_PORT) || 587,
-  secure: false,                // true para puerto 465
+  host: process.env.SMTP_HOST || "smtp.gmail.com",
+  port: smtpPort,
+  secure: smtpPort === 465,
   auth: {
     user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS
-  }
+    pass: process.env.SMTP_PASS,
+  },
 });
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
 
 // ── Plantilla de correo ────────────────────────────────────────────────
 
 function buildHtml({ cliente, suscripcion }) {
-  const fecha  = new Date().toLocaleDateString("es-CO", { day:"numeric", month:"long", year:"numeric" });
-  const monto  = new Intl.NumberFormat("es-CO", { style:"currency", currency:"COP", maximumFractionDigits:0 }).format(suscripcion.monto);
+  const fecha = new Date().toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" });
+  const monto = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(suscripcion.monto);
+
+  const clienteNombre = escapeHtml(cliente.nombre);
+  const tipo = escapeHtml(suscripcion.tipo);
+  const descripcion = suscripcion.descripcion ? escapeHtml(suscripcion.descripcion) : "";
 
   return `
 <!DOCTYPE html>
@@ -50,13 +65,13 @@ function buildHtml({ cliente, suscripcion }) {
       <p>Gestión de Cobros Recurrentes</p>
     </div>
     <div class="body">
-      <p>Estimado/a <strong>${cliente.nombre}</strong>,</p>
+      <p>Estimado/a <strong>${clienteNombre}</strong>,</p>
       <p>Le informamos que se ha generado su cobro mensual correspondiente al siguiente concepto:</p>
       <div class="card">
-        <div class="row"><span class="label">Servicio</span><span class="value">${suscripcion.tipo}</span></div>
+        <div class="row"><span class="label">Servicio</span><span class="value">${tipo}</span></div>
         <div class="row"><span class="label">Fecha</span><span class="value">${fecha}</span></div>
         <div class="row"><span class="label">Monto</span><span class="value monto">${monto}</span></div>
-        ${suscripcion.descripcion ? `<div class="row"><span class="label">Nota</span><span class="value">${suscripcion.descripcion}</span></div>` : ""}
+        ${descripcion ? `<div class="row"><span class="label">Nota</span><span class="value">${descripcion}</span></div>` : ""}
       </div>
       <p>Por favor realice el pago correspondiente según los canales acordados.</p>
       <p>Si tiene alguna pregunta, no dude en contactarnos.</p>
@@ -72,17 +87,16 @@ function buildHtml({ cliente, suscripcion }) {
 // ── Función principal ──────────────────────────────────────────────────
 
 async function enviarCobro({ cliente, suscripcion }) {
-  const monto = new Intl.NumberFormat("es-CO", { style:"currency", currency:"COP", maximumFractionDigits:0 }).format(suscripcion.monto);
+  const monto = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(suscripcion.monto);
 
   await transporter.sendMail({
-    from:    process.env.SMTP_FROM || process.env.SMTP_USER,
-    to:      cliente.correo,
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    to: cliente.correo,
     subject: `Cobro mensual — ${suscripcion.tipo} — ${monto}`,
-    html:    buildHtml({ cliente, suscripcion })
+    html: buildHtml({ cliente, suscripcion }),
   });
 }
 
-// Verifica que las credenciales SMTP funcionen (útil al iniciar)
 async function verificarConexion() {
   try {
     await transporter.verify();
@@ -94,4 +108,4 @@ async function verificarConexion() {
   }
 }
 
-module.exports = { enviarCobro, verificarConexion };
+module.exports = { enviarCobro, verificarConexion, buildHtml };
