@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api.js'
 
+// Formateador de moneda colombiana
 const fmt = (n) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n)
 
+// Función para calcular días restantes
 function calcularDiasFaltantes(diaCobro) {
   const hoy = new Date()
   const year = hoy.getFullYear()
@@ -10,7 +12,9 @@ function calcularDiasFaltantes(diaCobro) {
   const diasMesActual = new Date(year, month + 1, 0).getDate()
   const diaActual = hoy.getDate()
   const diaObjetivoMesActual = Math.min(diaCobro, diasMesActual)
+  
   if (diaObjetivoMesActual >= diaActual) return diaObjetivoMesActual - diaActual
+  
   const diasMesSiguiente = new Date(year, month + 2, 0).getDate()
   const diaObjetivoMesSiguiente = Math.min(diaCobro, diasMesSiguiente)
   return (diasMesActual - diaActual) + diaObjetivoMesSiguiente
@@ -23,7 +27,11 @@ export default function Dashboard() {
   const cargar = async () => {
     setError('')
     try {
-      const [clientes, suscripciones, historial] = await Promise.all([api.getClientes(), api.getSuscripciones(), api.getHistorial()])
+      const [clientes, suscripciones, historial] = await Promise.all([
+        api.getClientes(), 
+        api.getSuscripciones(), 
+        api.getHistorial()
+      ])
       setData({ clientes, suscripciones, historial })
     } catch (e) {
       setError(e.message)
@@ -32,53 +40,98 @@ export default function Dashboard() {
 
   useEffect(() => { cargar() }, [])
 
+  // Procesamiento de datos con useMemo para mejor rendimiento
   const stats = useMemo(() => {
     if (!data) return null
-    const activas = data.suscripciones.filter((s) => s.activa)
+    const { clientes, suscripciones, historial } = data
+    const activas = suscripciones.filter((s) => s.activa)
+    
     return {
-      clientes: data.clientes.length,
+      clientes: clientes.length,
       activas: activas.length,
       ingresos: activas.reduce((a, s) => a + s.monto, 0),
-      enviados: data.historial.filter((h) => h.estado === 'Enviado').length,
-      fallidos: data.historial.filter((h) => h.estado === 'Fallido').length,
-      proximos: activas.map((s) => ({ ...s, dias: calcularDiasFaltantes(s.dia_cobro), cliente: data.clientes.find((c) => c.id === s.cliente_id) })).sort((a, b) => a.dias - b.dias).slice(0, 5),
+      enviados: historial.filter((h) => h.estado === 'Enviado').length,
+      fallidos: historial.filter((h) => h.estado === 'Fallido').length,
+      proximos: activas.map((s) => ({ 
+        ...s, 
+        dias: calcularDiasFaltantes(s.dia_cobro), 
+        cliente: clientes.find((c) => c.id === s.cliente_id) 
+      })).sort((a, b) => a.dias - b.dias).slice(0, 5),
     }
   }, [data])
 
-  if (!data && !error) return <div className="p-6">Cargando...</div>
+  if (!data && !error) return <div className="p-6 text-center">Cargando datos del sistema...</div>
+  if (error) return <div className="p-6 text-red-600">Error: {error} <button onClick={cargar} className="underline">Reintentar</button></div>
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6 p-4">
+      {/* Encabezado */}
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Dashboard</h2>
-        <button className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 py-2" onClick={async () => { await api.runCobros(); await cargar() }}>Forzar cobros</button>
+        <div>
+          <h2 className="text-3xl font-extrabold text-slate-800">Dashboard</h2>
+          <p className="text-slate-500 text-sm">Resumen general de cobros recurrentes</p>
+        </div>
+        <button 
+          className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl px-5 py-2.5 transition-all shadow-lg shadow-indigo-200"
+          onClick={async () => { await api.runCobros(); await cargar() }}
+        >
+          🚀 Forzar proceso de cobros
+        </button>
       </div>
-      {error && <div className="bg-red-50 text-red-700 px-3 py-2 rounded-lg">{error}</div>}
 
-      {stats && <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+      {/* Tarjetas de Estadísticas */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {[
-          ['Clientes', stats.clientes],
-          ['Suscripciones activas', stats.activas],
-          ['Ingresos mensuales', fmt(stats.ingresos)],
-          ['Enviados', stats.enviados],
-          ['Fallidos', stats.fallidos],
-        ].map(([label, value]) => (
-          <div key={label} className="bg-white rounded-xl shadow-sm p-4">
-            <p className="text-sm text-slate-500">{label}</p>
-            <p className="text-xl font-bold">{value}</p>
+          { label: 'Clientes', value: stats.clientes, icon: '👥', color: 'text-blue-600' },
+          { label: 'Suscripciones', value: stats.activas, icon: '🔄', color: 'text-purple-600' },
+          { label: 'Ingresos/Mes', value: fmt(stats.ingresos), icon: '💰', color: 'text-emerald-600' },
+          { label: 'Enviados', value: stats.enviados, icon: '📧', color: 'text-sky-600' },
+          { label: 'Fallidos', value: stats.fallidos, icon: '⚠️', color: 'text-rose-600' },
+        ].map((item) => (
+          <div key={item.label} className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-2xl">{item.icon}</span>
+              <span className={`text-xs font-bold px-2 py-1 rounded-full bg-slate-50 ${item.color}`}>Métrica</span>
+            </div>
+            <p className="text-sm text-slate-500 font-medium">{item.label}</p>
+            <p className="text-2xl font-bold text-slate-800">{item.value}</p>
           </div>
         ))}
-      </div>}
+      </div>
 
-      <div className="bg-white rounded-xl shadow-sm p-4">
-        <h3 className="font-semibold mb-2">Próximos cobros</h3>
-        <div className="space-y-2">
-          {stats?.proximos?.map((s) => (
-            <div key={s.id} className="flex justify-between text-sm border-b pb-2">
-              <span>{s.cliente?.nombre} · {s.tipo}</span>
-              <span className="font-semibold">{fmt(s.monto)} · {s.dias === 0 ? 'Hoy' : `${s.dias} días`}</span>
-            </div>
-          ))}
+      {/* Lista de Próximos Cobros */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+        <div className="flex items-center mb-6">
+          <div className="p-2 bg-amber-50 rounded-lg mr-3">📅</div>
+          <h3 className="text-lg font-bold text-slate-800">Próximos cobros programados</h3>
+        </div>
+        
+        <div className="overflow-hidden">
+          <div className="space-y-3">
+            {stats.proximos.length > 0 ? (
+              stats.proximos.map((s) => (
+                <div key={s.id} className="flex items-center justify-between p-4 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors">
+                  <div className="flex items-center space-x-4">
+                    <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center font-bold text-indigo-600 shadow-sm">
+                      {s.cliente?.nombre?.charAt(0)}
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-800">{s.cliente?.nombre || 'Cliente desconocido'}</p>
+                      <p className="text-xs text-slate-500 uppercase tracking-wider">{s.tipo}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-slate-800">{fmt(s.monto)}</p>
+                    <p className={`text-xs font-bold ${s.dias === 0 ? 'text-rose-500 animate-pulse' : 'text-indigo-500'}`}>
+                      {s.dias === 0 ? '• COBRA HOY' : `en ${s.dias} días`}
+                    </p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-center text-slate-400 py-4">No hay cobros pendientes</p>
+            )}
+          </div>
         </div>
       </div>
     </div>
