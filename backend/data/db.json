@@ -15,7 +15,7 @@
       "monto": 5000,
       "dia_cobro": 24,
       "descripcion": "Su suscripción está a punto de caducar, por favor, realizar el pago.",
-      "activa": false,
+      "activa": true,
       "creado_en": "2026-02-27T22:34:39.911Z"
     },
     {
@@ -25,7 +25,7 @@
       "monto": 5000,
       "dia_cobro": 2,
       "descripcion": "Suscripción caducada.",
-      "activa": true,
+      "activa": false,
       "creado_en": "2026-02-27T22:35:34.720Z"
     }
   ],

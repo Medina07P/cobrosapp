@@ -1,21 +1,34 @@
-// mailer.js — Servicio de correo con Nodemailer
-
 const nodemailer = require("nodemailer");
 require("dotenv").config();
 
-const smtpPort = Number(process.env.SMTP_PORT) || 587;
+// ── Función para crear un Transporter al vuelo ─────────────────────────
 
-// ── Transporter ────────────────────────────────────────────────────────
+function crearTransporter(usuarioConfig = null) {
+  // Si el usuario tiene config_smtp en la DB, la usamos. 
+  // Si no, usamos las variables del .env (tus credenciales maestras).
+  let config;
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "smtp.gmail.com",
-  port: smtpPort,
-  secure: smtpPort === 465,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+  if (usuarioConfig && usuarioConfig.config_smtp) {
+    try {
+      config = JSON.parse(usuarioConfig.config_smtp);
+    } catch (e) {
+      console.error("Error parseando config_smtp del usuario:", e);
+    }
+  }
+
+  // Si no hay config de usuario, usamos la del sistema (.env)
+  const host = config?.host || process.env.SMTP_HOST || "smtp.gmail.com";
+  const port = Number(config?.port || process.env.SMTP_PORT || 587);
+  const user = config?.user || process.env.SMTP_USER;
+  const pass = config?.pass || process.env.SMTP_PASS;
+
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass },
+  });
+}
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -26,9 +39,9 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
-// ── Plantilla de correo ────────────────────────────────────────────────
+// ── Plantilla de correo (Mantenemos tu diseño) ─────────────────────────
 
-function buildHtml({ cliente, suscripcion }) {
+function buildHtml({ cliente, suscripcion, nombreVendedor = "SGCRC" }) {
   const fecha = new Date().toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" });
   const monto = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(suscripcion.monto);
 
@@ -62,7 +75,7 @@ function buildHtml({ cliente, suscripcion }) {
   <div class="container">
     <div class="header">
       <h1>Aviso de Cobro Mensual</h1>
-      <p>Gestión de Cobros Recurrentes</p>
+      <p>Enviado por: ${escapeHtml(nombreVendedor)}</p>
     </div>
     <div class="body">
       <p>Estimado/a <strong>${clienteNombre}</strong>,</p>
@@ -77,33 +90,41 @@ function buildHtml({ cliente, suscripcion }) {
       <p>Si tiene alguna pregunta, no dude en contactarnos.</p>
     </div>
     <div class="footer">
-      Este es un mensaje automático — SGCRC · Sistema de Gestión de Cobros Recurrentes
+      Este es un mensaje automático — Gestionado por SGCRC
     </div>
   </div>
 </body>
 </html>`;
 }
 
-// ── Función principal ──────────────────────────────────────────────────
+// ── Función principal (Recibe usuarioConfig) ───────────────────────────
 
-async function enviarCobro({ cliente, suscripcion }) {
+async function enviarCobro({ cliente, suscripcion, usuarioConfig }) {
   const monto = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(suscripcion.monto);
+  
+  // Creamos el transporte específico para este envío
+  const transporter = crearTransporter(usuarioConfig);
+
+  const fromEmail = (usuarioConfig && usuarioConfig.config_smtp) 
+    ? JSON.parse(usuarioConfig.config_smtp).user 
+    : (process.env.SMTP_FROM || process.env.SMTP_USER);
 
   await transporter.sendMail({
-    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    from: `"${usuarioConfig.nombre}" <${fromEmail}>`,
     to: cliente.correo,
     subject: `Cobro mensual — ${suscripcion.tipo} — ${monto}`,
-    html: buildHtml({ cliente, suscripcion }),
+    html: buildHtml({ cliente, suscripcion, nombreVendedor: usuarioConfig.nombre }),
   });
 }
 
 async function verificarConexion() {
   try {
+    const transporter = crearTransporter(); // Verifica la del .env por defecto
     await transporter.verify();
-    console.log("✅ SMTP conectado correctamente");
+    console.log("✅ SMTP Maestro conectado correctamente");
     return true;
   } catch (err) {
-    console.error("❌ Error SMTP:", err.message);
+    console.error("❌ Error SMTP Maestro:", err.message);
     return false;
   }
 }

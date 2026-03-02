@@ -1,127 +1,73 @@
-// db.js — Base de datos liviana sobre JSON
-// Guarda los datos en data/db.json. Simple y sin dependencias nativas.
+const db = require('./database');
 
-const fs   = require("fs");
-const path = require("path");
-
-const DB_PATH = path.join(__dirname, "data", "db.json");
-
-const DEFAULT = {
-  clientes: [],
-  suscripciones: [],
-  historial: [],
-  _seq: { clientes: 1, suscripciones: 1, historial: 1 }
+// --- HELPER PARA FORMATEAR RESULTADOS ---
+const fixBool = (obj) => {
+    if (!obj) return null;
+    return { ...obj, activa: obj.activa === 1 };
 };
-
-// ── Lectura / escritura ────────────────────────────────────────────────
-
-function load() {
-  if (!fs.existsSync(DB_PATH)) {
-    fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-    save(DEFAULT);
-    return JSON.parse(JSON.stringify(DEFAULT));
-  }
-  return JSON.parse(fs.readFileSync(DB_PATH, "utf8"));
-}
-
-function save(data) {
-  fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2), "utf8");
-}
-
-function nextId(data, table) {
-  const id = data._seq[table]++;
-  save(data);
-  return id;
-}
-
-// ── Clientes ───────────────────────────────────────────────────────────
 
 const clientes = {
-  all() {
-    return load().clientes;
-  },
-  find(id) {
-    return load().clientes.find(c => c.id === id) || null;
-  },
-  create({ nombre, correo }) {
-    const data = load();
-    const rec = { id: nextId(data, "clientes"), nombre, correo, creado_en: new Date().toISOString() };
-    data.clientes.push(rec);
-    save(data);
-    return rec;
-  },
-  update(id, campos) {
-    const data = load();
-    const idx  = data.clientes.findIndex(c => c.id === id);
-    if (idx === -1) return null;
-    data.clientes[idx] = { ...data.clientes[idx], ...campos };
-    save(data);
-    return data.clientes[idx];
-  },
-  delete(id) {
-    const data = load();
-    data.clientes = data.clientes.filter(c => c.id !== id);
-    save(data);
-  }
+    all(usuarioId = 1) {
+        return db.prepare('SELECT * FROM clientes WHERE usuario_id = ?').all(usuarioId);
+    },
+    find(id) {
+        return db.prepare('SELECT * FROM clientes WHERE id = ?').get(id);
+    },
+    create({ nombre, correo }, usuarioId = 1) {
+        const stmt = db.prepare('INSERT INTO clientes (nombre, correo, usuario_id) VALUES (?, ?, ?)');
+        const info = stmt.run(nombre, correo, usuarioId);
+        return { id: info.lastInsertRowid, nombre, correo };
+    },
+    update(id, campos) {
+        const keys = Object.keys(campos);
+        const values = Object.values(campos);
+        const setClause = keys.map(key => `${key} = ?`).join(', ');
+        const stmt = db.prepare(`UPDATE clientes SET ${setClause} WHERE id = ?`);
+        stmt.run(...values, id);
+        return this.find(id);
+    },
+    delete(id) {
+        db.prepare('DELETE FROM clientes WHERE id = ?').run(id);
+        return { ok: true };
+    }
 };
-
-// ── Suscripciones ──────────────────────────────────────────────────────
 
 const suscripciones = {
-  all() {
-    return load().suscripciones;
-  },
-  activas() {
-    return load().suscripciones.filter(s => s.activa);
-  },
-  find(id) {
-    return load().suscripciones.find(s => s.id === id) || null;
-  },
-  create({ cliente_id, tipo, monto, dia_cobro, descripcion = "" }) {
-    const data = load();
-    const rec  = {
-      id: nextId(data, "suscripciones"),
-      cliente_id, tipo,
-      monto: Number(monto),
-      dia_cobro: Number(dia_cobro),
-      descripcion,
-      activa: true,
-      creado_en: new Date().toISOString()
-    };
-    data.suscripciones.push(rec);
-    save(data);
-    return rec;
-  },
-  update(id, campos) {
-    const data = load();
-    const idx  = data.suscripciones.findIndex(s => s.id === id);
-    if (idx === -1) return null;
-    data.suscripciones[idx] = { ...data.suscripciones[idx], ...campos };
-    save(data);
-    return data.suscripciones[idx];
-  }
+    all(usuarioId = 1) {
+        return db.prepare('SELECT * FROM suscripciones WHERE usuario_id = ?').all(usuarioId).map(fixBool);
+    },
+    activas(usuarioId = 1) {
+        return db.prepare('SELECT * FROM suscripciones WHERE activa = 1 AND usuario_id = ?').all(usuarioId).map(fixBool);
+    },
+    find(id) {
+        return fixBool(db.prepare('SELECT * FROM suscripciones WHERE id = ?').get(id));
+    },
+    create({ cliente_id, tipo, monto, dia_cobro }, usuarioId = 1) {
+        const stmt = db.prepare('INSERT INTO suscripciones (cliente_id, usuario_id, tipo, monto, dia_cobro, activa) VALUES (?, ?, ?, ?, ?, ?)');
+        const info = stmt.run(cliente_id, usuarioId, tipo, Number(monto), Number(dia_cobro), 1);
+        return { id: info.lastInsertRowid, cliente_id, tipo, monto, dia_cobro, activa: true };
+    },
+    update(id, campos) {
+        if (campos.activa !== undefined) campos.activa = campos.activa ? 1 : 0;
+        const keys = Object.keys(campos);
+        const values = Object.values(campos);
+        const setClause = keys.map(key => `${key} = ?`).join(', ');
+        const stmt = db.prepare(`UPDATE suscripciones SET ${setClause} WHERE id = ?`);
+        stmt.run(...values, id);
+        return this.find(id);
+    }
 };
 
-// ── Historial ──────────────────────────────────────────────────────────
-
 const historial = {
-  all() {
-    return load().historial.sort((a, b) => new Date(b.fecha_envio) - new Date(a.fecha_envio));
-  },
-  create({ suscripcion_id, estado, monto, error = null }) {
-    const data = load();
-    const rec  = {
-      id: nextId(data, "historial"),
-      suscripcion_id,
-      fecha_envio: new Date().toISOString(),
-      estado,
-      monto,
-      error
-    };
-    data.historial.push(rec);
-    save(data);
-    return rec;
-  }
+    all(usuarioId = 1) {
+        return db.prepare('SELECT * FROM historial WHERE usuario_id = ? ORDER BY fecha DESC').all(usuarioId);
+    },
+    create({ suscripcion_id, estado, detalles }, usuarioId = 1) {
+        const stmt = db.prepare('INSERT INTO historial (suscripcion_id, usuario_id, fecha, estado, detalles) VALUES (?, ?, ?, ?, ?)');
+        const fecha = new Date().toISOString();
+        const info = stmt.run(suscripcion_id, usuarioId, fecha, estado, detalles);
+        return { id: info.lastInsertRowid, suscripcion_id, fecha, estado, detalles };
+    }
 };
 
 module.exports = { clientes, suscripciones, historial };
