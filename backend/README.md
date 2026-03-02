@@ -103,6 +103,7 @@ GET    /historial             → Listar todos los envíos
 
 ### Acciones
 ```
+GET    /                      → Página de inicio HTML con enlaces útiles
 POST   /run                   → Forzar ejecución de cobros ahora (pruebas)
 GET    /health                → Estado del servidor
 ```

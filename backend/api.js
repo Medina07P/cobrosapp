@@ -1,7 +1,6 @@
 // api.js — Rutas REST para gestionar clientes, suscripciones e historial
 
 const http = require("http");
-const url = require("url");
 const db = require("./db");
 const { procesarCobrosDelDia, estaProcesandoCobros } = require("./scheduler");
 
@@ -23,6 +22,11 @@ function responseHeaders(extra = {}) {
 function json(res, status, data) {
   res.writeHead(status, responseHeaders());
   res.end(JSON.stringify(data));
+}
+
+function html(res, status, content) {
+  res.writeHead(status, responseHeaders({ "Content-Type": "text/html; charset=utf-8" }));
+  res.end(content);
 }
 
 function parseBody(req) {
@@ -101,7 +105,9 @@ function autorizado(req) {
 // ── Router ─────────────────────────────────────────────────────────────
 
 async function handler(req, res) {
-  const { pathname } = url.parse(req.url);
+  // Usamos WHATWG URL API para evitar warning/deprecación de url.parse().
+  const requestUrl = new URL(req.url, "http://localhost");
+  const { pathname } = requestUrl;
   const method = req.method;
 
   if (method === "OPTIONS") {
@@ -110,7 +116,7 @@ async function handler(req, res) {
     return;
   }
 
-  if (pathname !== "/health" && !autorizado(req)) {
+  if (!["/health", "/"].includes(pathname) && !autorizado(req)) {
     return json(res, 401, { error: "No autorizado" });
   }
 
@@ -180,6 +186,42 @@ async function handler(req, res) {
       return json(res, 200, { status: "ok", timestamp: new Date().toISOString() });
     }
 
+    if (pathname === "/" && method === "GET") {
+      return html(res, 200, `<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SGCRC API</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 2rem; background: #0b1020; color: #e8eaf0; }
+    .card { max-width: 760px; margin: 0 auto; background: #11182c; border: 1px solid #24304a; border-radius: 12px; padding: 1.25rem 1.4rem; }
+    h1 { margin: 0 0 0.5rem; font-size: 1.35rem; }
+    p { color: #b8c1d9; }
+    ul { margin: 1rem 0 0; padding-left: 1rem; }
+    li { margin: 0.45rem 0; }
+    a { color: #8ab4ff; text-decoration: none; }
+    code { color: #9ad1a5; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>✅ SGCRC API activa</h1>
+    <p>Esta es una página de inicio rápida para comprobar que el backend está corriendo.</p>
+    <ul>
+      <li><a href="/health"><code>GET /health</code></a></li>
+      <li><code>GET/POST /clientes</code></li>
+      <li><code>PUT/DELETE /clientes/:id</code></li>
+      <li><code>GET/POST /suscripciones</code></li>
+      <li><code>PUT /suscripciones/:id</code></li>
+      <li><code>GET /historial</code></li>
+      <li><code>POST /run</code></li>
+    </ul>
+  </div>
+</body>
+</html>`);
+    }
+
     json(res, 404, { error: "Ruta no encontrada" });
   } catch (err) {
     console.error("Error en API:", err.message);
@@ -190,9 +232,13 @@ async function handler(req, res) {
 function iniciarAPI(puerto) {
   const server = http.createServer(handler);
   server.listen(puerto, () => {
-    console.log(`🚀 API corriendo en http://localhost:${puerto}`);
+    const address = server.address();
+    const port = address && typeof address === "object" ? address.port : puerto;
+    console.log(`🚀 API corriendo en http://localhost:${port}`);
     if (API_KEY) console.log("🔐 API protegida por X-API-Key");
+    console.log("   GET       /      ← info básica de la API");
   });
+  return server;
 }
 
 module.exports = { iniciarAPI };
