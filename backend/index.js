@@ -14,7 +14,10 @@ async function main() {
   console.log("═══════════════════════════════════════════");
 
   // 1. Verificar conexión SMTP
-  await verificarConexion();
+  const smtpOk = await verificarConexion();
+  if (!smtpOk && process.env.SMTP_REQUIRED === "true") {
+    throw new Error("No fue posible conectar a SMTP (SMTP_REQUIRED=true)");
+  }
 
   // 2. Arrancar el scheduler diario
   iniciarScheduler();
