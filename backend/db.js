@@ -19,8 +19,13 @@ const clientes = {
         return { id: info.lastInsertRowid, nombre, correo };
     },
     update(id, campos) {
-        const keys = Object.keys(campos);
-        const values = Object.values(campos);
+        // Filtramos para evitar errores si vienen campos extra
+        const { id: _id, usuario_id, ...validos } = campos;
+        const keys = Object.keys(validos);
+        const values = Object.values(validos);
+        
+        if (keys.length === 0) return this.find(id);
+
         const setClause = keys.map(key => `${key} = ?`).join(', ');
         const stmt = db.prepare(`UPDATE clientes SET ${setClause} WHERE id = ?`);
         stmt.run(...values, id);
@@ -42,9 +47,7 @@ const suscripciones = {
     find(id) {
         return fixBool(db.prepare('SELECT * FROM suscripciones WHERE id = ?').get(id));
     },
-    // MEJORADO: Validación estricta de monto y cliente
     create({ cliente_id, tipo, monto, dia_cobro, frecuencia }, usuarioId = 1) {
-        // Validación manual antes de intentar el SQL
         if (!cliente_id) throw new Error("VALIDATION_ERROR: Debe seleccionar un cliente.");
         
         const montoFinal = parseFloat(monto);
@@ -73,7 +76,6 @@ const suscripciones = {
                 activa: true 
             };
         } catch (err) {
-            // Traducimos el error técnico de la base de datos a algo lógico
             if (err.message.includes("FOREIGN KEY")) {
                 throw new Error("VALIDATION_ERROR: El cliente seleccionado no existe en el sistema.");
             }
@@ -81,9 +83,19 @@ const suscripciones = {
         }
     },
     update(id, campos) {
+        // ── CORRECCIÓN CRÍTICA ──
+        // 1. Convertimos el booleano a 0 o 1 para SQLite
         if (campos.activa !== undefined) campos.activa = campos.activa ? 1 : 0;
-        const keys = Object.keys(campos);
-        const values = Object.values(campos);
+        
+        // 2. Extraemos 'descripcion' y otros campos que NO existen en la tabla 
+        // para que no causen error "no such column"
+        const { descripcion, id: _id, usuario_id, ...soloColumnasReales } = campos;
+
+        const keys = Object.keys(soloColumnasReales);
+        const values = Object.values(soloColumnasReales);
+        
+        if (keys.length === 0) return this.find(id);
+
         const setClause = keys.map(key => `${key} = ?`).join(', ');
         const stmt = db.prepare(`UPDATE suscripciones SET ${setClause} WHERE id = ?`);
         stmt.run(...values, id);
@@ -95,7 +107,6 @@ const historial = {
     all(usuarioId = 1) {
         return db.prepare('SELECT * FROM historial WHERE usuario_id = ? ORDER BY fecha DESC').all(usuarioId);
     },
-    // MANTENIDO: Lógica de inserción sin la columna 'monto' si tu tabla no la tiene
     create({ suscripcion_id, estado, detalles, fecha }, usuarioId = 1) {
         const stmt = db.prepare(`
             INSERT INTO historial (suscripcion_id, usuario_id, fecha, estado, detalles) 
@@ -110,7 +121,7 @@ const historial = {
             suscripcion_id, 
             fecha: fechaFinal, 
             estado, 
-            detalles 
+            detalces: detalles 
         };
     }
 };
