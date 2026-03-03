@@ -78,39 +78,51 @@ export default function Suscripciones() {
 
       <div className="bg-white rounded-xl shadow-sm overflow-auto">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-500">
-            <tr>
-              <th className="text-left p-3">Cliente</th>
-              <th className="text-left p-3">Tipo</th>
-              <th className="text-left p-3">Frecuencia</th> {/* Nueva columna */}
-              <th className="text-left p-3">Monto</th>
-              <th className="text-left p-3">Día</th>
-              <th className="text-left p-3">Estado</th>
-              <th className="text-right p-3">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {subs.map((s) => (
-              <tr key={s.id} className="border-t hover:bg-slate-50 transition-colors">
-                <td className="p-3 font-medium">{clientes.find((c) => c.id === s.cliente_id)?.nombre || '-'}</td>
-                <td className="p-3">{s.tipo}</td>
-                <td className="p-3 capitalize text-slate-500">{s.frecuencia || 'mensual'}</td>
-                <td className="p-3 font-mono text-emerald-600">{fmt(s.monto)}</td>
-                <td className="p-3">{s.dia_cobro}</td>
-                <td className="p-3">
-                  <span className={`px-2 py-1 rounded-full text-xs ${s.activa ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>
-                    {s.activa ? 'Activa' : 'Inactiva'}
-                  </span>
-                </td>
-                <td className="p-3 text-right">
-                  <button className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-indigo-600 transition-colors" onClick={() => { setEditing(s); setForm({ ...s, frecuencia: s.frecuencia || 'mensual' }) }}>
-                    Editar
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+  <thead className="bg-slate-50 text-slate-500">
+    <tr>
+      <th className="text-left p-3">Cliente</th>
+      <th className="text-left p-3">Tipo</th>
+      <th className="text-left p-3">Frecuencia</th>
+      <th className="text-left p-3">Monto</th>
+      <th className="text-left p-3">Día</th>
+      <th className="text-left p-3">Estado</th>
+      <th className="text-right p-3">Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    {subs.map((s) => (
+      <tr key={s.id} className="border-t hover:bg-slate-50 transition-colors">
+        <td className="p-3 font-medium">
+          {clientes.find((c) => c.id === s.cliente_id)?.nombre || '-'}
+        </td>
+        <td className="p-3">{s.tipo}</td>
+        <td className="p-3 capitalize text-slate-500">
+          {s.frecuencia || 'mensual'}
+        </td>
+        <td className="p-3 font-mono text-emerald-600">{fmt(s.monto)}</td>
+        <td className="p-3">{s.dia_cobro}</td>
+        <td className="p-3">
+          <span className={`px-2 py-1 rounded-full text-xs ${
+            s.activa ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
+          }`}>
+            {s.activa ? 'Activa' : 'Inactiva'}
+          </span>
+        </td>
+        <td className="p-3 text-right">
+          <button 
+            className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-indigo-600 transition-colors" 
+            onClick={() => { 
+              setEditing(s); 
+              setForm({ ...s, frecuencia: s.frecuencia || 'mensual' });
+            }}
+          >
+            Editar
+          </button>
+        </td>
+      </tr>
+    ))}
+  </tbody>
+</table>
       </div>
     </div>
   )

@@ -1,12 +1,8 @@
 // src/api.js — Capa de acceso al backend (Versión Proxy + JWT)
 
-// IMPORTANTE: Usamos '/api' para que el proxy de Vite intercepte la petición.
-// Esto evita errores de CORS y problemas de puertos en desarrollo.
 const BASE = '/api';
-
 let runtimeToken = '';
 
-// Esta función recibe "Bearer <TOKEN>" desde App.jsx
 export function setApiKey(token) {
   runtimeToken = token || '';
 }
@@ -16,7 +12,6 @@ async function req(method, path, body) {
     'Content-Type': 'application/json' 
   };
 
-  // Inyectamos el token JWT si existe
   if (runtimeToken) {
     headers['Authorization'] = runtimeToken;
   }
@@ -28,27 +23,42 @@ async function req(method, path, body) {
       body: body ? JSON.stringify(body) : undefined,
     });
 
-    // Si el token expiró o es inválido (401), limpiamos la sesión
+    // Manejo de sesión expirada
     if (res.status === 401) {
       localStorage.removeItem('sgcrc_session');
-      // Podrías añadir un window.location.reload() aquí para forzar el login
+      // Opcional: window.location.href = '/login';
     }
 
+    // --- CORRECCIÓN CRÍTICA PARA EL ERROR 409 ---
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || `Error ${res.status}`);
+      const errData = await res.json().catch(() => ({}));
+      
+      // Creamos un objeto de error enriquecido
+      const error = new Error(errData.error || `Error ${res.status}`);
+      
+      // Adjuntamos la respuesta para que el Dashboard pueda ver el status (409)
+      // y los datos (requiereConfirmacion, mensaje)
+      error.response = {
+        status: res.status,
+        data: errData
+      };
+      
+      throw error;
     }
 
     if (res.status === 204) return null;
     return res.json();
   } catch (error) {
-    console.error("API Error:", error.message);
+    // Si no tiene el objeto response (error de red), lo logueamos
+    if (!error.response) {
+      console.error("Network/Runtime Error:", error.message);
+    }
     throw error;
   }
 }
 
 export const api = {
-  // Autenticación (Nuevas rutas)
+  // Autenticación
   login: (credentials) => req('POST', '/auth/login', credentials),
   register: (userData) => req('POST', '/auth/register', userData),
 
@@ -65,6 +75,9 @@ export const api = {
 
   // Historial y utilidades
   getHistorial: () => req('GET', '/historial'),
-  runCobros: () => req('POST', '/run'),
+  
+  // CORRECCIÓN: Ahora acepta el objeto de datos (confirmarReenvio)
+  runCobros: (data) => req('POST', '/run', data),
+  
   health: () => req('GET', '/health'),
 };
