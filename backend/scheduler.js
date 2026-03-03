@@ -10,6 +10,33 @@ function estaProcesandoCobros() {
   return procesandoCobros;
 }
 
+// NUEVA FUNCIÓN: Lógica de validación por frecuencia
+function tocaCobrarHoy(sus, diaActual, diaSemana, diasMes) {
+  // Ajuste de seguridad: el día de cobro no puede superar el último día del mes actual
+  const diaBase = Math.min(sus.dia_cobro, diasMes);
+
+  switch (sus.frecuencia) {
+    case 'quincenal':
+      // Cobra el día programado y 15 días después
+      const segundaFecha = diaBase + 15;
+      const diaAjustado = segundaFecha > diasMes ? segundaFecha - diasMes : segundaFecha;
+      return diaActual === diaBase || diaActual === diaAjustado;
+    
+    case 'semanal':
+      // El dia_cobro (1-7) representa el día de la semana
+      return diaSemana === (sus.dia_cobro % 7);
+      
+    case 'anual':
+      // Requiere que hoy sea el día base y el mes de cobro coincida
+      const hoy = new Date();
+      return diaActual === diaBase && hoy.getMonth() === (sus.mes_cobro || 0);
+
+    case 'mensual':
+    default:
+      return diaActual === diaBase;
+  }
+}
+
 async function procesarCobrosDelDia(usuarioIdFijo = null) {
   if (procesandoCobros) {
     console.log("⏭️ Cobros omitidos: ya hay una ejecución en curso.");
@@ -22,6 +49,7 @@ async function procesarCobrosDelDia(usuarioIdFijo = null) {
   try {
     const hoy = new Date();
     const diaActual = hoy.getDate();
+    const diaSemana = hoy.getDay(); 
     const diasMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
 
     console.log(`\n⏰ [${hoy.toLocaleString("es-CO")}] Iniciando ciclo...`);
@@ -37,10 +65,10 @@ async function procesarCobrosDelDia(usuarioIdFijo = null) {
     for (const usuario of usuarios) {
       const suscripciones = db.suscripciones.activas(usuario.id);
       
-      const paraHoy = suscripciones.filter((s) => {
-        const diaEfectivo = Math.min(s.dia_cobro, diasMes);
-        return diaEfectivo === diaActual;
-      });
+      // FILTRO ACTUALIZADO: Usa la nueva función de lógica de frecuencia
+      const paraHoy = suscripciones.filter((s) => 
+        tocaCobrarHoy(s, diaActual, diaSemana, diasMes)
+      );
 
       if (paraHoy.length === 0) continue;
 
@@ -55,17 +83,17 @@ async function procesarCobrosDelDia(usuarioIdFijo = null) {
             usuarioConfig: usuario 
           });
 
-          // CORRECCIÓN: Pasamos monto y fecha explícitamente para evitar NaN/Invalid Date
+          // Mantenemos tus correcciones para evitar NaN/Invalid Date
           db.historial.create({
             suscripcion_id: sus.id,
-            monto: sus.monto, // Asegúrate de que el modelo reciba esto
+            monto: sus.monto, 
             fecha: new Date().toISOString(), 
             estado: "Enviado",
-            detalles: `Cobro ${sus.tipo} enviado con éxito.`
+            detalles: `Cobro ${sus.frecuencia || 'mensual'} enviado con éxito.`
           }, usuario.id);
 
           totalEnviados++;
-          console.log(` ✅ Enviado → ${cliente.nombre}`);
+          console.log(` ✅ Enviado (${sus.frecuencia || 'mensual'}) → ${cliente.nombre}`);
         } catch (err) {
           db.historial.create({
             suscripcion_id: sus.id,
@@ -80,7 +108,6 @@ async function procesarCobrosDelDia(usuarioIdFijo = null) {
     }
     return { success: true, enviados: totalEnviados };
   } finally {
-    // Esto garantiza que el botón se desbloquee incluso si el código falla
     procesandoCobros = false;
   }
 }

@@ -42,10 +42,15 @@ const suscripciones = {
     find(id) {
         return fixBool(db.prepare('SELECT * FROM suscripciones WHERE id = ?').get(id));
     },
-    create({ cliente_id, tipo, monto, dia_cobro }, usuarioId = 1) {
-        const stmt = db.prepare('INSERT INTO suscripciones (cliente_id, usuario_id, tipo, monto, dia_cobro, activa) VALUES (?, ?, ?, ?, ?, ?)');
-        const info = stmt.run(cliente_id, usuarioId, tipo, Number(monto), Number(dia_cobro), 1);
-        return { id: info.lastInsertRowid, cliente_id, tipo, monto, dia_cobro, activa: true };
+    // CORRECCIÓN: Se añade 'frecuencia' a la inserción
+    create({ cliente_id, tipo, monto, dia_cobro, frecuencia }, usuarioId = 1) {
+        const stmt = db.prepare(`
+            INSERT INTO suscripciones (cliente_id, usuario_id, tipo, monto, dia_cobro, frecuencia, activa) 
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `);
+        const valorFrecuencia = frecuencia || 'mensual';
+        const info = stmt.run(cliente_id, usuarioId, tipo, Number(monto), Number(dia_cobro), valorFrecuencia, 1);
+        return { id: info.lastInsertRowid, cliente_id, tipo, monto, dia_cobro, frecuencia: valorFrecuencia, activa: true };
     },
     update(id, campos) {
         if (campos.activa !== undefined) campos.activa = campos.activa ? 1 : 0;
@@ -60,13 +65,21 @@ const suscripciones = {
 
 const historial = {
     all(usuarioId = 1) {
+        // Se recomienda unir con clientes o suscripciones para mostrar nombres en el frontend si es necesario
         return db.prepare('SELECT * FROM historial WHERE usuario_id = ? ORDER BY fecha DESC').all(usuarioId);
     },
-    create({ suscripcion_id, estado, detalles }, usuarioId = 1) {
-        const stmt = db.prepare('INSERT INTO historial (suscripcion_id, usuario_id, fecha, estado, detalles) VALUES (?, ?, ?, ?, ?)');
-        const fecha = new Date().toISOString();
-        const info = stmt.run(suscripcion_id, usuarioId, fecha, estado, detalles);
-        return { id: info.lastInsertRowid, suscripcion_id, fecha, estado, detalles };
+    // CORRECCIÓN: Se añade 'monto' para evitar el error NaN en la interfaz
+    create({ suscripcion_id, monto, estado, detalles, fecha }, usuarioId = 1) {
+        const stmt = db.prepare(`
+            INSERT INTO historial (suscripcion_id, usuario_id, fecha, monto, estado, detalles) 
+            VALUES (?, ?, ?, ?, ?, ?)
+        `);
+        // Si no viene fecha, generamos una nueva. Aseguramos que el monto sea un número.
+        const fechaFinal = fecha || new Date().toISOString();
+        const montoFinal = Number(monto) || 0;
+        
+        const info = stmt.run(suscripcion_id, usuarioId, fechaFinal, montoFinal, estado, detalles);
+        return { id: info.lastInsertRowid, suscripcion_id, fecha: fechaFinal, monto: montoFinal, estado, detalles };
     }
 };
 
