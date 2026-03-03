@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api.js'
 
-// Formateador de moneda colombiana
 const fmt = (n) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n)
 
-// Función para calcular días restantes
 function calcularDiasFaltantes(diaCobro) {
   const hoy = new Date()
   const year = hoy.getFullYear()
@@ -23,6 +21,7 @@ function calcularDiasFaltantes(diaCobro) {
 export default function Dashboard() {
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
+  const [loadingProceso, setLoadingProceso] = useState(false) // Nuevo estado de carga
 
   const cargar = async () => {
     setError('')
@@ -40,7 +39,27 @@ export default function Dashboard() {
 
   useEffect(() => { cargar() }, [])
 
-  // Procesamiento de datos con useMemo para mejor rendimiento
+  // Función mejorada para el botón
+  const handleForzarCobros = async () => {
+    if (loadingProceso) return;
+    
+    setLoadingProceso(true);
+    try {
+      const res = await api.runCobros();
+      // Mostramos mensaje con el total de enviados que devuelve tu nueva API
+      alert(res.message || `Proceso completado con éxito.`);
+      await cargar(); // Recargar estadísticas
+    } catch (e) {
+      if (e.message.includes('409') || e.message.includes('ejecución')) {
+        alert("El sistema ya está procesando los cobros en este momento.");
+      } else {
+        alert("Error al procesar: " + e.message);
+      }
+    } finally {
+      setLoadingProceso(false);
+    }
+  }
+
   const stats = useMemo(() => {
     if (!data) return null
     const { clientes, suscripciones, historial } = data
@@ -65,17 +84,29 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 p-4">
-      {/* Encabezado */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-extrabold text-slate-800">Dashboard</h2>
           <p className="text-slate-500 text-sm">Resumen general de cobros recurrentes</p>
         </div>
         <button 
-          className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl px-5 py-2.5 transition-all shadow-lg shadow-indigo-200"
-          onClick={async () => { await api.runCobros(); await cargar() }}
+          disabled={loadingProceso}
+          className={`${
+            loadingProceso ? 'bg-slate-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'
+          } text-white font-medium rounded-xl px-5 py-2.5 transition-all shadow-lg flex items-center gap-2`}
+          onClick={handleForzarCobros}
         >
-          🚀 Forzar proceso de cobros
+          {loadingProceso ? (
+            <>
+              <span className="animate-spin text-lg">⏳</span>
+              Procesando...
+            </>
+          ) : (
+            <>
+              <span>🚀</span>
+              Forzar proceso de cobros
+            </>
+          )}
         </button>
       </div>
 
@@ -91,10 +122,10 @@ export default function Dashboard() {
           <div key={item.label} className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-2">
               <span className="text-2xl">{item.icon}</span>
-              <span className={`text-xs font-bold px-2 py-1 rounded-full bg-slate-50 ${item.color}`}>Métrica</span>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-50 ${item.color}`}>Métrica</span>
             </div>
             <p className="text-sm text-slate-500 font-medium">{item.label}</p>
-            <p className="text-2xl font-bold text-slate-800">{item.value}</p>
+            <p className="text-xl font-bold text-slate-800">{item.value}</p>
           </div>
         ))}
       </div>
@@ -112,7 +143,7 @@ export default function Dashboard() {
               stats.proximos.map((s) => (
                 <div key={s.id} className="flex items-center justify-between p-4 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors">
                   <div className="flex items-center space-x-4">
-                    <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center font-bold text-indigo-600 shadow-sm">
+                    <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center font-bold text-indigo-600 shadow-sm border border-slate-100">
                       {s.cliente?.nombre?.charAt(0)}
                     </div>
                     <div>

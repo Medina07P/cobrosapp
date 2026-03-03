@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { api, setApiKey } from './api.js' // Nota: Seguimos usando setApiKey pero ahora le pasaremos el Token
+import { api, setApiKey } from './api.js'
 import Login from './views/Login.jsx'
 import Dashboard from './views/Dashboard.jsx'
 import Clientes from './views/Clientes.jsx'
@@ -19,31 +19,41 @@ export default function App() {
   const [view, setView] = useState('dashboard')
   const [backendOk, setBackendOk] = useState(null)
   
-  // Usamos localStorage en lugar de sessionStorage para que la sesión no se borre al cerrar la pestaña
+  // 1. CARGA INICIAL Y CONFIGURACIÓN INMEDIATA
   const [session, setSession] = useState(() => {
     const raw = localStorage.getItem('sgcrc_session')
-    return raw ? JSON.parse(raw) : null
+    if (raw) {
+      try {
+        const data = JSON.parse(raw)
+        // Configuramos el token AQUÍ mismo para que esté listo 
+        // antes del primer renderizado de las vistas
+        if (data.token) {
+          setApiKey(`Bearer ${data.token}`)
+        }
+        return data
+      } catch (e) {
+        return null
+      }
+    }
+    return null
   })
 
-  // Sincronizar el Token con el objeto de la API
-  useEffect(() => {
-    if (session?.token) {
-      // Configuramos el header Authorization: Bearer <token>
-      setApiKey(`Bearer ${session.token}`) 
-    } else {
-      setApiKey('')
-    }
-  }, [session])
-
-  // Verificar salud del backend
+  // 2. VERIFICAR SALUD DEL BACKEND
   useEffect(() => {
     if (!session) return
+    
     api.health()
       .then(() => setBackendOk(true))
-      .catch(() => setBackendOk(false))
+      .catch((err) => {
+        // Si el backend responde 401 en el health check, la sesión expiró
+        if (err.message?.includes('401')) {
+          handleLogout()
+        } else {
+          setBackendOk(false)
+        }
+      })
   }, [session])
 
-  // Memoizamos las vistas para que no se rendericen innecesariamente
   const VIEWS = useMemo(() => ({
     dashboard: <Dashboard />,
     clientes: <Clientes />,
@@ -52,21 +62,24 @@ export default function App() {
     calendario: <Calendario />,
   }), [])
 
-  // Función para cerrar sesión de forma segura
   const handleLogout = () => {
     localStorage.removeItem('sgcrc_session')
+    setApiKey('') // Limpiamos el token de la API
     setSession(null)
     setBackendOk(null)
     setView('dashboard')
   }
 
-  // Si no hay sesión, mostramos el Login
+  // 3. LOGIN CON SINCRONIZACIÓN
   if (!session) {
     return (
       <Login onLogin={(data) => { 
-        // Guardamos todo el objeto (incluyendo token y datos del usuario)
-        localStorage.setItem('sgcrc_session', JSON.stringify(data)); 
-        setSession(data);
+        // Primero configuramos el motor de la API
+        setApiKey(`Bearer ${data.token}`)
+        // Luego guardamos en persistencia
+        localStorage.setItem('sgcrc_session', JSON.stringify(data))
+        // Finalmente activamos la sesión en el estado
+        setSession(data)
       }} />
     )
   }
@@ -79,7 +92,8 @@ export default function App() {
           <span className="text-indigo-400">●</span> SGCRC
         </div>
         <div className="text-[10px] text-slate-500 mb-6 uppercase tracking-widest font-bold">
-          Usuario: {session.nombre || 'Admin'}
+          {/* Usamos session.user.nombre si esa es la estructura de tu backend */}
+          Usuario: {session.user?.nombre || session.nombre || 'Admin'}
         </div>
         
         {NAV.map((n) => (
@@ -96,7 +110,9 @@ export default function App() {
       <main className="flex-1 p-4 md:p-6 overflow-y-auto">
         <header className="bg-white rounded-xl p-4 shadow-sm mb-4 flex items-center justify-between gap-3 border border-slate-200">
           <div>
-            <h1 className="font-bold text-slate-800">Panel de {session.nombre}</h1>
+            <h1 className="font-bold text-slate-800">
+              Panel de {session.user?.nombre || session.nombre}
+            </h1>
             <p className="text-xs text-slate-400">Gestión de Cobros Recurrentes</p>
           </div>
           <div className="flex items-center gap-3">
@@ -112,7 +128,6 @@ export default function App() {
           </div>
         </header>
 
-        {/* Navegación móvil */}
         <div className="md:hidden bg-white rounded-xl p-2 shadow-sm mb-4 flex flex-wrap gap-2 border border-slate-200">
           {NAV.map((n) => (
             <button 
@@ -125,7 +140,6 @@ export default function App() {
           ))}
         </div>
 
-        {/* Renderizado de la vista actual */}
         <div className="animate-in fade-in duration-500">
           {VIEWS[view]}
         </div>

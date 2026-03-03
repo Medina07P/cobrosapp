@@ -11,7 +11,7 @@ const SECRET_KEY = process.env.JWT_SECRET || 'clave_maestra_super_secreta_123';
 function responseHeaders(extra = {}) {
   return {
     "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*", // Permite peticiones desde el frontend (Vite)
+    "Access-Control-Allow-Origin": "*", 
     "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type,Authorization,X-API-Key",
     ...extra,
@@ -43,7 +43,7 @@ function idFrom(pathname, base) {
   return Number.isNaN(n) ? null : n;
 }
 
-// Validaciones básicas
+// Validaciones
 function validarCliente(body) {
   if (!body.nombre || !body.nombre.trim()) return "Nombre es requerido";
   if (!body.correo || !body.correo.includes("@")) return "Correo inválido";
@@ -71,13 +71,11 @@ function obtenerUsuario(req) {
 // ── Router Principal ───────────────────────────────────────────────────
 
 async function handler(req, res) {
-  // Manejo robusto de la URL
   const host = req.headers.host || 'localhost:3000';
   const requestUrl = new URL(req.url, `http://${host}`);
   const pathname = requestUrl.pathname;
   const method = req.method;
 
-  // 1. Responder a CORS Preflight
   if (method === "OPTIONS") {
     res.writeHead(204, responseHeaders({ "Content-Length": "0" }));
     res.end();
@@ -85,7 +83,6 @@ async function handler(req, res) {
   }
 
   try {
-    // 2. Rutas Públicas
     if (pathname === "/auth/register" && method === "POST") {
       req.body = await parseBody(req);
       return auth.registrar(req, res);
@@ -96,13 +93,12 @@ async function handler(req, res) {
     }
     if (pathname === "/health") return json(res, 200, { status: "ok" });
 
-    // 3. Verificación de Token para rutas privadas
     const usuario = obtenerUsuario(req);
     if (!usuario) {
       return json(res, 401, { error: "No autorizado. Inicie sesión." });
     }
 
-    // 4. Rutas Privadas (Clientes, Suscripciones, Historial)
+    // --- RUTAS DE CLIENTES ---
     if (pathname === "/clientes") {
       if (method === "GET") return json(res, 200, db.clientes.all(usuario.id));
       if (method === "POST") {
@@ -125,6 +121,7 @@ async function handler(req, res) {
       }
     }
 
+    // --- RUTAS DE SUSCRIPCIONES ---
     if (pathname === "/suscripciones") {
       if (method === "GET") return json(res, 200, db.suscripciones.all(usuario.id));
       if (method === "POST") {
@@ -135,17 +132,30 @@ async function handler(req, res) {
       }
     }
 
+    // --- RUTA DE HISTORIAL ---
     if (pathname === "/historial" && method === "GET") {
       return json(res, 200, db.historial.all(usuario.id));
     }
 
+    // --- RUTA PARA FORZAR COBRO (CORREGIDA) ---
     if (pathname === "/run" && method === "POST") {
-      if (estaProcesandoCobros()) return json(res, 409, { error: "En ejecución" });
-      procesarCobrosDelDia(usuario.id);
-      return json(res, 202, { message: "Proceso iniciado" });
+      if (estaProcesandoCobros()) {
+        return json(res, 409, { error: "En ejecución" });
+      }
+
+      // Esperamos a que el proceso termine para responder con el total enviado
+      const resultado = await procesarCobrosDelDia(usuario.id);
+      
+      if (resultado.success) {
+        return json(res, 200, { 
+          message: `Proceso completado. ${resultado.enviados} correos enviados.`,
+          enviados: resultado.enviados 
+        });
+      } else {
+        return json(res, 500, { error: "Fallo al procesar cobros" });
+      }
     }
 
-    // Ruta no encontrada
     json(res, 404, { error: "Ruta no encontrada" });
 
   } catch (err) {

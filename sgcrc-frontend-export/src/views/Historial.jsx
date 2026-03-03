@@ -1,4 +1,3 @@
-// src/views/Historial.jsx
 import { useState, useEffect } from 'react'
 import { api } from '../api.js'
 import { Badge, Spinner, ErrorMsg, Btn, fmt } from '../components.jsx'
@@ -27,12 +26,25 @@ export default function Historial() {
   const enriquecido = historial.map(h => {
     const sus = subs.find(s => s.id === h.suscripcion_id)
     const cli = clientes.find(c => c.id === sus?.cliente_id)
-    return { ...h, sus, cli }
+    
+    return { 
+      ...h, 
+      sus, 
+      cli,
+      // CORRECCIÓN: Si h.monto no existe (registros viejos), usamos el de la suscripción
+      monto_final: h.monto || sus?.monto || 0,
+      // CORRECCIÓN: Buscamos 'fecha' (nuevo backend) o 'fecha_envio' (registros viejos)
+      fecha_valida: h.fecha || h.fecha_envio 
+    }
   })
 
   const filtrados = filtro === 'todos' ? enriquecido : enriquecido.filter(h => h.estado === filtro)
 
-  const total   = enriquecido.filter(h => h.estado === 'Enviado').reduce((a, h) => a + h.monto, 0)
+  // CORRECCIÓN: Usamos monto_final para el cálculo del total
+  const total   = enriquecido
+    .filter(h => h.estado === 'Enviado')
+    .reduce((a, h) => a + (Number(h.monto_final) || 0), 0)
+    
   const fallidos = enriquecido.filter(h => h.estado === 'Fallido').length
 
   return (
@@ -53,7 +65,6 @@ export default function Historial() {
 
       {error && <ErrorMsg msg={error} onRetry={cargar} />}
 
-      {/* Resumen rápido */}
       <div style={{ display:'flex',gap:'1rem',marginBottom:'1.2rem',flexWrap:'wrap' }}>
         <div style={{ background:'#0f1117',border:'1px solid #2a2d3a',borderRadius:'10px',padding:'0.8rem 1.2rem',flex:1,minWidth:'160px' }}>
           <div style={{ color:'#34d399',fontFamily:'monospace',fontWeight:800,fontSize:'1.2rem' }}>{fmt(total)}</div>
@@ -84,11 +95,17 @@ export default function Historial() {
               : filtrados.map(h => (
                   <tr key={h.id} style={{ borderBottom:'1px solid #1a1d27' }}>
                     <td style={{ padding:'0.85rem 1rem',color:'#8b8fa8',fontFamily:'monospace',whiteSpace:'nowrap',fontSize:'0.82rem' }}>
-                      {new Date(h.fecha_envio).toLocaleString('es-CO', { dateStyle:'short', timeStyle:'short' })}
+                      {/* CORRECCIÓN: Manejo de fecha con fallback */}
+                      {h.fecha_valida 
+                        ? new Date(h.fecha_valida).toLocaleString('es-CO', { dateStyle:'short', timeStyle:'short' }) 
+                        : '—'}
                     </td>
                     <td style={{ padding:'0.85rem 1rem',color:'#e8eaf0' }}>{h.cli?.nombre || '—'}</td>
                     <td style={{ padding:'0.85rem 1rem',color:'#8b8fa8' }}>{h.sus?.tipo || '—'}</td>
-                    <td style={{ padding:'0.85rem 1rem',color:'#34d399',fontFamily:'monospace' }}>{fmt(h.monto)}</td>
+                    <td style={{ padding:'0.85rem 1rem',color:'#34d399',fontFamily:'monospace' }}>
+                      {/* CORRECCIÓN: Usamos monto_final */}
+                      {fmt(h.monto_final)}
+                    </td>
                     <td style={{ padding:'0.85rem 1rem' }}><Badge status={h.estado} /></td>
                   </tr>
                 ))
