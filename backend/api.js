@@ -2,12 +2,11 @@ const http = require("http");
 const db = require("./db");
 const auth = require("./auth");
 const jwt = require('jsonwebtoken');
-const { procesarCobrosDelDia, estaProcesandoCobros } = require("./scheduler");
+const { procesarCobrosDelDia, estaProcesandoCobros, procesarSeleccionados } = require("./scheduler");
 
 const SECRET_KEY = process.env.JWT_SECRET || 'clave_maestra_super_secreta_123';
 
 // ── Helpers HTTP ───────────────────────────────────────────────────────
-
 function responseHeaders(extra = {}) {
   return {
     "Content-Type": "application/json",
@@ -23,38 +22,18 @@ function json(res, status, data) {
   res.end(JSON.stringify(data));
 }
 
-function parseBody(req) {
+async function parseBody(req) {
   return new Promise((resolve, reject) => {
     let body = "";
     req.on("data", (chunk) => (body += chunk));
     req.on("end", () => {
       try {
-        resolve(body ? JSON.parse(body) : {});
-      } catch {
-        reject(new Error("JSON inválido"));
+        resolve(body.trim() ? JSON.parse(body) : {});
+      } catch (err) {
+        reject(new Error("JSON inválido: " + err.message));
       }
     });
   });
-}
-
-function idFrom(pathname, base) {
-  const part = pathname.replace(base + "/", "");
-  const n = parseInt(part, 10);
-  return Number.isNaN(n) ? null : n;
-}
-
-// Validaciones
-function validarCliente(body) {
-  if (!body.nombre || !body.nombre.trim()) return "Nombre es requerido";
-  if (!body.correo || !body.correo.includes("@")) return "Correo inválido";
-  return null;
-}
-
-function validarSuscripcion(body) {
-  if (!body.cliente_id) return "ID de cliente requerido";
-  if (!body.monto || body.monto <= 0) return "Monto inválido";
-  if (!body.dia_cobro || body.dia_cobro < 1 || body.dia_cobro > 31) return "Día de cobro inválido";
-  return null;
 }
 
 function obtenerUsuario(req) {
@@ -94,81 +73,90 @@ async function handler(req, res) {
     if (pathname === "/health") return json(res, 200, { status: "ok" });
 
     const usuario = obtenerUsuario(req);
-    if (!usuario) {
-      return json(res, 401, { error: "No autorizado. Inicie sesión." });
-    }
+    if (!usuario) return json(res, 401, { error: "No autorizado. Inicie sesión." });
 
-    // --- RUTAS DE CLIENTES ---
+    // ── Clientes ──
     if (pathname === "/clientes") {
       if (method === "GET") return json(res, 200, db.clientes.all(usuario.id));
       if (method === "POST") {
         const body = await parseBody(req);
-        const err = validarCliente(body);
-        if (err) return json(res, 400, { error: err });
         return json(res, 201, db.clientes.create(body, usuario.id));
       }
     }
 
-    if (pathname.startsWith("/clientes/")) {
-      const id = idFrom(pathname, "/clientes");
-      if (method === "PUT") {
-        const body = await parseBody(req);
-        return json(res, 200, db.clientes.update(id, body));
-      }
-      if (method === "DELETE") {
-        db.clientes.delete(id);
-        return json(res, 200, { ok: true });
-      }
-    }
-
-    // --- RUTAS DE SUSCRIPCIONES ---
+    // ── Suscripciones (CON MANEJO DE ERRORES DE VALIDACIÓN) ──
     if (pathname === "/suscripciones") {
       if (method === "GET") return json(res, 200, db.suscripciones.all(usuario.id));
       if (method === "POST") {
         const body = await parseBody(req);
-        const err = validarSuscripcion(body);
-        if (err) return json(res, 400, { error: err });
-        return json(res, 201, db.suscripciones.create(body, usuario.id));
+        try {
+          // Intentamos crear la suscripción usando la lógica validada de db.js
+          const nuevaSub = db.suscripciones.create(body, usuario.id);
+          return json(res, 201, nuevaSub);
+        } catch (dbErr) {
+          // Si el error es de validación (monto, cliente id, etc), enviamos 400
+          const esErrorValidacion = dbErr.message.includes("VALIDATION_ERROR");
+          const status = esErrorValidacion ? 400 : 500;
+          const mensaje = dbErr.message.replace("VALIDATION_ERROR: ", "");
+          
+          return json(res, status, { error: mensaje });
+        }
       }
     }
 
-    // --- RUTA DE HISTORIAL ---
     if (pathname === "/historial" && method === "GET") {
       return json(res, 200, db.historial.all(usuario.id));
     }
 
-    // --- RUTA PARA FORZAR COBRO (CORREGIDA) ---
+    // ── Procesar Selección Individual ──
+    if (pathname === "/run-individual" && method === "POST") {
+      const body = await parseBody(req).catch(() => ({}));
+      if (!body.ids || !Array.isArray(body.ids)) {
+        return json(res, 400, { error: "Se requiere un arreglo de IDs en la propiedad 'ids'" });
+      }
+      try {
+        const resultado = await procesarSeleccionados(usuario.id, body.ids);
+        return json(res, 200, { message: "Proceso individual completado", enviados: resultado.enviados });
+      } catch (err) {
+        return json(res, 500, { error: err.message });
+      }
+    }
+
+    // ── Proceso de Cobros General ──
     if (pathname === "/run" && method === "POST") {
-      if (estaProcesandoCobros()) {
-        return json(res, 409, { error: "En ejecución" });
+      if (estaProcesandoCobros()) return json(res, 409, { error: "El proceso ya está en ejecución" });
+
+      const body = await parseBody(req).catch(() => ({}));
+      const hoy = new Date().toISOString().split('T')[0];
+      const enviosHoy = db.historial.all(usuario.id).filter(h => h.fecha.startsWith(hoy) && h.estado === 'Enviado');
+
+      if (enviosHoy.length > 0 && body.confirmarReenvio !== true) {
+        return json(res, 409, { 
+          requiereConfirmacion: true, 
+          mensaje: `Se detectaron ${enviosHoy.length} cobros ya enviados hoy.`,
+          yaEnviadosIds: enviosHoy.map(h => h.suscripcion_id) 
+        });
       }
 
-      // Esperamos a que el proceso termine para responder con el total enviado
-      const resultado = await procesarCobrosDelDia(usuario.id);
-      
-      if (resultado.success) {
-        return json(res, 200, { 
-          message: `Proceso completado. ${resultado.enviados} correos enviados.`,
-          enviados: resultado.enviados 
-        });
-      } else {
-        return json(res, 500, { error: "Fallo al procesar cobros" });
+      try {
+        const resultado = await procesarCobrosDelDia(usuario.id, body.confirmarReenvio || false);
+        return json(res, 200, { message: `Proceso completado exitosamente.`, enviados: resultado.enviados });
+      } catch (subErr) {
+        return json(res, 500, { error: "Error en el motor de envíos: " + subErr.message });
       }
     }
 
     json(res, 404, { error: "Ruta no encontrada" });
 
   } catch (err) {
-    console.error("Error en API:", err.message);
-    json(res, 500, { error: "Error interno del servidor" });
+    console.error("🔥 Error crítico en API:", err); 
+    json(res, 500, { error: "Error interno del servidor: " + err.message });
   }
 }
 
 function iniciarAPI(puerto) {
   const server = http.createServer(handler);
-  server.listen(puerto, () => {
-    console.log(`🚀 API corriendo en http://localhost:${puerto}`);
-  });
+  server.listen(puerto, () => console.log(`🚀 API de Café Valdore lista en puerto ${puerto}`));
   return server;
 }
 
