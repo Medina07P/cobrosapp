@@ -62,6 +62,7 @@ async function handler(req, res) {
   }
 
   try {
+    // ── Rutas Públicas ──
     if (pathname === "/auth/register" && method === "POST") {
       req.body = await parseBody(req);
       return auth.registrar(req, res);
@@ -72,38 +73,63 @@ async function handler(req, res) {
     }
     if (pathname === "/health") return json(res, 200, { status: "ok" });
 
+    // ── Verificación de Usuario ──
     const usuario = obtenerUsuario(req);
     if (!usuario) return json(res, 401, { error: "No autorizado. Inicie sesión." });
 
-    // ── Clientes ──
-    if (pathname === "/clientes") {
-      if (method === "GET") return json(res, 200, db.clientes.all(usuario.id));
-      if (method === "POST") {
+    // ── Clientes (Detección de ID para UPDATE) ──
+    if (pathname.startsWith("/clientes")) {
+      const partes = pathname.split("/");
+      const id = partes[2]; // Captura el ID si viene en /clientes/ID
+
+      if (method === "GET" && !id) return json(res, 200, db.clientes.all(usuario.id));
+      
+      if (method === "POST" && !id) {
         const body = await parseBody(req);
         return json(res, 201, db.clientes.create(body, usuario.id));
       }
+
+      if (method === "PUT" && id) {
+        const body = await parseBody(req);
+        return json(res, 200, db.clientes.update(Number(id), body));
+      }
     }
 
-    // ── Suscripciones (CON MANEJO DE ERRORES DE VALIDACIÓN) ──
-    if (pathname === "/suscripciones") {
-      if (method === "GET") return json(res, 200, db.suscripciones.all(usuario.id));
-      if (method === "POST") {
+    // ── Suscripciones (Detección de ID para UPDATE + VALIDACIONES) ──
+    if (pathname.startsWith("/suscripciones")) {
+      const partes = pathname.split("/");
+      const id = partes[2];
+
+      // Listar todas
+      if (method === "GET" && !id) return json(res, 200, db.suscripciones.all(usuario.id));
+      
+      // Crear nueva
+      if (method === "POST" && !id) {
         const body = await parseBody(req);
         try {
-          // Intentamos crear la suscripción usando la lógica validada de db.js
           const nuevaSub = db.suscripciones.create(body, usuario.id);
           return json(res, 201, nuevaSub);
         } catch (dbErr) {
-          // Si el error es de validación (monto, cliente id, etc), enviamos 400
           const esErrorValidacion = dbErr.message.includes("VALIDATION_ERROR");
           const status = esErrorValidacion ? 400 : 500;
           const mensaje = dbErr.message.replace("VALIDATION_ERROR: ", "");
-          
           return json(res, status, { error: mensaje });
+        }
+      }
+
+      // Actualizar existente (PUT)
+      if (method === "PUT" && id) {
+        const body = await parseBody(req);
+        try {
+          const actualizada = db.suscripciones.update(Number(id), body);
+          return json(res, 200, actualizada);
+        } catch (dbErr) {
+          return json(res, 500, { error: "Error al actualizar suscripción: " + dbErr.message });
         }
       }
     }
 
+    // ── Historial ──
     if (pathname === "/historial" && method === "GET") {
       return json(res, 200, db.historial.all(usuario.id));
     }
@@ -146,6 +172,7 @@ async function handler(req, res) {
       }
     }
 
+    // Respuesta por defecto si nada coincide
     json(res, 404, { error: "Ruta no encontrada" });
 
   } catch (err) {

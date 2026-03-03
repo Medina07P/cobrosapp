@@ -25,23 +25,35 @@ export default function Suscripciones() {
   useEffect(() => { cargar() }, [])
 
   const guardar = async () => {
-    try {
-      // 2. El payload ahora incluye la frecuencia seleccionada
-      const payload = { 
-        ...form, 
-        cliente_id: Number(form.cliente_id), 
-        monto: Number(form.monto), 
-        dia_cobro: Number(form.dia_cobro) 
-      }
-      
-      if (editing) await api.updateSuscripcion(editing.id, payload)
-      else await api.createSuscripcion(payload)
-      
-      setForm(empty)
-      setEditing(null)
-      await cargar()
-    } catch (e) { setError(e.message) }
+  try {
+    setError(''); // Limpiamos errores previos antes de empezar
+
+    // Construimos el objeto con SOLO los campos que el backend espera
+    const payload = { 
+      cliente_id: Number(form.cliente_id), 
+      tipo: form.tipo,
+      monto: Number(form.monto), 
+      dia_cobro: Number(form.dia_cobro),
+      frecuencia: form.frecuencia,
+      activa: !!form.activa // Nos aseguramos de que sea un booleano puro
+    };
+    
+    if (editing) {
+      await api.updateSuscripcion(editing.id, payload);
+    } else {
+      await api.createSuscripcion(payload);
+    }
+    
+    // Si todo sale bien, limpiamos el formulario y refrescamos la lista
+    setForm(empty);
+    setEditing(null);
+    await cargar();
+    
+  } catch (e) { 
+    // Capturamos el error (ya sea de validación o de ruta)
+    setError(e.message); 
   }
+};
 
   return (
     <div className="space-y-4">

@@ -1,6 +1,6 @@
 # ☕ SGCRC - Sistema de Gestión de Cobros Recurrentes
 
-Este sistema automatiza el envío de recordatorios de cobro y la gestión de suscripciones para la marca de café especial **Café Valdore**. Combina un backend robusto en Node.js con un dashboard moderno en React para centralizar la operación comercial.
+Este sistema automatiza el envío de recordatorios de cobro y la gestión de suscripciones. Combina un backend robusto en Node.js con un dashboard moderno en React para centralizar la operación comercial.
 
 ## 🚀 Características Principales
 * **Automatización de Cobros:** Scheduler integrado que procesa pagos diariamente a las 08:00 AM.
