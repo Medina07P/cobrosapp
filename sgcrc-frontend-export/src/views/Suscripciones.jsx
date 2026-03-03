@@ -121,15 +121,35 @@ export default function Suscripciones() {
           </span>
         </td>
         <td className="p-3 text-right">
-          <button 
-            className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-indigo-600 transition-colors" 
-            onClick={() => { 
-              setEditing(s); 
-              setForm({ ...s, frecuencia: s.frecuencia || 'mensual' });
-            }}
-          >
-            Editar
-          </button>
+          <td className="p-3 text-right space-x-2">
+  <button 
+    className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-indigo-600 transition-colors" 
+    onClick={() => { 
+      setEditing(s); 
+      setForm({ ...s, frecuencia: s.frecuencia || 'mensual' });
+    }}
+  >
+    Editar
+  </button>
+
+  {/* BOTÓN DE ELIMINAR AÑADIDO */}
+  <button 
+    className="px-3 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 transition-colors font-medium" 
+    onClick={async () => { 
+      if (window.confirm(`¿Estás seguro de eliminar la suscripción de ${s.tipo}? Esta acción borrará también su historial.`)) {
+        try {
+          setError(''); // Limpiamos errores previos
+          await api.deleteSuscripcion(s.id); 
+          await cargar(); // Refrescamos la lista
+        } catch (e) {
+          setError(e.message); 
+        }
+      }
+    }}
+  >
+    Eliminar
+  </button>
+</td>
         </td>
       </tr>
     ))}

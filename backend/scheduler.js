@@ -130,8 +130,21 @@ async function procesarCobrosDelDia(usuarioIdFijo = null, confirmarReenvio = fal
 }
 
 function iniciarScheduler() {
-  const expr = `${process.env.CRON_MIN || "00"} ${process.env.CRON_HORA || "08"} * * *`;
-  cron.schedule(expr, () => procesarCobrosDelDia(null, false), { timezone: "America/Bogota" });
+  const min = process.env.CRON_MIN || "00";
+  const hora = process.env.CRON_HORA || "08";
+  const expr = `${min} ${hora} * * *`;
+
+  console.log(`[Scheduler] Programado para las ${hora}:${min} (America/Bogota)`);
+
+  cron.schedule(expr, async () => {
+    console.log(`[${new Date().toLocaleString()}] Ejecutando cobros automáticos...`);
+    try {
+      await procesarCobrosDelDia(null, false);
+      console.log(`[${new Date().toLocaleString()}] Cobros procesados con éxito.`);
+    } catch (error) {
+      console.error("ERROR en la ejecución del cron:", error.message);
+    }
+  }, { timezone: "America/Bogota" });
 }
 
 module.exports = { 

@@ -13,3 +13,8 @@ yarn-error.log*
 # Editor
 .vscode/
 .DS_Store
+
+# Ignorar bases de datos en la carpeta data
+backend/data/sgcrc.db
+backend/data/sgcrc.db-shm
+backend/data/sgcrc.db-wal

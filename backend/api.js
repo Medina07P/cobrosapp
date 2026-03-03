@@ -78,11 +78,14 @@ async function handler(req, res) {
     if (!usuario) return json(res, 401, { error: "No autorizado. Inicie sesión." });
 
     // ── Clientes (Detección de ID para UPDATE) ──
+    // ── Clientes (Detección de ID para UPDATE y DELETE) ──
     if (pathname.startsWith("/clientes")) {
       const partes = pathname.split("/");
-      const id = partes[2]; // Captura el ID si viene en /clientes/ID
+      const id = partes[2]; 
 
-      if (method === "GET" && !id) return json(res, 200, db.clientes.all(usuario.id));
+      if (method === "GET" && !id) {
+        return json(res, 200, db.clientes.all(usuario.id));
+      }
       
       if (method === "POST" && !id) {
         const body = await parseBody(req);
@@ -93,9 +96,22 @@ async function handler(req, res) {
         const body = await parseBody(req);
         return json(res, 200, db.clientes.update(Number(id), body));
       }
+
+      // --- RUTA CORREGIDA: Eliminar cliente ---
+      if (method === "DELETE" && id) {
+        try {
+          // 1. Enviamos usuario.id para validar que el cliente le pertenece
+          const resultado = db.clientes.delete(Number(id), usuario.id);
+          return json(res, 200, { message: "Cliente eliminado con éxito", id: id });
+        } catch (dbErr) {
+          // 2. Si el error es por suscripciones vinculadas, usamos status 400
+          const status = dbErr.message.includes("suscripciones") ? 400 : 500;
+          return json(res, status, { error: dbErr.message });
+        }
+      }
     }
 
-    // ── Suscripciones (Detección de ID para UPDATE + VALIDACIONES) ──
+    // ── Suscripciones (Detección de ID para UPDATE, DELETE + VALIDACIONES) ──
     if (pathname.startsWith("/suscripciones")) {
       const partes = pathname.split("/");
       const id = partes[2];
@@ -125,6 +141,16 @@ async function handler(req, res) {
           return json(res, 200, actualizada);
         } catch (dbErr) {
           return json(res, 500, { error: "Error al actualizar suscripción: " + dbErr.message });
+        }
+      }
+
+      // --- NUEVA RUTA: Eliminar suscripción ---
+      if (method === "DELETE" && id) {
+        try {
+          const resultado = db.suscripciones.delete(Number(id), usuario.id);
+          return json(res, 200, { message: "Suscripción eliminada con éxito", id: id });
+        } catch (dbErr) {
+          return json(res, 500, { error: dbErr.message });
         }
       }
     }

@@ -72,6 +72,7 @@ export const api = {
   getSuscripciones: () => req('GET', '/suscripciones'),
   createSuscripcion: (data) => req('POST', '/suscripciones', data),
   updateSuscripcion: (id, data) => req('PUT', `/suscripciones/${id}`, data),
+  deleteSuscripcion: (id) => req('DELETE', `/suscripciones/${id}`),
 
   // Historial y utilidades
   getHistorial: () => req('GET', '/historial'),

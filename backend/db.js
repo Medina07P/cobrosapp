@@ -19,7 +19,6 @@ const clientes = {
         return { id: info.lastInsertRowid, nombre, correo };
     },
     update(id, campos) {
-        // Filtramos para evitar errores si vienen campos extra
         const { id: _id, usuario_id, ...validos } = campos;
         const keys = Object.keys(validos);
         const values = Object.values(validos);
@@ -31,9 +30,21 @@ const clientes = {
         stmt.run(...values, id);
         return this.find(id);
     },
-    delete(id) {
-        db.prepare('DELETE FROM clientes WHERE id = ?').run(id);
-        return { ok: true };
+    delete(id, usuarioId) {
+        try {
+            const stmt = db.prepare('DELETE FROM clientes WHERE id = ? AND usuario_id = ?');
+            const info = stmt.run(id, usuarioId);
+
+            if (info.changes === 0) {
+                throw new Error("Cliente no encontrado o no tienes permiso para eliminarlo.");
+            }
+            return { ok: true };
+        } catch (err) {
+            if (err.message.includes("FOREIGN KEY constraint failed")) {
+                throw new Error("No se puede eliminar: el cliente tiene suscripciones activas vinculadas.");
+            }
+            throw err;
+        }
     }
 };
 
@@ -83,14 +94,12 @@ const suscripciones = {
         }
     },
     update(id, campos) {
-        // ── CORRECCIÓN CRÍTICA ──
-        // 1. Convertimos el booleano a 0 o 1 para SQLite
         if (campos.activa !== undefined) campos.activa = campos.activa ? 1 : 0;
-        
-        // 2. Extraemos 'descripcion' y otros campos que NO existen en la tabla 
-        // para que no causen error "no such column"
-        const { descripcion, id: _id, usuario_id, ...soloColumnasReales } = campos;
+        if (campos.dia_cobro !== undefined) campos.dia_cobro = Number(campos.dia_cobro);
+        if (campos.monto !== undefined) campos.monto = parseFloat(campos.monto);
+        if (campos.cliente_id !== undefined) campos.cliente_id = Number(campos.cliente_id);
 
+        const { descripcion, id: _id, usuario_id, ...soloColumnasReales } = campos;
         const keys = Object.keys(soloColumnasReales);
         const values = Object.values(soloColumnasReales);
         
@@ -100,6 +109,19 @@ const suscripciones = {
         const stmt = db.prepare(`UPDATE suscripciones SET ${setClause} WHERE id = ?`);
         stmt.run(...values, id);
         return this.find(id);
+    },
+    delete(id, usuarioId) {
+        try {
+            const stmt = db.prepare('DELETE FROM suscripciones WHERE id = ? AND usuario_id = ?');
+            const info = stmt.run(id, usuarioId);
+
+            if (info.changes === 0) {
+                throw new Error("La suscripción no existe o no tienes permiso.");
+            }
+            return { ok: true };
+        } catch (err) {
+            throw new Error("Error al eliminar la suscripción: " + err.message);
+        }
     }
 };
 
@@ -121,7 +143,7 @@ const historial = {
             suscripcion_id, 
             fecha: fechaFinal, 
             estado, 
-            detalces: detalles 
+            detalles: detalles 
         };
     }
 };
