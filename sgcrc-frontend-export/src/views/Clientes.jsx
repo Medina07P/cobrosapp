@@ -61,8 +61,23 @@ export default function Clientes() {
                 <td className="p-3">{porCliente[c.id] || 0}</td>
                 <td className="p-3 text-right space-x-2">
                   <button className="px-2 py-1 rounded bg-slate-100" onClick={() => { setEditing(c); setForm({ nombre: c.nombre, correo: c.correo }) }}>Editar</button>
-                  <button className="px-2 py-1 rounded bg-red-100 text-red-700" onClick={async () => { await api.deleteCliente(c.id); await cargar() }}>Eliminar</button>
-                </td>
+                  <button 
+                    className="px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 transition-colors" 
+                    onClick={async () => { 
+                      if (window.confirm(`¿Estás seguro de eliminar a ${c.nombre}?`)) {
+                        try {
+                          setError(''); // Limpiamos errores previos
+                          await api.deleteCliente(c.id); 
+                          await cargar(); // Solo recarga si la eliminación fue exitosa
+                        } catch (e) {
+                          // Aquí capturamos el error 400 que configuramos en el backend
+                          setError(e.message); 
+                        }
+                      }
+                    }}
+>
+  Eliminar
+</button>              </td>
               </tr>
             ))}
           </tbody>
