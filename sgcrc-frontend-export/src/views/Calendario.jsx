@@ -30,10 +30,18 @@ export default function Calendario() {
   const firstDay    = new Date(view.year, view.month, 1).getDay()
 
   // --- LÓGICA DE PROYECCIÓN CORREGIDA ---
+  // --- LÓGICA DE PROYECCIÓN CORREGIDA ---
+  // --- LÓGICA DE PROYECCIÓN CORREGIDA ---
   const cobrosPorDia = useMemo(() => {
     const map = {}
     
     const registrar = (dia, s) => {
+      const fechaCelda = new Date(view.year, view.month, dia);
+      const fechaInicio = s.fecha_alta ? new Date(s.fecha_alta) : null;
+
+      // 1. FILTRO DE FECHA: No mostrar cobros antes de que empezara la suscripción
+      if (fechaInicio && fechaCelda < fechaInicio) return;
+
       const d = Math.min(dia, daysInMonth)
       if (!map[d]) map[d] = { total: 0, items: [] }
       const cl = clientes.find(c => c.id === s.cliente_id)
@@ -42,32 +50,38 @@ export default function Calendario() {
     }
 
     subs.forEach(s => {
-      const f = s.frecuencia || 'mensual'
-      const diaBase = s.dia_cobro
+      const f = s.frecuencia || 'mensual';
+      
+      // 2. OBTENER EL DÍA REAL: Si existe fecha_alta, usamos ese día. 
+      // Si no, usamos el dia_cobro del plan.
+      let diaReal = s.dia_cobro;
+      if (s.fecha_alta) {
+        // Extraemos el día del string "YYYY-MM-DD" (evita desfases de zona horaria)
+        diaReal = parseInt(s.fecha_alta.split('-')[2]);
+      }
 
       switch (f) {
         case 'semanal':
-          // El dia_cobro (1-7) representa el día de la semana
           for (let d = 1; d <= daysInMonth; d++) {
-            if (new Date(view.year, view.month, d).getDay() === (diaBase % 7)) {
+            if (new Date(view.year, view.month, d).getDay() === (diaReal % 7)) {
               registrar(d, s)
             }
           }
           break
 
         case 'quincenal':
-          registrar(diaBase, s)
-          const segundaQuincena = diaBase + 15
+          registrar(diaReal, s)
+          const segundaQuincena = diaReal + 15
           if (segundaQuincena <= daysInMonth) registrar(segundaQuincena, s)
           break
 
         case 'anual':
-          if (view.month === (s.mes_cobro || 0)) registrar(diaBase, s)
+          if (view.month === (s.mes_cobro || 0)) registrar(diaReal, s)
           break
 
         case 'mensual':
         default:
-          registrar(diaBase, s)
+          registrar(diaReal, s)
           break
       }
     })
@@ -142,6 +156,7 @@ export default function Calendario() {
                   </div>
                   <div style={{ color:'#8b8fa8',fontSize:'0.78rem' }}>{s.tipo}</div>
                   <div style={{ color:'#34d399',fontFamily:'monospace',fontSize:'0.82rem' }}>{fmt(s.monto)}</div>
+                  <div style={{ color: '#6c63ff', fontSize: '0.7rem' }}>Inició: {s.fecha_alta}</div>
                 </div>
               ))}
             </>

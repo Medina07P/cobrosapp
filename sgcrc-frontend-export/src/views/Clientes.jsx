@@ -25,15 +25,21 @@ export default function Clientes() {
     return map
   }, [subs])
 
-  const guardar = async () => {
-    try {
-      if (editing) await api.updateCliente(editing.id, form)
-      else await api.createCliente(form)
-      setForm({ nombre: '', correo: '' })
-      setEditing(null)
-      await cargar()
-    } catch (e) { setError(e.message) }
-  }
+  // En Clientes.jsx
+const guardar = async () => {
+  try {
+    // Si no tienes un sistema de login con IDs dinámicos, 
+    // podrías estar forzando el ID 1 que creamos con el seed.js
+    const datosConUsuario = { ...form, usuario_id: 1 }; 
+
+    if (editing) await api.updateCliente(editing.id, datosConUsuario);
+    else await api.createCliente(datosConUsuario);
+    
+    setForm({ nombre: '', correo: '' });
+    setEditing(null);
+    await cargar();
+  } catch (e) { setError(e.message) }
+}
 
   return (
     <div className="space-y-4">

@@ -36,7 +36,7 @@ export default function Historial() {
       // CORRECCIÓN: Buscamos 'fecha' (nuevo backend) o 'fecha_envio' (registros viejos)
       fecha_valida: h.fecha || h.fecha_envio 
     }
-  })
+  }).sort((a, b) => new Date(b.fecha_valida) - new Date(a.fecha_valida));
 
   const filtrados = filtro === 'todos' ? enriquecido : enriquecido.filter(h => h.estado === filtro)
 

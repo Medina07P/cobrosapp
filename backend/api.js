@@ -62,7 +62,7 @@ async function handler(req, res) {
   }
 
   try {
-    // ── Rutas Públicas ──
+    // ── 1. RUTAS PÚBLICAS ──
     if (pathname === "/auth/register" && method === "POST") {
       req.body = await parseBody(req);
       return auth.registrar(req, res);
@@ -73,108 +73,134 @@ async function handler(req, res) {
     }
     if (pathname === "/health") return json(res, 200, { status: "ok" });
 
-    // ── Verificación de Usuario ──
+    // ── 2. VERIFICACIÓN DE USUARIO (JWT) ──
     const usuario = obtenerUsuario(req);
     if (!usuario) return json(res, 401, { error: "No autorizado. Inicie sesión." });
 
-    // ── Clientes (Detección de ID para UPDATE) ──
-    // ── Clientes (Detección de ID para UPDATE y DELETE) ──
+    // ── 3. CLIENTES ──
     if (pathname.startsWith("/clientes")) {
-      const partes = pathname.split("/");
-      const id = partes[2]; 
-
-      if (method === "GET" && !id) {
-        return json(res, 200, db.clientes.all(usuario.id));
-      }
+      const id = pathname.split("/")[2];
+      if (method === "GET" && !id) return json(res, 200, db.clientes.all(usuario.id));
       
       if (method === "POST" && !id) {
         const body = await parseBody(req);
         return json(res, 201, db.clientes.create(body, usuario.id));
       }
-
+      
       if (method === "PUT" && id) {
         const body = await parseBody(req);
         return json(res, 200, db.clientes.update(Number(id), body));
       }
-
-      // --- RUTA CORREGIDA: Eliminar cliente ---
+      
       if (method === "DELETE" && id) {
         try {
-          // 1. Enviamos usuario.id para validar que el cliente le pertenece
-          const resultado = db.clientes.delete(Number(id), usuario.id);
-          return json(res, 200, { message: "Cliente eliminado con éxito", id: id });
-        } catch (dbErr) {
-          // 2. Si el error es por suscripciones vinculadas, usamos status 400
-          const status = dbErr.message.includes("suscripciones") ? 400 : 500;
-          return json(res, status, { error: dbErr.message });
-        }
+          db.clientes.delete(Number(id), usuario.id);
+          return json(res, 200, { message: "Cliente eliminado con éxito", id });
+        } catch (e) { return json(res, 400, { error: e.message }); }
       }
     }
 
-    // ── Suscripciones (Detección de ID para UPDATE, DELETE + VALIDACIONES) ──
-    if (pathname.startsWith("/suscripciones")) {
-      const partes = pathname.split("/");
-      const id = partes[2];
+    // ── 4. CATÁLOGO DE PLANES ──
+    if (pathname.startsWith("/planes")) {
+      const id = pathname.split("/")[2];
+      if (method === "GET" && !id) return json(res, 200, db.planes.all(usuario.id));
+      
+      if (method === "POST" && !id) {
+        const body = await parseBody(req);
+        return json(res, 201, db.planes.create(body, usuario.id));
+      }
 
-      // Listar todas
+      if (method === "PUT" && id) {
+        const body = await parseBody(req);
+        return json(res, 200, db.planes.update(Number(id), body));
+      }
+
+      if (method === "DELETE" && id) {
+        try {
+          db.planes.delete(Number(id), usuario.id);
+          return json(res, 200, { message: "Plan eliminado correctamente" });
+        } catch (e) { return json(res, 400, { error: e.message }); }
+      }
+    }
+
+    // ── 5. SUSCRIPCIONES (CON DESCRIPCIÓN) ──
+    if (pathname.startsWith("/suscripciones")) {
+      const id = pathname.split("/")[2];
       if (method === "GET" && !id) return json(res, 200, db.suscripciones.all(usuario.id));
       
-      // Crear nueva
       if (method === "POST" && !id) {
         const body = await parseBody(req);
         try {
           const nuevaSub = db.suscripciones.create(body, usuario.id);
           return json(res, 201, nuevaSub);
         } catch (dbErr) {
-          const esErrorValidacion = dbErr.message.includes("VALIDATION_ERROR");
-          const status = esErrorValidacion ? 400 : 500;
-          const mensaje = dbErr.message.replace("VALIDATION_ERROR: ", "");
-          return json(res, status, { error: mensaje });
+          const status = dbErr.message.includes("VALIDATION_ERROR") ? 400 : 500;
+          return json(res, status, { error: dbErr.message.replace("VALIDATION_ERROR: ", "") });
         }
       }
 
-      // Actualizar existente (PUT)
       if (method === "PUT" && id) {
         const body = await parseBody(req);
-        try {
-          const actualizada = db.suscripciones.update(Number(id), body);
-          return json(res, 200, actualizada);
-        } catch (dbErr) {
-          return json(res, 500, { error: "Error al actualizar suscripción: " + dbErr.message });
-        }
+        return json(res, 200, db.suscripciones.update(Number(id), body));
       }
 
-      // --- NUEVA RUTA: Eliminar suscripción ---
       if (method === "DELETE" && id) {
         try {
-          const resultado = db.suscripciones.delete(Number(id), usuario.id);
-          return json(res, 200, { message: "Suscripción eliminada con éxito", id: id });
-        } catch (dbErr) {
-          return json(res, 500, { error: dbErr.message });
-        }
+          db.suscripciones.delete(Number(id), usuario.id);
+          return json(res, 200, { message: "Suscripción eliminada con éxito", id });
+        } catch (e) { return json(res, 500, { error: e.message }); }
       }
     }
 
-    // ── Historial ──
+    // ── 8. CONFIGURACIÓN DE USUARIO (PERFIL Y TEMA) ──
+    
+    // Nueva ruta para obtener el perfil actual
+    if (pathname === "/usuario/perfil" && method === "GET") {
+      try {
+        const datos = db.usuarios.findById(usuario.id);
+        // Quitamos el password por seguridad antes de enviar
+        if (datos) delete datos.password;
+        return json(res, 200, datos);
+      } catch (e) {
+        return json(res, 500, { error: "Error al obtener perfil" });
+      }
+    }
+
+    // Ruta para actualizar nombre y tema (Cambiada a POST o PATCH según prefieras)
+    if (pathname === "/usuario/config-tema" && (method === "PATCH" || method === "POST")) {
+      const body = await parseBody(req);
+      
+      try {
+        // Si viene color_tema, lo actualizamos
+        if (body.color_tema) {
+          db.usuarios.updateTema(usuario.id, body.color_tema);
+        }
+        // Si viene nombre, también lo actualizamos (Asegúrate de tener db.usuarios.updateNombre)
+        if (body.nombre && db.usuarios.updateNombre) {
+          db.usuarios.updateNombre(usuario.id, body.nombre);
+        }
+        
+        return json(res, 200, { success: true, message: "Configuración actualizada" });
+      } catch (e) {
+        return json(res, 500, { error: "Error al actualizar configuración: " + e.message });
+      }
+    }
+
+    // ── 6. HISTORIAL ──
     if (pathname === "/historial" && method === "GET") {
       return json(res, 200, db.historial.all(usuario.id));
     }
 
-    // ── Procesar Selección Individual ──
+    // ── 7. PROCESOS DE COBRO ──
     if (pathname === "/run-individual" && method === "POST") {
       const body = await parseBody(req).catch(() => ({}));
       if (!body.ids || !Array.isArray(body.ids)) {
-        return json(res, 400, { error: "Se requiere un arreglo de IDs en la propiedad 'ids'" });
+        return json(res, 400, { error: "Se requiere un arreglo de IDs" });
       }
-      try {
-        const resultado = await procesarSeleccionados(usuario.id, body.ids);
-        return json(res, 200, { message: "Proceso individual completado", enviados: resultado.enviados });
-      } catch (err) {
-        return json(res, 500, { error: err.message });
-      }
+      const resultado = await procesarSeleccionados(usuario.id, body.ids);
+      return json(res, 200, { message: "Proceso individual completado", enviados: resultado.enviados });
     }
 
-    // ── Proceso de Cobros General ──
     if (pathname === "/run" && method === "POST") {
       if (estaProcesandoCobros()) return json(res, 409, { error: "El proceso ya está en ejecución" });
 
@@ -190,15 +216,10 @@ async function handler(req, res) {
         });
       }
 
-      try {
-        const resultado = await procesarCobrosDelDia(usuario.id, body.confirmarReenvio || false);
-        return json(res, 200, { message: `Proceso completado exitosamente.`, enviados: resultado.enviados });
-      } catch (subErr) {
-        return json(res, 500, { error: "Error en el motor de envíos: " + subErr.message });
-      }
+      const resultado = await procesarCobrosDelDia(usuario.id, body.confirmarReenvio || false);
+      return json(res, 200, { message: "Proceso completado exitosamente", enviados: resultado.enviados });
     }
 
-    // Respuesta por defecto si nada coincide
     json(res, 404, { error: "Ruta no encontrada" });
 
   } catch (err) {
@@ -209,7 +230,7 @@ async function handler(req, res) {
 
 function iniciarAPI(puerto) {
   const server = http.createServer(handler);
-  server.listen(puerto, () => console.log(`🚀 API de Café Valdore lista en puerto ${puerto}`));
+  server.listen(puerto, () => console.log(`🚀 API de Café Valdore lista localhost:${puerto}`));
   return server;
 }
 
