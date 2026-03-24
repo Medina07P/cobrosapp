@@ -1,13 +1,8 @@
 const nodemailer = require("nodemailer");
 require("dotenv").config();
 
-// ── Función para crear un Transporter al vuelo ─────────────────────────
-
 function crearTransporter(usuarioConfig = null) {
-  // Si el usuario tiene config_smtp en la DB, la usamos. 
-  // Si no, usamos las variables del .env (tus credenciales maestras).
   let config;
-
   if (usuarioConfig && usuarioConfig.config_smtp) {
     try {
       config = JSON.parse(usuarioConfig.config_smtp);
@@ -16,7 +11,6 @@ function crearTransporter(usuarioConfig = null) {
     }
   }
 
-  // Si no hay config de usuario, usamos la del sistema (.env)
   const host = config?.host || process.env.SMTP_HOST || "smtp.gmail.com";
   const port = Number(config?.port || process.env.SMTP_PORT || 587);
   const user = config?.user || process.env.SMTP_USER;
@@ -29,6 +23,107 @@ function crearTransporter(usuarioConfig = null) {
     auth: { user, pass },
   });
 }
+// ... (Tus funciones crearTransporter y escapeHtml se mantienen igual)
+
+function buildHtml({ cliente, suscripcion, nombreVendedor = "SGCRC", color = "#4f46e5" }) {
+  const fecha = new Date().toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" });
+  const monto = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(suscripcion.monto);
+  
+  const clienteNombre = escapeHtml(cliente.nombre);
+  const tipo = escapeHtml(suscripcion.tipo);
+  const descripcion = suscripcion.descripcion ? escapeHtml(suscripcion.descripcion) : "";
+  const frecuencia = (suscripcion.frecuencia || "Mensual").toLowerCase();
+
+  // Configuración de WhatsApp (Asegúrate de que este número sea el de Café Valdore)
+  const mensajeWa = encodeURIComponent(`Hola, envío el comprobante de mi pago de ${tipo} por valor de ${monto}.`);
+  const urlWhatsapp = `https://wa.me/573014518350?text=${mensajeWa}`;
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f9fafb; margin: 0; padding: 0; }
+    .wrapper { width: 100%; background-color: #f9fafb; padding-bottom: 40px; }
+    .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; margin-top: 40px; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); border: 1px solid #f3f4f6; }
+    
+    /* GRADIENTE DINÁMICO MEJORADO: Del color de marca a una versión más profunda del mismo */
+    .header { 
+      background: ${color}; 
+      background: linear-gradient(135deg, ${color} 0%, #111111 150%); 
+      padding: 40px 20px; 
+      text-align: center; 
+      color: #ffffff; 
+    }
+    
+    .header h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.025em; text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .header p { margin: 8px 0 0; opacity: 0.9; font-size: 14px; font-weight: 500; }
+    .content { padding: 32px; color: #374151; line-height: 1.6; }
+    .greeting { font-size: 18px; font-weight: 700; color: #111827; margin-bottom: 16px; }
+    .receipt-card { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin: 24px 0; }
+    
+    /* MONTO CON TU COLOR DE MARCA */
+    .total-amount { font-size: 32px; font-weight: 800; color: ${color}; margin: 4px 0; }
+    
+    .btn-container { text-align: center; margin-top: 32px; }
+    
+    /* BOTÓN TOTALMENTE PERSONALIZADO */
+    .btn { 
+      background-color: ${color}; 
+      color: #ffffff !important; 
+      padding: 16px 35px; 
+      border-radius: 12px; 
+      text-decoration: none; 
+      font-weight: 700; 
+      font-size: 16px; 
+      display: inline-block;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    
+    .footer { text-align: center; padding: 24px; font-size: 12px; color: #9ca3af; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="container">
+      <div class="header">
+        <h1>Confirmación de Cobro</h1>
+        <p>${escapeHtml(nombreVendedor)}</p>
+      </div>
+      <div class="content">
+        <div class="greeting">Hola, ${clienteNombre}</div>
+        <p>Te informamos que se ha generado el cobro de tu suscripción <strong>${frecuencia}</strong> de café especial.</p>
+        
+        <div class="receipt-card">
+          <div style="text-align: center;">
+            <div style="font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: bold;">Monto a pagar</div>
+            <div class="total-amount">${monto}</div>
+          </div>
+          <div style="border-top: 1px solid #e2e8f0; margin: 16px 0;"></div>
+          <div style="display: flex; justify-content: space-between; font-size: 14px;">
+            <span style="color: #64748b;">Producto:</span>
+            <span style="font-weight: 600; color: #1e293b;">${tipo}</span>
+          </div>
+        </div>
+
+        <p style="font-size: 14px; color: #6b7280; text-align: center;">Haz clic abajo para enviarnos tu soporte de pago por WhatsApp:</p>
+        
+        <div class="btn-container">
+          <a href="${urlWhatsapp}" class="btn">Reportar Pago por WhatsApp</a>
+        </div>
+      </div>
+      <div class="footer">
+        Este es un mensaje automático generado por el sistema de gestión de <strong>${escapeHtml(nombreVendedor)}</strong>.<br>
+        Pitalito, Huila - Colombia.
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+// ... (El resto de enviarCobro se queda igual)
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -39,71 +134,116 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
-// ── Plantilla de correo (Mantenemos tu diseño) ─────────────────────────
-
-function buildHtml({ cliente, suscripcion, nombreVendedor = "SGCRC" }) {
+// Agregamos 'color' a los parámetros
+function buildHtml({ cliente, suscripcion, nombreVendedor = "SGCRC", color = "#4f46e5" }) {
   const fecha = new Date().toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" });
   const monto = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(suscripcion.monto);
-
+  
   const clienteNombre = escapeHtml(cliente.nombre);
   const tipo = escapeHtml(suscripcion.tipo);
   const descripcion = suscripcion.descripcion ? escapeHtml(suscripcion.descripcion) : "";
+  const frecuencia = (suscripcion.frecuencia || "Mensual").toLowerCase();
+
+  // Configuración de WhatsApp
+  const mensajeWa = encodeURIComponent(`Hola, envío el comprobante de mi pago de ${tipo} por valor de ${monto}.`);
+  const urlWhatsapp = `https://wa.me/573014518350?text=${mensajeWa}`;
 
   return `
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
-  <meta charset="UTF-8"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { font-family: Arial, sans-serif; background:#f4f4f7; margin:0; padding:0; }
-    .container { max-width:560px; margin:2rem auto; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,0.08); }
-    .header { background:linear-gradient(135deg,#6c63ff,#a78bfa); padding:2rem; text-align:center; }
-    .header h1 { color:#fff; margin:0; font-size:1.4rem; letter-spacing:0.02em; }
-    .header p  { color:rgba(255,255,255,0.8); margin:0.4rem 0 0; font-size:0.9rem; }
-    .body { padding:2rem; }
-    .body p { color:#444; line-height:1.7; }
-    .card { background:#f8f7ff; border:1px solid #e0dcff; border-radius:8px; padding:1.2rem 1.5rem; margin:1.2rem 0; }
-    .card .row { display:flex; justify-content:space-between; padding:0.4rem 0; border-bottom:1px solid #ece9ff; font-size:0.9rem; }
-    .card .row:last-child { border-bottom:none; }
-    .card .label { color:#888; }
-    .card .value { color:#333; font-weight:600; }
-    .monto { color:#6c63ff; font-size:1.3rem; font-weight:800; }
-    .footer { background:#f4f4f7; padding:1rem 2rem; text-align:center; font-size:0.78rem; color:#aaa; }
+    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f9fafb; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+    .wrapper { width: 100%; table-layout: fixed; background-color: #f9fafb; padding-bottom: 40px; }
+    .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; margin-top: 40px; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); border: 1px solid #f3f4f6; }
+    
+    /* GRADIENTE DINÁMICO */
+        /* Opción recomendada para el header en buildHtml */
+    .header { 
+      background: ${color}; 
+      background: linear-gradient(135deg, ${color} 0%, #111827 100%); 
+      padding: 40px 20px; 
+      text-align: center; 
+      color: #ffffff; 
+}
+    
+    .header h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.025em; }
+    .header p { margin: 8px 0 0; opacity: 0.9; font-size: 14px; }
+    .content { padding: 32px; color: #374151; line-height: 1.6; }
+    .greeting { font-size: 18px; font-weight: 700; color: #111827; margin-bottom: 16px; }
+    .receipt-card { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin: 24px 0; }
+    .receipt-row { display: flex; justify-content: space-between; margin-bottom: 12px; border-bottom: 1px dashed #e2e8f0; padding-bottom: 12px; }
+    .receipt-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .label { color: #64748b; font-size: 13px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; }
+    .value { color: #1e293b; font-size: 14px; font-weight: 600; }
+    .total-section { text-align: center; margin-top: 10px; }
+    .total-label { font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: bold; }
+    
+    /* MONTO CON COLOR DINÁMICO */
+    .total-amount { font-size: 32px; font-weight: 800; color: ${color}; margin: 4px 0; }
+    
+    .btn-container { text-align: center; margin-top: 32px; }
+    
+    /* BOTÓN CON COLOR DINÁMICO */
+    .btn { background-color: ${color}; color: #ffffff !important; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 16px; display: inline-block; }
+    
+    .footer { text-align: center; padding: 24px; font-size: 12px; color: #9ca3af; }
+    .divider { border-top: 1px solid #f3f4f6; margin: 24px 0; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h1>Aviso de Cobro Mensual</h1>
-      <p>Enviado por: ${escapeHtml(nombreVendedor)}</p>
-    </div>
-    <div class="body">
-      <p>Estimado/a <strong>${clienteNombre}</strong>,</p>
-      <p>Le informamos que se ha generado su cobro mensual correspondiente al siguiente concepto:</p>
-      <div class="card">
-        <div class="row"><span class="label">Servicio</span><span class="value">${tipo}</span></div>
-        <div class="row"><span class="label">Fecha</span><span class="value">${fecha}</span></div>
-        <div class="row"><span class="label">Monto</span><span class="value monto">${monto}</span></div>
-        ${descripcion ? `<div class="row"><span class="label">Nota</span><span class="value">${descripcion}</span></div>` : ""}
+  <div class="wrapper">
+    <div class="container">
+      <div class="header">
+        <h1>Confirmación de Cobro</h1>
+        <p>${escapeHtml(nombreVendedor)}</p>
       </div>
-      <p>Por favor realice el pago correspondiente según los canales acordados.</p>
-      <p>Si tiene alguna pregunta, no dude en contactarnos.</p>
-    </div>
-    <div class="footer">
-      Este es un mensaje automático — Gestionado por SGCRC
+      <div class="content">
+        <div class="greeting">Hola, ${clienteNombre}</div>
+        <p>Esperamos que estés bien. Te informamos que se ha generado el cobro de tu suscripción <strong>${frecuencia}</strong>.</p>
+        
+        <div class="receipt-card">
+          <div class="total-section">
+            <div class="total-label">Monto a pagar</div>
+            <div class="total-amount">${monto}</div>
+          </div>
+          <div class="divider"></div>
+          <div class="receipt-row">
+            <span class="label">Servicio: </span>
+            <span class="value">${tipo}</span>
+          </div>
+          <div class="receipt-row">
+            <span class="label">Fecha: </span>
+            <span class="value">${fecha}</span>
+          </div>
+          ${descripcion ? `<div class="receipt-row"><span class="label">Referencia: </span><span class="value">${descripcion}</span></div>` : ""}
+        </div>
+
+        <p style="font-size: 14px; color: #6b7280;">Para reportar tu pago de forma rápida, puedes usar el siguiente botón:</p>
+        
+        <div class="btn-container">
+          <a href="${urlWhatsapp}" class="btn">Reportar Pago por WhatsApp</a>
+        </div>
+      </div>
+      <div class="footer">
+        Este es un mensaje automático generado por <strong>SGCRC</strong>.<br>
+        &copy; ${new Date().getFullYear()} ${escapeHtml(nombreVendedor)}. Todos los derechos reservados.
+      </div>
     </div>
   </div>
 </body>
 </html>`;
 }
 
-// ── Función principal (Recibe usuarioConfig) ───────────────────────────
-
 async function enviarCobro({ cliente, suscripcion, usuarioConfig }) {
   const monto = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(suscripcion.monto);
-  
-  // Creamos el transporte específico para este envío
   const transporter = crearTransporter(usuarioConfig);
+  const frecuencia = (suscripcion.frecuencia || "Mensual");
+  
+  // LEEMOS EL COLOR DEL USUARIO (SI NO EXISTE, INDIGO POR DEFECTO)
+  const colorMarca = usuarioConfig.color_tema || "#4f46e5";
 
   const fromEmail = (usuarioConfig && usuarioConfig.config_smtp) 
     ? JSON.parse(usuarioConfig.config_smtp).user 
@@ -112,14 +252,19 @@ async function enviarCobro({ cliente, suscripcion, usuarioConfig }) {
   await transporter.sendMail({
     from: `"${usuarioConfig.nombre}" <${fromEmail}>`,
     to: cliente.correo,
-    subject: `Cobro mensual — ${suscripcion.tipo} — ${monto}`,
-    html: buildHtml({ cliente, suscripcion, nombreVendedor: usuarioConfig.nombre }),
+    subject: `Recibo de Cobro ${frecuencia} — ${monto}`,
+    html: buildHtml({ 
+        cliente, 
+        suscripcion, 
+        nombreVendedor: usuarioConfig.nombre,
+        color: colorMarca // Pasamos el color al constructor del HTML
+    }),
   });
 }
 
 async function verificarConexion() {
   try {
-    const transporter = crearTransporter(); // Verifica la del .env por defecto
+    const transporter = crearTransporter();
     await transporter.verify();
     console.log("✅ SMTP Maestro conectado correctamente");
     return true;

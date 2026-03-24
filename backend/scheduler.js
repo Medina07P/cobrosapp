@@ -10,25 +10,65 @@ function estaProcesandoCobros() {
   return procesandoCobros;
 }
 
+/**
+ * DETERMINA SI TOCA COBRAR HOY
+ * Prioriza el día de la fecha_alta si existe.
+ */
+/**
+ * DETERMINA SI TOCA COBRAR HOY
+ */
 function tocaCobrarHoy(sus, diaActual, diaSemana, diasMes) {
-  const diaBase = Math.min(sus.dia_cobro, diasMes);
-  switch (sus.frecuencia) {
+  const hoy = new Date();
+  const hoyISO = hoy.toISOString().split('T')[0];
+  
+  // 1. VERIFICAR SI LA SUSCRIPCIÓN COMENZÓ
+  if (sus.fecha_alta) {
+    if (sus.fecha_alta > hoyISO) return false; // Es una fecha futura
+    
+    // CASO ESPECIAL: Si la fecha de alta es HOY, se cobra sí o sí
+    if (sus.fecha_alta === hoyISO) return true;
+  }
+
+  // 2. DETERMINAR EL DÍA BASE DE COBRO
+  // Si tiene fecha_alta, el día de esa fecha manda. Si no, el día del plan.
+  let diaBaseReal = 1;
+  if (sus.fecha_alta) {
+    diaBaseReal = parseInt(sus.fecha_alta.split('-')[2]);
+  } else {
+    diaBaseReal = sus.dia_cobro || 1;
+  }
+
+  const diaBase = Math.min(diaBaseReal, diasMes);
+
+  // 3. LÓGICA POR FRECUENCIA
+  switch (sus.frecuencia?.toLowerCase()) {
     case 'quincenal':
       const segundaFecha = diaBase + 15;
       const diaAjustado = segundaFecha > diasMes ? segundaFecha - diasMes : segundaFecha;
       return diaActual === diaBase || diaActual === diaAjustado;
+
     case 'semanal':
-      return diaSemana === (sus.dia_cobro % 7);
+      let diaSemanaObjetivo = sus.dia_cobro % 7;
+      if (sus.fecha_alta) {
+        // Obtenemos el día de la semana (0-6) de la fecha de alta
+        diaSemanaObjetivo = new Date(sus.fecha_alta + "T00:00:00").getDay();
+      }
+      return diaSemana === diaSemanaObjetivo;
+
     case 'anual':
-      const hoy = new Date();
-      return diaActual === diaBase && hoy.getMonth() === (sus.mes_cobro || 0);
+      let mesObjetivo = sus.mes_cobro || 0;
+      if (sus.fecha_alta) {
+        mesObjetivo = new Date(sus.fecha_alta + "T00:00:00").getMonth();
+      }
+      return diaActual === diaBase && hoy.getMonth() === mesObjetivo;
+
     case 'mensual':
     default:
       return diaActual === diaBase;
   }
 }
 
-// --- NUEVA FUNCIÓN: PROCESAR SELECCIÓN INDIVIDUAL ---
+// --- PROCESAR SELECCIÓN INDIVIDUAL (Se mantiene igual) ---
 async function procesarSeleccionados(usuarioId, listaIds) {
   if (procesandoCobros) return { success: false, message: "Ejecución en curso" };
   
@@ -40,7 +80,7 @@ async function procesarSeleccionados(usuarioId, listaIds) {
     if (!usuario) throw new Error("Usuario no encontrado");
 
     for (const susId of listaIds) {
-      const sus = db.suscripciones.find(susId);
+      const sus = db.suscripciones.find(susId); 
       const cliente = db.clientes.find(sus.cliente_id);
 
       if (!sus || !cliente) continue;
@@ -52,7 +92,8 @@ async function procesarSeleccionados(usuarioId, listaIds) {
           suscripcion_id: sus.id,
           fecha: new Date().toISOString(), 
           estado: "Enviado",
-          detalles: `Reenvío manual: ${sus.frecuencia} de $${sus.monto}.`
+          detalles: `Reenvío manual: Plan ${sus.tipo} ($${sus.monto}).`,
+          monto: sus.monto
         }, usuario.id);
 
         totalEnviados++;
@@ -66,7 +107,7 @@ async function procesarSeleccionados(usuarioId, listaIds) {
   }
 }
 
-// --- FUNCIÓN PRINCIPAL MEJORADA ---
+// --- FUNCIÓN PRINCIPAL (CORREGIDA PARA USAR FECHA_ALTA) ---
 async function procesarCobrosDelDia(usuarioIdFijo = null, confirmarReenvio = false) {
   if (procesandoCobros) return { success: false, message: "Ejecución en curso" };
 
@@ -88,6 +129,8 @@ async function procesarCobrosDelDia(usuarioIdFijo = null, confirmarReenvio = fal
       if (!usuario) continue;
       
       const suscripciones = db.suscripciones.activas(usuario.id);
+      
+      // Aquí está el cambio: tocaCobrarHoy ahora detecta la fecha_alta
       const paraHoy = suscripciones.filter(s => tocaCobrarHoy(s, diaActual, diaSemana, diasMes));
 
       const historialHoy = db.historial.all(usuario.id).filter(h => 
@@ -96,7 +139,6 @@ async function procesarCobrosDelDia(usuarioIdFijo = null, confirmarReenvio = fal
 
       for (const sus of paraHoy) {
         const yaFueEnviadoHoy = historialHoy.some(h => h.suscripcion_id === sus.id);
-
         if (yaFueEnviadoHoy && !confirmarReenvio) continue; 
 
         const cliente = db.clientes.find(sus.cliente_id);
@@ -109,7 +151,8 @@ async function procesarCobrosDelDia(usuarioIdFijo = null, confirmarReenvio = fal
             suscripcion_id: sus.id,
             fecha: new Date().toISOString(), 
             estado: "Enviado",
-            detalles: `Cobro ${sus.frecuencia} de $${sus.monto} enviado.`
+            detalles: `Cobro ${sus.tipo} enviado.`,
+            monto: sus.monto 
           }, usuario.id);
 
           totalEnviados++;
@@ -118,7 +161,8 @@ async function procesarCobrosDelDia(usuarioIdFijo = null, confirmarReenvio = fal
             suscripcion_id: sus.id,
             fecha: new Date().toISOString(),
             estado: "Fallido",
-            detalles: `Error: ${err.message}`
+            detalles: `Error: ${err.message}`,
+            monto: sus.monto 
           }, usuario.id);
         }
       }
@@ -134,15 +178,13 @@ function iniciarScheduler() {
   const hora = process.env.CRON_HORA || "08";
   const expr = `${min} ${hora} * * *`;
 
-  console.log(`[Scheduler] Programado para las ${hora}:${min} (America/Bogota)`);
+  console.log(`[Scheduler] Programado para las ${hora}:${min}`);
 
   cron.schedule(expr, async () => {
-    console.log(`[${new Date().toLocaleString()}] Ejecutando cobros automáticos...`);
     try {
       await procesarCobrosDelDia(null, false);
-      console.log(`[${new Date().toLocaleString()}] Cobros procesados con éxito.`);
     } catch (error) {
-      console.error("ERROR en la ejecución del cron:", error.message);
+      console.error("ERROR en cron:", error.message);
     }
   }, { timezone: "America/Bogota" });
 }
@@ -151,5 +193,5 @@ module.exports = {
   iniciarScheduler, 
   procesarCobrosDelDia, 
   estaProcesandoCobros,
-  procesarSeleccionados // EXPORTAMOS LA NUEVA FUNCIÓN
+  procesarSeleccionados 
 };

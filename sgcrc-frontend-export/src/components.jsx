@@ -81,3 +81,27 @@ export function ErrorMsg({ msg, onRetry }) {
     </div>
   )
 }
+
+export function DateInput({ label, ...props }) {
+  return (
+    <div style={{ marginBottom:'1rem' }}>
+      <label style={{ display:'block',marginBottom:'0.4rem',color:'#8b8fa8',fontSize:'0.78rem',letterSpacing:'0.06em',textTransform:'uppercase' }}>{label}</label>
+      <input 
+        type="date" 
+        {...props} 
+        style={{ 
+          width:'100%',
+          background:'#1a1d27',
+          border:'1px solid #2a2d3a',
+          borderRadius:'8px',
+          padding:'0.65rem 0.9rem',
+          color:'#e8eaf0',
+          fontSize:'0.95rem',
+          outline:'none',
+          colorScheme: 'dark', // Importante para que el icono del calendario sea blanco en modo oscuro
+          ...props.style 
+        }} 
+      />
+    </div>
+  )
+}
