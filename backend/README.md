@@ -1,49 +1,46 @@
 # SGCRC — Backend
 
 Sistema de Gestión de Cobros Recurrentes por Correo.  
-Backend minimalista: **Node.js + JSON + Nodemailer + node-cron**. Sin base de datos externa.
+Backend minimalista: **Node.js HTTP nativo + SQLite (`better-sqlite3`) + Nodemailer + node-cron**.
 
 ---
 
-## 📁 Estructura
-
-```
-sgcrc-backend/
-├── index.js       ← Punto de entrada
-├── db.js          ← Base de datos (archivo JSON)
-├── mailer.js      ← Servicio de correo (Nodemailer)
-├── scheduler.js   ← Cron job diario
-├── api.js         ← API REST
-├── .env.example   ← Variables de entorno
-└── data/
-    └── db.json    ← Se crea automáticamente
-```
-
----
-
-## 🚀 Instalación
+## Instalación
 
 ```bash
-# 1. Instalar dependencias
 npm install
-
-# 2. Copiar y configurar variables de entorno
 cp .env.example .env
-# → Editar .env con tus credenciales SMTP
-
-# 3. Iniciar
+# Editar .env con credenciales SMTP y JWT_SECRET
 node index.js
 ```
 
 ---
 
-## ⚙️ Configuración SMTP (Gmail)
+## Variables de entorno
 
-1. Ve a tu cuenta Google → **Seguridad** → **Verificación en dos pasos** → actívala.
-2. Luego ve a **Contraseñas de aplicación** → genera una para "Correo".
-3. Usa esa contraseña en `SMTP_PASS` del archivo `.env`.
+```env
+# SMTP
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=correo@gmail.com
+SMTP_PASS=contraseña_de_aplicacion
+SMTP_FROM="Nombre <correo@gmail.com>"
 
-Para otros proveedores cambia `SMTP_HOST` y `SMTP_PORT`:
+# Servidor
+PORT=3000
+
+# Scheduler (hora local Colombia)
+CRON_HORA=08
+CRON_MIN=00
+
+# Seguridad — obligatorio en producción
+JWT_SECRET=clave_larga_y_aleatoria_aqui
+
+# Opcionales
+SMTP_REQUIRED=true          # Falla al arrancar si SMTP no conecta
+```
+
+Para Gmail: activar 2FA y crear una "Contraseña de aplicación" (no usar la contraseña de la cuenta).
 
 | Proveedor  | Host                    | Puerto |
 |------------|-------------------------|--------|
@@ -54,105 +51,131 @@ Para otros proveedores cambia `SMTP_HOST` y `SMTP_PORT`:
 
 ---
 
+## Autenticación
 
-### Seguridad opcional de API
+Todas las rutas excepto `/auth/login`, `/auth/register` y `/health` requieren:
 
-Puedes proteger los endpoints administrativos con una llave compartida:
-
-```env
-API_KEY=mi_llave_segura
+```
+Authorization: Bearer <token_jwt>
 ```
 
-Si `API_KEY` está definida, envía el header `X-API-Key` en cada request (excepto `/health`).
+El token se obtiene con `POST /auth/login` y expira en 24 horas.
 
-También puedes restringir CORS:
+---
 
-```env
-CORS_ORIGIN=http://localhost:5173
-```
-
-Y exigir conexión SMTP al iniciar:
-
-```env
-SMTP_REQUIRED=true
-```
-
-## 📡 API REST
+## API REST
 
 Base URL: `http://localhost:3000`
 
+### Auth (públicas)
+```
+POST  /auth/register   → { email, password, nombre }  →  { id, message }
+POST  /auth/login      → { email, password }           →  { token, user }
+GET   /health          → { status: "ok" }
+```
+
 ### Clientes
 ```
-GET    /clientes              → Listar todos
-POST   /clientes              → Crear  { nombre, correo }
-PUT    /clientes/:id          → Editar
-DELETE /clientes/:id          → Eliminar
+GET    /clientes           → Listar todos del usuario autenticado
+POST   /clientes           → Crear  { nombre, correo }
+PUT    /clientes/:id        → Editar campos
+DELETE /clientes/:id        → Eliminar (falla si tiene suscripciones activas)
 ```
+
+### Planes (catálogo reutilizable)
+```
+GET    /planes              → Listar todos del usuario
+POST   /planes              → Crear  { nombre_plan, monto, frecuencia, dia_cobro, descripcion? }
+PUT    /planes/:id           → Editar campos
+DELETE /planes/:id           → Eliminar (falla si hay suscripciones vinculadas)
+```
+
+Valores de `frecuencia`: `mensual` (default), `quincenal`, `semanal`, `anual`.
 
 ### Suscripciones
 ```
-GET    /suscripciones         → Listar todas
-POST   /suscripciones         → Crear  { cliente_id, tipo, monto, dia_cobro, descripcion? }
-PUT    /suscripciones/:id     → Editar (incluye { activa: false } para cancelar)
+GET    /suscripciones        → Listar todas (incluye datos del plan y cliente por JOIN)
+POST   /suscripciones        → Crear  { cliente_id, plan_id, descripcion?, fecha_alta? }
+PUT    /suscripciones/:id     → Editar  (usa { activa: false } para cancelar)
+DELETE /suscripciones/:id     → Eliminar
 ```
 
 ### Historial
 ```
-GET    /historial             → Listar todos los envíos
+GET    /historial            → Listar todos los envíos del usuario (orden desc por fecha)
 ```
 
-### Acciones
+### Perfil de usuario
 ```
-GET    /                      → Página de inicio HTML con enlaces útiles
-POST   /run                   → Forzar ejecución de cobros ahora (pruebas)
-GET    /health                → Estado del servidor
+GET    /usuario/perfil                    → Datos del usuario (sin password)
+POST   /usuario/config-tema               → { nombre?, color_tema? }
+```
+
+### Cobros
+```
+POST   /run                  → Ejecutar cobros del día para el usuario autenticado
+                               Body: { confirmarReenvio: true } para forzar reenvíos del mismo día
+POST   /run-individual       → { ids: [1, 2, 3] }  →  Cobrar suscripciones específicas
 ```
 
 ---
 
-## 📧 Ejemplos rápidos con curl
+## Ejemplos con curl
 
 ```bash
+# Obtener token
+TOKEN=$(curl -s -X POST http://localhost:3000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@cafe.co","password":"mi_clave"}' | jq -r '.token')
+
+# Listar clientes
+curl http://localhost:3000/clientes -H "Authorization: Bearer $TOKEN"
+
 # Crear cliente
 curl -X POST http://localhost:3000/clientes \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{"nombre":"Empresa Alfa","correo":"admin@alfa.co"}'
 
-# Crear suscripción (cobra el día 5 de cada mes)
+# Crear plan
+curl -X POST http://localhost:3000/planes \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"nombre_plan":"Membresía Pro","monto":250000,"frecuencia":"mensual","dia_cobro":5}'
+
+# Crear suscripción
 curl -X POST http://localhost:3000/suscripciones \
   -H "Content-Type: application/json" \
-  -d '{"cliente_id":1,"tipo":"Membresía Pro","monto":250000,"dia_cobro":5}'
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"cliente_id":1,"plan_id":1}'
 
 # Cancelar suscripción
 curl -X PUT http://localhost:3000/suscripciones/1 \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{"activa":false}'
 
-# Forzar envío manual (prueba)
-curl -X POST http://localhost:3000/run
+# Forzar cobros del día
+curl -X POST http://localhost:3000/run \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ---
 
-## ⏰ Scheduler
+## Scheduler
 
-El sistema ejecuta automáticamente los cobros **cada día a la hora configurada** en `.env`:
+Ejecuta `procesarCobrosDelDia()` cada día a la hora configurada (timezone `America/Bogota`).
 
-```
-CRON_HORA=08
-CRON_MIN=00
-```
-
-Lógica:
-- Obtiene todas las suscripciones activas.
-- Filtra las que tienen `dia_cobro` = día de hoy.
-- Meses cortos (Feb, etc.): si `dia_cobro > días del mes`, se procesa el último día.
-- Envía el correo y registra el resultado en el historial.
+- `tocaCobrarHoy()` usa `fecha_alta` como día base si existe; de lo contrario, usa `dia_cobro` del plan.
+- Los envíos ya procesados en el día se omiten para evitar duplicados (idempotencia).
+- El endpoint `/run` requiere `{ confirmarReenvio: true }` si ya hubo envíos en el día.
+- El mutex `procesandoCobros` evita ejecuciones concurrentes del mismo proceso.
 
 ---
 
-## 🔒 Notas de seguridad
+## Base de datos
 
-- El archivo `.env` **nunca** debe subirse a git. Agrega `.env` a tu `.gitignore`.
-- Los datos se guardan en `data/db.json`. Haz backup periódico de ese archivo.
-- Para producción, considera migrar a PostgreSQL (solo cambia `db.js`).
+SQLite en `backend/data/sgcrc.db` (modo WAL, foreign keys ON).
+
+Tablas: `usuarios`, `clientes`, `planes`, `suscripciones`, `historial`.  
+Migraciones defensivas en `database.js` mediante bloques `ALTER TABLE … try/catch`.
