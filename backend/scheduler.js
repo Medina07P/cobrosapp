@@ -1,7 +1,8 @@
 const cron = require("node-cron");
 const db = require("./db");
 const mailer = require("./mailer");
-const database = require("./database"); 
+const database = require("./database");
+const cobros = require("./cobros");
 require("dotenv").config();
 
 let procesandoCobros = false;
@@ -10,68 +11,53 @@ function estaProcesandoCobros() {
   return procesandoCobros;
 }
 
+// Clientes del usuario por id: evita resolver clientes de otro usuario
+function clientesDe(usuarioId) {
+  return new Map(db.clientes.all(usuarioId).map((c) => [c.id, c]));
+}
+
 /**
- * DETERMINA SI TOCA COBRAR HOY
- * Prioriza el día de la fecha_alta si existe.
+ * QUÉ SE ENVIARÍA AHORA PARA UN USUARIO
+ * Cobros de hoy sin enviar + vencidos dentro de la ventana de reintento.
+ * Ver cobros.planificarCobros para el detalle de cada lista.
  */
+function previsualizarCobros(usuarioId, confirmarReenvio = false) {
+  return cobros.planificarCobros(
+    db.suscripciones.activas(usuarioId),
+    db.historial.all(usuarioId),
+    cobros.hoyISO(),
+    { ventana: cobros.ventanaReintento(), confirmarReenvio }
+  );
+}
+
 /**
- * DETERMINA SI TOCA COBRAR HOY
+ * RESUMEN PARA LA API: cobros de hoy, vencidos (se reintentan) y perdidos (solo informativos)
  */
-function tocaCobrarHoy(sus, diaActual, diaSemana, diasMes) {
-  const hoy = new Date();
-  const hoyISO = hoy.toISOString().split('T')[0];
-  
-  // 1. VERIFICAR SI LA SUSCRIPCIÓN COMENZÓ
-  if (sus.fecha_alta) {
-    if (sus.fecha_alta > hoyISO) return false; // Es una fecha futura
-    
-    // CASO ESPECIAL: Si la fecha de alta es HOY, se cobra sí o sí
-    if (sus.fecha_alta === hoyISO) return true;
-  }
+function resumenCobros(usuarioId) {
+  const plan = previsualizarCobros(usuarioId, false);
+  const clientes = clientesDe(usuarioId);
+  const detallar = ({ sus, fechaCobro, diasVencido }) => ({
+    suscripcion_id: sus.id,
+    cliente: clientes.get(sus.cliente_id)?.nombre || "Desconocido",
+    plan: sus.tipo,
+    monto: sus.monto,
+    fechaCobro,
+    diasVencido,
+  });
 
-  // 2. DETERMINAR EL DÍA BASE DE COBRO
-  // Si tiene fecha_alta, el día de esa fecha manda. Si no, el día del plan.
-  let diaBaseReal = 1;
-  if (sus.fecha_alta) {
-    diaBaseReal = parseInt(sus.fecha_alta.split('-')[2]);
-  } else {
-    diaBaseReal = sus.dia_cobro || 1;
-  }
-
-  const diaBase = Math.min(diaBaseReal, diasMes);
-
-  // 3. LÓGICA POR FRECUENCIA
-  switch (sus.frecuencia?.toLowerCase()) {
-    case 'quincenal':
-      const segundaFecha = diaBase + 15;
-      const diaAjustado = segundaFecha > diasMes ? segundaFecha - diasMes : segundaFecha;
-      return diaActual === diaBase || diaActual === diaAjustado;
-
-    case 'semanal':
-      let diaSemanaObjetivo = sus.dia_cobro % 7;
-      if (sus.fecha_alta) {
-        // Obtenemos el día de la semana (0-6) de la fecha de alta
-        diaSemanaObjetivo = new Date(sus.fecha_alta + "T00:00:00").getDay();
-      }
-      return diaSemana === diaSemanaObjetivo;
-
-    case 'anual':
-      let mesObjetivo = sus.mes_cobro || 0;
-      if (sus.fecha_alta) {
-        mesObjetivo = new Date(sus.fecha_alta + "T00:00:00").getMonth();
-      }
-      return diaActual === diaBase && hoy.getMonth() === mesObjetivo;
-
-    case 'mensual':
-    default:
-      return diaActual === diaBase;
-  }
+  return {
+    hoy: cobros.hoyISO(),
+    ventanaDias: cobros.ventanaReintento(),
+    paraHoy: plan.enviar.filter((i) => i.diasVencido === 0).map(detallar),
+    vencidos: plan.enviar.filter((i) => i.diasVencido > 0).map(detallar),
+    perdidos: plan.perdidos.map(detallar),
+  };
 }
 
 // --- PROCESAR SELECCIÓN INDIVIDUAL (Se mantiene igual) ---
 async function procesarSeleccionados(usuarioId, listaIds) {
   if (procesandoCobros) return { success: false, message: "Ejecución en curso" };
-  
+
   procesandoCobros = true;
   let totalEnviados = 0;
 
@@ -80,17 +66,17 @@ async function procesarSeleccionados(usuarioId, listaIds) {
     if (!usuario) throw new Error("Usuario no encontrado");
 
     for (const susId of listaIds) {
-      const sus = db.suscripciones.find(susId); 
+      const sus = db.suscripciones.find(susId);
       const cliente = db.clientes.find(sus.cliente_id);
 
       if (!sus || !cliente) continue;
 
       try {
         await mailer.enviarCobro({ cliente, suscripcion: sus, usuarioConfig: usuario });
-        
+
         db.historial.create({
           suscripcion_id: sus.id,
-          fecha: new Date().toISOString(), 
+          fecha: new Date().toISOString(),
           estado: "Enviado",
           detalles: `Reenvío manual: Plan ${sus.tipo} ($${sus.monto}).`,
           monto: sus.monto
@@ -107,67 +93,57 @@ async function procesarSeleccionados(usuarioId, listaIds) {
   }
 }
 
-// --- FUNCIÓN PRINCIPAL (CORREGIDA PARA USAR FECHA_ALTA) ---
+// --- FUNCIÓN PRINCIPAL: cobros de hoy + vencidos ---
 async function procesarCobrosDelDia(usuarioIdFijo = null, confirmarReenvio = false) {
   if (procesandoCobros) return { success: false, message: "Ejecución en curso" };
 
   procesandoCobros = true;
-  let totalEnviados = 0;
+  const resumen = { success: true, enviados: 0, vencidosEnviados: 0, omitidos: 0, perdidos: 0 };
 
   try {
-    const hoy = new Date();
-    const diaActual = hoy.getDate();
-    const diaSemana = hoy.getDay(); 
-    const diasMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
-    const hoyISO = hoy.toISOString().split('T')[0];
-
-    let usuarios = usuarioIdFijo 
+    const usuarios = usuarioIdFijo
       ? [database.prepare('SELECT * FROM usuarios WHERE id = ?').get(usuarioIdFijo)]
       : database.prepare('SELECT * FROM usuarios').all();
 
     for (const usuario of usuarios) {
       if (!usuario) continue;
-      
-      const suscripciones = db.suscripciones.activas(usuario.id);
-      
-      // Aquí está el cambio: tocaCobrarHoy ahora detecta la fecha_alta
-      const paraHoy = suscripciones.filter(s => tocaCobrarHoy(s, diaActual, diaSemana, diasMes));
 
-      const historialHoy = db.historial.all(usuario.id).filter(h => 
-        h.fecha.startsWith(hoyISO) && h.estado === 'Enviado'
-      );
+      const plan = previsualizarCobros(usuario.id, confirmarReenvio);
+      const clientes = clientesDe(usuario.id);
+      resumen.omitidos += plan.yaEnviadosHoy.length;
+      resumen.perdidos += plan.perdidos.length;
 
-      for (const sus of paraHoy) {
-        const yaFueEnviadoHoy = historialHoy.some(h => h.suscripcion_id === sus.id);
-        if (yaFueEnviadoHoy && !confirmarReenvio) continue; 
-
-        const cliente = db.clientes.find(sus.cliente_id);
+      for (const { sus, fechaCobro, diasVencido } of plan.enviar) {
+        const cliente = clientes.get(sus.cliente_id);
         if (!cliente) continue;
+
+        const sufijo = diasVencido > 0 ? ` (vencido desde ${fechaCobro})` : "";
 
         try {
           await mailer.enviarCobro({ cliente, suscripcion: sus, usuarioConfig: usuario });
 
           db.historial.create({
             suscripcion_id: sus.id,
-            fecha: new Date().toISOString(), 
+            fecha: new Date().toISOString(),
             estado: "Enviado",
-            detalles: `Cobro ${sus.tipo} enviado.`,
-            monto: sus.monto 
+            detalles: `Cobro ${sus.tipo} enviado${sufijo}.`,
+            monto: sus.monto
           }, usuario.id);
 
-          totalEnviados++;
+          resumen.enviados++;
+          if (diasVencido > 0) resumen.vencidosEnviados++;
         } catch (err) {
           db.historial.create({
             suscripcion_id: sus.id,
             fecha: new Date().toISOString(),
             estado: "Fallido",
-            detalles: `Error: ${err.message}`,
-            monto: sus.monto 
+            detalles: `Error${sufijo}: ${err.message}`,
+            monto: sus.monto
           }, usuario.id);
         }
       }
     }
-    return { success: true, enviados: totalEnviados };
+    return resumen;
   } finally {
     procesandoCobros = false;
   }
@@ -178,7 +154,7 @@ function iniciarScheduler() {
   const hora = process.env.CRON_HORA || "08";
   const expr = `${min} ${hora} * * *`;
 
-  console.log(`[Scheduler] Programado para las ${hora}:${min}`);
+  console.log(`[Scheduler] Programado para las ${hora}:${min} (reintento de vencidos: ${cobros.ventanaReintento()} días)`);
 
   cron.schedule(expr, async () => {
     try {
@@ -189,9 +165,11 @@ function iniciarScheduler() {
   }, { timezone: "America/Bogota" });
 }
 
-module.exports = { 
-  iniciarScheduler, 
-  procesarCobrosDelDia, 
+module.exports = {
+  iniciarScheduler,
+  procesarCobrosDelDia,
   estaProcesandoCobros,
-  procesarSeleccionados 
+  procesarSeleccionados,
+  previsualizarCobros,
+  resumenCobros
 };
