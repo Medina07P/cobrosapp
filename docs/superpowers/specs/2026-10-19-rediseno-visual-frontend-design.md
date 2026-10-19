@@ -12,7 +12,7 @@ Pasar de una plantilla genérica (17/40 en la crítica) a una interfaz propia de
 - **Tokens en `:root`** (`--surface`, `--ink`, `--line`, `--ok`, `--warn`, `--bad`, `--info`), definidos en `main.jsx` junto a `--color-primario`. Los componentes usan variables, no hex ni colores de Tailwind.
 - **Paleta:** papel `#F6F3EC`, superficies `#FFFFFF`/`#FBF9F4`, líneas `#E3DED2`, tinta `#1F2421`, texto secundario `#5C625C`. Acento por defecto `#1F6B4F`, sustituido por `color_tema` del usuario.
 - **Contraste de marca:** se calcula `--color-primario-contraste` (blanco o tinta según luminancia) para que un color elegido no rompa botones. `${color}33` deja de asumir hex de 6 dígitos.
-- **Estados fijos**, independientes de la marca y siempre con icono y texto: cobrado `#1F7A4D`, pendiente `#9A6B00` sobre `#FBF1D6`, vencido/fallido `#B3261E` sobre `#FBE4E1`, enviado/info `#2D5F8B`.
+- **Estados fijos**, independientes de la marca y siempre con icono y texto: cobrado `#1F7A4D`, pendiente `#7F5800` sobre `#FBF1D6` (el `#9A6B00` original daba 4.17:1 y no cumplía AA), vencido/fallido `#B3261E` sobre `#FBE4E1`, enviado/info `#2D5F8B`.
 - **Tipografía:** Fraunces (títulos y cifras grandes), IBM Plex Sans (interfaz), `tabular-nums` en montos alineados a la derecha. Fuentes autoalojadas en `woff2` con preload (servidor tras Starlink). Base 15 px, mínimo 12 px.
 - **Iconos:** componente `Icon.jsx` con SVG inline de Phosphor (regular), `currentColor`, `aria-hidden`. Solo los iconos usados, sin librería completa. Se eliminan los 19 emojis y símbolos.
 - **Logo SGCRC:** marca SVG (sello/recibo estilizado) que usa `currentColor`. Se retira el "●" y el nombre por defecto "Café Valdore" (`App.jsx:124,155`).
