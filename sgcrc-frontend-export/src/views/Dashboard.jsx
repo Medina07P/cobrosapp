@@ -63,7 +63,7 @@ export default function Dashboard() {
     } catch (err) {
       const errorStatus = err.response?.status || err.status;
       const errorData = err.response?.data || err.data;
-      if (errorStatus === 409) {
+      if (errorStatus === 409 && errorData?.requiereConfirmacion) {
         const msg = errorData?.mensaje || "Ya se procesaron cobros hoy.";
         if (window.confirm(`${msg}\n\n¿Deseas forzar el reenvío para todos los pendientes de hoy?`)) {
           return handleForzarCobros(true);

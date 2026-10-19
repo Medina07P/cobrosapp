@@ -1,9 +1,9 @@
 const cron = require("node-cron");
+require("dotenv").config();
 const db = require("./db");
 const mailer = require("./mailer");
 const database = require("./database");
 const cobros = require("./cobros");
-require("dotenv").config();
 
 let procesandoCobros = false;
 
@@ -65,10 +65,12 @@ async function procesarSeleccionados(usuarioId, listaIds) {
     const usuario = database.prepare('SELECT * FROM usuarios WHERE id = ?').get(usuarioId);
     if (!usuario) throw new Error("Usuario no encontrado");
 
-    for (const susId of listaIds) {
-      const sus = db.suscripciones.find(susId);
-      const cliente = db.clientes.find(sus.cliente_id);
+    const propias = new Map(db.suscripciones.all(usuarioId).map((s) => [s.id, s]));
+    const clientes = clientesDe(usuarioId);
 
+    for (const susId of listaIds) {
+      const sus = propias.get(Number(susId));
+      const cliente = sus && clientes.get(sus.cliente_id);
       if (!sus || !cliente) continue;
 
       try {
@@ -108,39 +110,45 @@ async function procesarCobrosDelDia(usuarioIdFijo = null, confirmarReenvio = fal
     for (const usuario of usuarios) {
       if (!usuario) continue;
 
-      const plan = previsualizarCobros(usuario.id, confirmarReenvio);
-      const clientes = clientesDe(usuario.id);
-      resumen.omitidos += plan.yaEnviadosHoy.length;
-      resumen.perdidos += plan.perdidos.length;
+      try {
+        const plan = previsualizarCobros(usuario.id, confirmarReenvio);
+        const clientes = clientesDe(usuario.id);
+        resumen.omitidos += plan.yaEnviadosHoy.length;
+        resumen.perdidos += plan.perdidos.length;
 
-      for (const { sus, fechaCobro, diasVencido } of plan.enviar) {
-        const cliente = clientes.get(sus.cliente_id);
-        if (!cliente) continue;
+        for (const { sus, fechaCobro, diasVencido } of plan.enviar) {
+          const cliente = clientes.get(sus.cliente_id);
+          if (!cliente) continue;
 
-        const sufijo = diasVencido > 0 ? ` (vencido desde ${fechaCobro})` : "";
+          const sufijo = diasVencido > 0 ? ` (vencido desde ${fechaCobro})` : "";
 
-        try {
-          await mailer.enviarCobro({ cliente, suscripcion: sus, usuarioConfig: usuario });
+          try {
+            await mailer.enviarCobro({ cliente, suscripcion: sus, usuarioConfig: usuario });
 
-          db.historial.create({
-            suscripcion_id: sus.id,
-            fecha: new Date().toISOString(),
-            estado: "Enviado",
-            detalles: `Cobro ${sus.tipo} enviado${sufijo}.`,
-            monto: sus.monto
-          }, usuario.id);
+            db.historial.create({
+              suscripcion_id: sus.id,
+              fecha: new Date().toISOString(),
+              estado: "Enviado",
+              detalles: `Cobro ${sus.tipo} enviado${sufijo}.`,
+              monto: sus.monto
+            }, usuario.id);
 
-          resumen.enviados++;
-          if (diasVencido > 0) resumen.vencidosEnviados++;
-        } catch (err) {
-          db.historial.create({
-            suscripcion_id: sus.id,
-            fecha: new Date().toISOString(),
-            estado: "Fallido",
-            detalles: `Error${sufijo}: ${err.message}`,
-            monto: sus.monto
-          }, usuario.id);
+            resumen.enviados++;
+            if (diasVencido > 0) resumen.vencidosEnviados++;
+          } catch (err) {
+            db.historial.create({
+              suscripcion_id: sus.id,
+              fecha: new Date().toISOString(),
+              estado: "Fallido",
+              detalles: `Error${sufijo}: ${err.message}`,
+              monto: sus.monto
+            }, usuario.id);
+          }
         }
+      } catch (err) {
+        console.error(`❌ Cobros del usuario ${usuario.id} interrumpidos: ${err.message}`);
+        if (usuarioIdFijo) throw err; // /run conserva el 500 actual
+        resumen.errores = (resumen.errores || 0) + 1;
       }
     }
     return resumen;
@@ -162,7 +170,7 @@ function iniciarScheduler() {
     } catch (error) {
       console.error("ERROR en cron:", error.message);
     }
-  }, { timezone: "America/Bogota" });
+  }, { timezone: cobros.ZONA });
 }
 
 module.exports = {

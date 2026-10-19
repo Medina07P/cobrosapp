@@ -54,7 +54,7 @@ El dashboard usa el valor `31` fijo para calcular rollover mensual, lo cual pued
 
 ### ⚠️ PENDIENTE — 8. Suite de pruebas automatizadas
 
-Existe un smoke test en `backend/tests_api_smoke.js` (alineado con JWT desde 2026-05-25), pero no hay pruebas de unidad para la lógica del scheduler (`tocaCobrarHoy`), ni pruebas de integración para casos críticos (cobro en último día del mes, frecuencia anual, etc.). No hay tests en el frontend.
+Existe un smoke test en `backend/tests_api_smoke.js` (alineado con JWT desde 2026-05-25), y desde 2026-10-19 hay pruebas de unidad para la lógica de fechas de cobro (`backend/cobros.test.js`, `npm run test:unit`) y una de integración del scheduler, pero faltan más casos críticos (cobro en último día del mes, frecuencia anual, etc.). Antes: no había pruebas de integración para casos críticos (cobro en último día del mes, frecuencia anual, etc.). No hay tests en el frontend.
 
 ---
 
@@ -76,5 +76,5 @@ No hay logging estructurado ni métricas. Los errores van a `console.error`. Se 
 2. **Alta:** Activar `SMTP_REQUIRED=true` para detectar fallos de SMTP al arrancar.
 3. **Media:** Validación de entradas (correo, monto, dia_cobro) en endpoints.
 4. **Media:** Restringir CORS a origen de producción.
-5. **Baja:** Tests para `tocaCobrarHoy()` y casos de borde del scheduler.
+5. ~~**Baja:** Tests para la lógica de fechas de cobro y casos de borde del scheduler.~~ ✅ Hecho (`cobros.test.js`, `npm run test:unit`).
 6. **Baja:** Corrección de cálculo de días en Dashboard.

@@ -117,4 +117,4 @@ function ventanaReintento() {
   return Number.isNaN(v) || v < 0 ? VENTANA_REINTENTO_POR_DEFECTO : v;
 }
 
-module.exports = { aISO, hoyISO, sumarDias, tocaCobrarEn, ultimoCobroSinEnviar, planificarCobros, ventanaReintento };
+module.exports = { ZONA, aISO, hoyISO, sumarDias, tocaCobrarEn, ultimoCobroSinEnviar, planificarCobros, ventanaReintento };

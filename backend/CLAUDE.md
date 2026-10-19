@@ -59,6 +59,8 @@ node migrar.js     # Migración one-shot desde db.json legado (solo para datos h
 - La decisión de qué enviar vive en `cobros.js` (`planificarCobros`), no en `scheduler.js`. `tocaCobrarEn(sus, fecha)` prioriza `fecha_alta` sobre `dia_cobro` del plan.
 - **Cobros vencidos:** el cron envía los cobros de hoy y reintenta los vencidos (día de cobro pasado sin envío `Enviado` en esa fecha o después) durante `COBROS_REINTENTO_DIAS` días (7 por defecto; 0 = solo hoy). Más allá de la ventana el cobro es "perdido": no se envía, solo aparece en `GET /cobros/resumen`.
 - Idempotencia en `/run` (endpoint manual): responde 409 solo cuando no hay nada nuevo que enviar y sí hay cobros de hoy ya enviados; entonces requiere `{ confirmarReenvio: true }`.
+- Reactivar una suscripción (`activa=1`) o registrar/editar `fecha_alta` con una fecha pasada puede generar al día siguiente un cobro 'vencido' (si el último día de cobro cae dentro de la ventana de reintento). Cambiar el día de `fecha_alta` después de enviar el cobro del periodo puede producir un segundo cobro en el mismo periodo.
+- `COBROS_REINTENTO_DIAS=0` no muestra vencidos en `GET /cobros/resumen`: los cobros pasados sin enviar figuran en `perdidos`.
 - El mutex `procesandoCobros` es en memoria: no protege contra múltiples procesos Node.js.
 - Pruebas: `npm run test:unit` (lógica de fechas), `npm run test:integration` (scheduler con usuario temporal en la base de desarrollo y correo simulado), `npm test` (smoke de la API). Ninguna debe ejecutarse contra producción.
 
@@ -66,4 +68,6 @@ node migrar.js     # Migración one-shot desde db.json legado (solo para datos h
 
 - `JWT_SECRET` tiene fallback hardcodeado en `api.js:7` y `auth.js:5`. Siempre setear en `.env`.
 - El smoke test (`npm test`) usa un email con timestamp para no colisionar en re-ejecuciones, pero deja datos de prueba en la DB real. No ejecutar en producción.
+- `PUT /suscripciones/:id` no verifica que la suscripción pertenezca al usuario (`db.suscripciones.update` filtra solo por id). Pendiente de corregir; con el reintento de vencidos un cambio ajeno de `fecha_alta` o `activa` puede disparar un correo desde la cuenta de la víctima.
+- `database.js` usa siempre `data/sgcrc.db` (ignora `DB_PATH`): en el servidor, las pruebas `npm test` y `npm run test:integration` escribirían en la base de producción. No ejecutarlas allí.
 - El log `"✅ Base de datos refactorizada..."` aparece duplicado en `database.js:108-110` (líneas 108 y 110 son iguales; no afecta comportamiento).

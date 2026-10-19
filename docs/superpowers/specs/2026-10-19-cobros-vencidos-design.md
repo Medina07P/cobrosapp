@@ -24,7 +24,7 @@ Fecha: 2026-10-19 · Alcance: `backend/` · Aprobado por el usuario el 2026-10-1
 
 ## Riesgos y despliegue
 
-- **Primer arranque en producción:** puede reenviar correos de cobros de los últimos 7 días que se gestionaron fuera del sistema. Desplegar con `COBROS_REINTENTO_DIAS=0`, revisar `GET /cobros/resumen`, y activar (quitar la variable) cuando la lista sea la esperada.
+- **Primer arranque en producción:** puede reenviar correos de cobros de los últimos 7 días que se gestionaron fuera del sistema. Desplegar con `COBROS_REINTENTO_DIAS=0` y mantenerlo al menos 7 días: con 0 solo se cobra lo de hoy (como antes) y los cobros previos al despliegue salen de la ventana solos. Si se activa antes, revisar en `GET /cobros/resumen` de cada usuario la lista `perdidos` con `diasVencido <= 7`: esos saldrán al activar.
 - **Suscripción creada después del cron del día de su `fecha_alta`:** al día siguiente figura como vencida 1 día y recibe el cobro. Es el comportamiento buscado.
 - **Un `Fallido` repetido** deja una fila por intento (hasta 7). Es un registro, no un problema.
 

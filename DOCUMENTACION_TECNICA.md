@@ -72,7 +72,7 @@ Las migraciones se aplican como sentencias `ALTER TABLE … try/catch` en `backe
 
 1. `node-cron` dispara `procesarCobrosDelDia()` a las 08:00 America/Bogota (configurable).
 2. Se obtienen todas las suscripciones activas del usuario.
-3. `tocaCobrarHoy()` determina si cada suscripción corresponde al día actual según su frecuencia (`mensual`, `quincenal`, `semanal`, `anual`) y `fecha_alta`.
+3. `tocaCobrarEn()` / `planificarCobros()` (`backend/cobros.js`) determinan si cada suscripción corresponde al día actual según su frecuencia (`mensual`, `quincenal`, `semanal`, `anual`) y `fecha_alta`.
 4. Se omiten las suscripciones ya enviadas en el día (idempotencia).
 5. Para cada suscripción elegible: `mailer.enviarCobro()` genera y envía el HTML del correo.
 6. Se registra el resultado (`Enviado` o `Fallido`) en la tabla `historial`.

@@ -759,7 +759,9 @@ Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 Agregar al final del archivo:
 ```env
 # Reintento de cobros vencidos: días hacia atrás que se reintentan (0 = solo cobros de hoy).
-# En el primer despliegue usar 0, revisar GET /cobros/resumen y luego quitar la variable.
+# Primer despliegue: usar 0 y mantenerlo al menos 7 días (con 0 solo se cobra lo de hoy y los cobros
+# previos al despliegue salen de la ventana solos). Si se activa antes, revisar `perdidos` con
+# diasVencido <= 7 en GET /cobros/resumen de cada usuario: esos saldrán al activar.
 COBROS_REINTENTO_DIAS=7
 # Zona horaria para calcular el día de cobro
 APP_TZ=America/Bogota
@@ -811,6 +813,6 @@ Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 
 ## Despliegue seguro (para quien despliega)
 
-1. Subir con `COBROS_REINTENTO_DIAS=0` en el `.env` del servidor y reiniciar con `pm2 restart sgcrc-backend`.
-2. Consultar `GET /cobros/resumen` y comprobar que `vencidos` solo contiene cobros que realmente no salieron.
-3. Quitar la variable (o ponerla en `7`) y reiniciar.
+1. Subir con `COBROS_REINTENTO_DIAS=0` en el `.env` del servidor y reiniciar con `pm2 restart sgcrc-backend`. Mantenerlo al menos 7 días: con 0 solo se cobra lo de hoy (como antes) y los cobros previos al despliegue salen de la ventana solos.
+2. Si se quiere activar antes, revisar en `GET /cobros/resumen` de cada usuario la lista `perdidos` con `diasVencido <= 7`: esos saldrán al activar.
+3. Pasados los 7 días, quitar la variable (o ponerla en `7`) y reiniciar.

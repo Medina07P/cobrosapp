@@ -166,9 +166,10 @@ curl -X POST http://localhost:3000/run \
 
 Ejecuta `procesarCobrosDelDia()` cada día a la hora configurada (timezone `America/Bogota`).
 
-- `tocaCobrarHoy()` usa `fecha_alta` como día base si existe; de lo contrario, usa `dia_cobro` del plan.
+- `cobros.js` (`tocaCobrarEn` y `planificarCobros`) usa `fecha_alta` como día base si existe; de lo contrario, usa `dia_cobro` del plan.
+- Cobros vencidos: el scheduler reintenta cada día los cobros pasados sin enviar hasta `COBROS_REINTENTO_DIAS` días (7 por defecto).
 - Los envíos ya procesados en el día se omiten para evitar duplicados (idempotencia).
-- El endpoint `/run` requiere `{ confirmarReenvio: true }` si ya hubo envíos en el día.
+- El endpoint `/run` responde 409 y requiere `{ confirmarReenvio: true }` solo cuando no hay nada nuevo que enviar y sí hay cobros de hoy ya enviados.
 - El mutex `procesandoCobros` evita ejecuciones concurrentes del mismo proceso.
 
 ---

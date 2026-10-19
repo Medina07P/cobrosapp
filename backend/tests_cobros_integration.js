@@ -7,7 +7,7 @@ const database = require('./database');
 const db = require('./db');
 const mailer = require('./mailer');
 const cobros = require('./cobros');
-const { procesarCobrosDelDia, resumenCobros } = require('./scheduler');
+const { procesarCobrosDelDia, procesarSeleccionados, resumenCobros } = require('./scheduler');
 
 const hoy = cobros.hoyISO();
 const hace = (n) => cobros.sumarDias(hoy, -n);
@@ -19,6 +19,7 @@ async function run() {
       .run(`cobros_${Date.now()}@test.local`, 'x', 'Prueba cobros').lastInsertRowid
   );
 
+  let otroUsuarioId = null;
   const enviados = [];
   const enviarOriginal = mailer.enviarCobro;
   mailer.enviarCobro = async ({ cliente }) => { enviados.push(cliente.nombre); };
@@ -73,10 +74,24 @@ async function run() {
     assert.deepStrictEqual(enviados, ['dehoy']);
     assert.strictEqual(r3.enviados, 1);
 
+    // 5. Aislamiento entre usuarios: procesarSeleccionados ignora ids ajenos o inexistentes
+    otroUsuarioId = Number(
+      database.prepare('INSERT INTO usuarios (email, password, nombre) VALUES (?, ?, ?)')
+        .run(`cobros2_${Date.now()}@test.local`, 'x', 'Prueba cobros 2').lastInsertRowid
+    );
+    const planAjeno = db.planes.create({ nombre_plan: 'Ajeno', monto: 1000, frecuencia: 'semanal', dia_cobro: 1 }, otroUsuarioId);
+    const clienteAjeno = db.clientes.create({ nombre: 'ajeno', correo: 'ajeno@test.local' }, otroUsuarioId);
+    const susAjena = db.suscripciones.create({ cliente_id: clienteAjeno.id, plan_id: planAjeno.id, fecha_alta: hoy }, otroUsuarioId);
+    enviados.length = 0;
+    const r4 = await procesarSeleccionados(usuarioId, [susAjena.id, 999999999]);
+    assert.strictEqual(r4.enviados, 0);
+    assert.deepStrictEqual(enviados, []);
+
     console.log('OK integración de cobros vencidos');
   } finally {
     mailer.enviarCobro = enviarOriginal;
     database.prepare('DELETE FROM usuarios WHERE id = ?').run(usuarioId); // borra todo en cascada
+    if (otroUsuarioId) database.prepare('DELETE FROM usuarios WHERE id = ?').run(otroUsuarioId);
   }
 }
 
