@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api.js';
+import { aplicarColorTema, COLOR_POR_DEFECTO } from '../lib/colorTema.js';
 
 export default function Configuracion() {
-  const [usuario, setUsuario] = useState({ nombre: '', color_tema: '#4f46e5' });
+  const [usuario, setUsuario] = useState({ nombre: '', color_tema: COLOR_POR_DEFECTO });
   const [status, setStatus] = useState('');
 
   // Cargar datos actuales del usuario
@@ -20,7 +21,7 @@ export default function Configuracion() {
       setStatus('✅ Configuración guardada. Recarga para ver los cambios.');
       
       // Actualizamos la variable de CSS en tiempo real para previsualizar
-      document.documentElement.style.setProperty('--color-primario', usuario.color_tema);
+      aplicarColorTema(document.documentElement, usuario.color_tema);
     } catch (e) {
       setStatus('❌ Error al guardar');
     }

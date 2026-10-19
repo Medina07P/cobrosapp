@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, setApiKey } from './api.js'
+import { aplicarColorTema } from './lib/colorTema.js'
 import Login from './views/Login.jsx'
 import Dashboard from './views/Dashboard.jsx'
 import Clientes from './views/Clientes.jsx'
@@ -44,10 +45,7 @@ export default function App() {
     const refrescarConfiguracion = async () => {
       try {
         const perfil = await api.getPerfil();
-        // Actualizamos las variables CSS
-        const color = perfil.color_tema || '#4f46e5';
-        document.documentElement.style.setProperty('--color-primario', color);
-        document.documentElement.style.setProperty('--color-primario-glow', `${color}33`);
+        aplicarColorTema(document.documentElement, perfil.color_tema);
         
         // Actualizamos la sesión local por si el nombre cambió
         const nuevaSesion = { ...session, user: perfil };
@@ -55,9 +53,7 @@ export default function App() {
         localStorage.setItem('sgcrc_session', JSON.stringify(nuevaSesion));
       } catch (err) {
         // Si falla el fetch inicial, usamos lo que tengamos en sesión
-        const colorDefault = session.user?.color_tema || '#4f46e5';
-        document.documentElement.style.setProperty('--color-primario', colorDefault);
-        document.documentElement.style.setProperty('--color-primario-glow', `${colorDefault}33`);
+        aplicarColorTema(document.documentElement, session.user?.color_tema);
       }
     };
 
