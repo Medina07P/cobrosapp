@@ -18,7 +18,11 @@ npm run preview  # Preview del build local
 
 | Archivo / Carpeta | Rol |
 |---|---|
-| `main.jsx` | Bootstrap React, aplica CSS custom properties de tema desde `localStorage` |
+| `main.jsx` | Bootstrap React: importa fuentes y los estilos `src/styles/tokens.css` y `src/styles/base.css`, y monta la app |
+| `styles/` | `tokens.css` (variables CSS) y `base.css` (estilos base) |
+| `lib/colorTema.js` | `aplicarColorTema` y helpers de contraste del color de marca (tests: `npm test`) |
+| `ui/Icon.jsx` | Componente de iconos; `npm run icons` regenera `ui/icons.generated.js` |
+| `ui/Logo.jsx` | Logo SGCRC en SVG |
 | `App.jsx` | Shell de la SPA: estado `view`, objeto `VIEWS`, sidebar desktop + tabs mobile |
 | `api.js` | Cliente HTTP con `fetch`, base `/api`, inyecta `Authorization: Bearer <token>`, limpia sesión en 401 |
 | `components.jsx` | Componentes compartidos (tarjetas, tabla, modal, badges) |
@@ -59,7 +63,9 @@ export const miRecurso = {
 ## Theming
 
 - El color del usuario se guarda en DB como `color_tema` (hex, ej: `#4f46e5`).
-- Al cargar y al hacer login, `main.jsx` aplica `document.documentElement.style.setProperty('--color-primario', color)`.
+- El color de marca se aplica SOLO mediante `aplicarColorTema(document.documentElement, hex)` de `src/lib/colorTema.js` (llamada desde `App.jsx` al login/refrescar perfil y desde `Configuracion.jsx` para la vista previa en vivo). Define `--color-primario`, `--color-primario-glow` y `--color-primario-contraste`.
+- El texto sobre un fondo con color de marca debe usar `var(--color-primario-contraste)`, no `text-white`.
+- Nunca llamar a `setProperty('--color-primario', ...)` directamente.
 - Los componentes deben usar `var(--color-primario)` en estilos inline o clases Tailwind con `[color:var(--color-primario)]`. No hardcodear colores de marca.
 
 ## Tailwind por CDN

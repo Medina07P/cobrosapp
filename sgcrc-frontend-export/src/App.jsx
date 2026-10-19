@@ -144,8 +144,8 @@ export default function App() {
         <header className="bg-white rounded-2xl p-5 shadow-sm mb-6 flex items-center justify-between gap-3 border border-slate-200/60">
           <div className="flex items-center gap-4">
             <div 
-              className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg"
-              style={{ backgroundColor: 'var(--color-primario)' }}
+              className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xl shadow-lg"
+              style={{ backgroundColor: 'var(--color-primario)', color: 'var(--color-primario-contraste)' }}
             >
               {(session.user?.nombre || 'M').charAt(0)}
             </div>
