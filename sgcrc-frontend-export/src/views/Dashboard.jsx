@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api.js'
+import Icon from '../ui/Icon.jsx'
 
 // Formateador de moneda colombiana
 const fmt = (n) => new Intl.NumberFormat('es-CO', { 
@@ -57,14 +58,14 @@ export default function Dashboard() {
     setLoadingProceso(true);
     try {
       const res = await api.runCobros({ confirmarReenvio });
-      alert(res.message || "✅ Proceso completado exitosamente");
+      alert(res.message || "Proceso completado exitosamente");
       await cargar(); 
     } catch (err) {
       const errorStatus = err.response?.status || err.status;
       const errorData = err.response?.data || err.data;
       if (errorStatus === 409) {
         const msg = errorData?.mensaje || "Ya se procesaron cobros hoy.";
-        if (window.confirm(`⚠️ ${msg}\n\n¿Deseas forzar el reenvío para todos los pendientes de hoy?`)) {
+        if (window.confirm(`${msg}\n\n¿Deseas forzar el reenvío para todos los pendientes de hoy?`)) {
           return handleForzarCobros(true);
         }
       } else {
@@ -125,13 +126,15 @@ export default function Dashboard() {
         {/* BOTÓN DINÁMICO */}
         <button 
           disabled={loadingProceso}
-          style={!loadingProceso ? { backgroundColor: 'var(--color-primario)' } : {}}
+          style={!loadingProceso
+            ? { backgroundColor: 'var(--color-primario)', color: 'var(--color-primario-contraste)' }
+            : { color: '#fff' }}
           className={`${
             loadingProceso ? 'bg-slate-400' : 'hover:brightness-110 active:scale-95'
-          } text-white font-semibold rounded-xl px-6 py-3 transition-all shadow-lg flex items-center gap-2`}
+          } font-semibold rounded-xl px-6 py-3 transition-all shadow-lg flex items-center gap-2`}
           onClick={() => handleForzarCobros(false)}
         >
-          {loadingProceso ? <span className="animate-spin">⏳</span> : <span>🚀</span>}
+          {loadingProceso ? <Icon name="arrow-clockwise" size={20} className="animate-spin" /> : <Icon name="paper-plane-tilt" size={20} />}
           {loadingProceso ? 'Procesando...' : 'Forzar Cobros de Hoy'}
         </button>
       </div>
@@ -139,15 +142,15 @@ export default function Dashboard() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {[
-          { label: 'Total Clientes', value: stats.clientes, icon: '👥', color: 'text-blue-600' },
-          { label: 'Suscripciones', value: stats.activas, icon: '🔄', color: 'text-purple-600' },
-          { label: 'Ingresos/Mes', value: fmt(stats.ingresos), icon: '💰', color: 'text-emerald-600' },
-          { label: 'Enviados Hoy', value: stats.enviados, icon: '📧', color: 'text-sky-600' },
-          { label: 'Errores', value: stats.fallidos, icon: '⚠️', color: 'text-rose-600' },
+          { label: 'Total Clientes', value: stats.clientes, icon: 'users', color: 'text-blue-600' },
+          { label: 'Suscripciones', value: stats.activas, icon: 'arrows-clockwise', color: 'text-purple-600' },
+          { label: 'Ingresos/Mes', value: fmt(stats.ingresos), icon: 'coins', color: 'text-emerald-600' },
+          { label: 'Enviados Hoy', value: stats.enviados, icon: 'envelope-simple', color: 'text-sky-600' },
+          { label: 'Errores', value: stats.fallidos, icon: 'warning-circle', color: 'text-rose-600' },
         ].map((item) => (
           <div key={item.label} className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-2xl">{item.icon}</span>
+              <Icon name={item.icon} size={28} className={item.color} />
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-50 ${item.color}`}>INFO</span>
             </div>
             <p className="text-sm text-slate-500 font-medium">{item.label}</p>
@@ -159,7 +162,7 @@ export default function Dashboard() {
       {/* Proximos Cobros List */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
         <div className="flex items-center mb-6">
-          <div className="p-2 bg-amber-50 rounded-lg mr-3 text-xl">📅</div>
+          <div className="p-2 bg-amber-50 rounded-lg mr-3 text-amber-700"><Icon name="calendar-blank" size={24} /></div>
           <h3 className="text-lg font-bold text-slate-800">Próximos cobros basados en fecha de inicio</h3>
         </div>
         
@@ -187,9 +190,9 @@ export default function Dashboard() {
                   {/* TEXTO DE DÍAS DINÁMICO */}
                   <p 
                     style={s.dias !== 0 ? { color: 'var(--color-primario)' } : {}}
-                    className={`text-xs font-bold ${s.dias === 0 ? 'text-rose-500 animate-pulse' : ''}`}
+                    className={`text-xs font-bold inline-flex items-center gap-1 ${s.dias === 0 ? 'text-rose-600' : ''}`}
                   >
-                    {s.dias === 0 ? '• TOCA COBRAR HOY' : `en ${s.dias} días`}
+                    {s.dias === 0 ? <><Icon name="bell" size={14} />TOCA COBRAR HOY</> : `en ${s.dias} días`}
                   </p>
                 </div>
               </div>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api.js'
+import Icon from '../ui/Icon.jsx'
 
 const fmt = (n) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n)
 
@@ -40,8 +41,8 @@ export default function Planes() {
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-slate-800">Catálogo de Planes</h2>
         {editing && (
-          <button onClick={() => {setEditing(null); setForm(empty)}} className="text-xs font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest">
-            ✕ Cancelar Edición
+          <button onClick={() => {setEditing(null); setForm(empty)}} className="inline-flex items-center gap-1 text-xs font-bold text-slate-600 hover:text-slate-800 uppercase tracking-widest">
+            <Icon name="x" size={14} />Cancelar Edición
           </button>
         )}
       </div>

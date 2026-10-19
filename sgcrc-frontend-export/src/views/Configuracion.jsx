@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api.js';
+import Icon from '../ui/Icon.jsx';
 import { aplicarColorTema, COLOR_POR_DEFECTO } from '../lib/colorTema.js';
 
 export default function Configuracion() {
@@ -18,12 +19,12 @@ export default function Configuracion() {
   const guardar = async () => {
     try {
       await api.updatePerfil(usuario); // Asegúrate de tener este método en api.js
-      setStatus('✅ Configuración guardada. Recarga para ver los cambios.');
+      setStatus({ ok: true, texto: 'Configuración guardada.' });
       
       // Actualizamos la variable de CSS en tiempo real para previsualizar
       aplicarColorTema(document.documentElement, usuario.color_tema);
     } catch (e) {
-      setStatus('❌ Error al guardar');
+      setStatus({ ok: false, texto: 'Error al guardar' });
     }
   };
 
@@ -57,7 +58,12 @@ export default function Configuracion() {
           </div>
         </div>
 
-        {status && <p className="text-sm font-medium text-emerald-600">{status}</p>}
+        {status && (
+          <p role={status.ok ? 'status' : 'alert'} className={`inline-flex items-center gap-2 text-sm font-medium ${status.ok ? 'text-emerald-700' : 'text-red-700'}`}>
+            <Icon name={status.ok ? 'check-circle' : 'x-circle'} size={18} />
+            {status.texto}
+          </p>
+        )}
 
         <button 
           onClick={guardar}
