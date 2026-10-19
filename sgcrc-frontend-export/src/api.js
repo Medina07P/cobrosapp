@@ -79,7 +79,7 @@ export const api = {
   deleteSuscripcion: (id) => req('DELETE', `/suscripciones/${id}`),
 
   // --- CONFIGURACIÓN DE USUARIO (NUEVO) ---
-  // Obtiene nombre y color_tema de Café Valdore
+  // Obtiene nombre y color_tema del usuario
   getPerfil: () => req('GET', '/usuario/perfil'),
   
   // Actualiza nombre y color_tema (Usa PATCH como definimos en el server.js)
