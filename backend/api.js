@@ -2,7 +2,7 @@ const http = require("http");
 const db = require("./db");
 const auth = require("./auth");
 const jwt = require('jsonwebtoken');
-const { procesarCobrosDelDia, estaProcesandoCobros, procesarSeleccionados } = require("./scheduler");
+const { procesarCobrosDelDia, estaProcesandoCobros, procesarSeleccionados, previsualizarCobros, resumenCobros } = require("./scheduler");
 
 const SECRET_KEY = process.env.JWT_SECRET || 'clave_maestra_super_secreta_123';
 
@@ -201,23 +201,37 @@ async function handler(req, res) {
       return json(res, 200, { message: "Proceso individual completado", enviados: resultado.enviados });
     }
 
+    if (pathname === "/cobros/resumen" && method === "GET") {
+      return json(res, 200, resumenCobros(usuario.id));
+    }
+
     if (pathname === "/run" && method === "POST") {
       if (estaProcesandoCobros()) return json(res, 409, { error: "El proceso ya está en ejecución" });
 
       const body = await parseBody(req).catch(() => ({}));
-      const hoy = new Date().toISOString().split('T')[0];
-      const enviosHoy = db.historial.all(usuario.id).filter(h => h.fecha.startsWith(hoy) && h.estado === 'Enviado');
 
-      if (enviosHoy.length > 0 && body.confirmarReenvio !== true) {
+      // Solo se pide confirmación cuando no hay nada nuevo que enviar y sí hay cobros de hoy ya enviados
+      const plan = previsualizarCobros(usuario.id, false);
+      if (plan.enviar.length === 0 && plan.yaEnviadosHoy.length > 0 && body.confirmarReenvio !== true) {
         return json(res, 409, { 
           requiereConfirmacion: true, 
-          mensaje: `Se detectaron ${enviosHoy.length} cobros ya enviados hoy.`,
-          yaEnviadosIds: enviosHoy.map(h => h.suscripcion_id) 
+          mensaje: `Se detectaron ${plan.yaEnviadosHoy.length} cobros ya enviados hoy.`,
+          yaEnviadosIds: plan.yaEnviadosHoy.map((s) => s.id) 
         });
       }
 
       const resultado = await procesarCobrosDelDia(usuario.id, body.confirmarReenvio || false);
-      return json(res, 200, { message: "Proceso completado exitosamente", enviados: resultado.enviados });
+      if (!resultado.success) return json(res, 409, { error: resultado.message });
+
+      let message = `Proceso completado: ${resultado.enviados} enviados`;
+      if (resultado.vencidosEnviados > 0) message += ` (${resultado.vencidosEnviados} vencidos)`;
+      if (resultado.omitidos > 0) message += `. ${resultado.omitidos} ya enviados hoy se omitieron`;
+      return json(res, 200, {
+        message,
+        enviados: resultado.enviados,
+        vencidosEnviados: resultado.vencidosEnviados,
+        omitidos: resultado.omitidos
+      });
     }
 
     json(res, 404, { error: "Ruta no encontrada" });
