@@ -19,6 +19,14 @@ function hoyISO(ahora = new Date()) {
   return aISO(ahora);
 }
 
+// Fecha 'YYYY-MM-DD' (zona de la aplicación) de un registro del historial; null si no es una fecha válida.
+// Un 'YYYY-MM-DD HH:MM:SS' sin zona (formato de SQLite) se interpreta como UTC.
+function fechaDeRegistro(fecha) {
+  const texto = String(fecha);
+  const instante = new Date(/^\d{4}-\d{2}-\d{2} \d/.test(texto) ? `${texto.replace(' ', 'T')}Z` : texto);
+  return Number.isNaN(instante.getTime()) ? null : aISO(instante);
+}
+
 function partes(iso) {
   const [y, m, d] = iso.split('-').map(Number);
   return {
@@ -69,7 +77,8 @@ function tocaCobrarEn(sus, iso) {
 function ultimoCobroSinEnviar(sus, historial, hoy, diasAtras = VENTANA_BUSQUEDA_DIAS) {
   const enviados = historial
     .filter((h) => h.suscripcion_id === sus.id && h.estado === 'Enviado' && h.fecha)
-    .map((h) => aISO(new Date(h.fecha)));
+    .map((h) => fechaDeRegistro(h.fecha))
+    .filter(Boolean);
 
   for (let atras = 0; atras <= diasAtras; atras++) {
     const iso = sumarDias(hoy, -atras);

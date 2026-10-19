@@ -132,3 +132,22 @@ test('ventanaReintento lee COBROS_REINTENTO_DIAS y cae a 7 si es inválida', () 
     else process.env.COBROS_REINTENTO_DIAS = previo;
   }
 });
+
+test('una fila de historial con fecha inválida se ignora y no rompe el cálculo', () => {
+  const s = sus({ fecha_alta: '2026-01-17' });
+  const h = [{ suscripcion_id: 1, estado: 'Enviado', fecha: 'no-es-una-fecha' }];
+  assert.deepEqual(ultimoCobroSinEnviar(s, h, '2026-10-19'), { fechaCobro: '2026-10-17', diasVencido: 2 });
+});
+
+test('una fecha de historial sin zona (YYYY-MM-DD HH:MM:SS) se interpreta como UTC', () => {
+  const s = sus({ fecha_alta: '2026-01-17' });
+  // 2026-10-18 03:00 UTC = 2026-10-17 22:00 en Bogotá: cubre el cobro del día 17
+  const h = [enviado(1, '2026-10-18 03:00:00')];
+  assert.equal(ultimoCobroSinEnviar(s, h, '2026-10-19'), null);
+});
+
+test('fecha_alta con parte de hora se usa solo por su fecha', () => {
+  const s = sus({ fecha_alta: '2026-01-17T05:00:00Z' });
+  assert.equal(tocaCobrarEn(s, '2026-10-17'), true);
+  assert.equal(tocaCobrarEn(s, '2026-10-18'), false);
+});
