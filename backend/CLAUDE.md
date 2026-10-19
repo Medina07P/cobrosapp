@@ -25,7 +25,8 @@ node migrar.js     # Migración one-shot desde db.json legado (solo para datos h
 | `auth.js` | Registro y login: bcrypt hash + JWT sign con `expiresIn: '24h'` |
 | `database.js` | Instancia `better-sqlite3`, define DDL de las 5 tablas, aplica migraciones `ALTER TABLE` |
 | `db.js` | Capa repositorio: objetos `clientes`, `planes`, `suscripciones`, `historial`, `usuarios` |
-| `scheduler.js` | Cron diario con `node-cron`, función `tocaCobrarHoy()`, mutex `procesandoCobros` |
+| `scheduler.js` | Cron diario con `node-cron`, función `procesarCobrosDelDia()`, mutex `procesandoCobros` |
+| `cobros.js` | Reglas puras de fechas de cobro: `tocaCobrarEn`, detección de vencidos y `planificarCobros` (tests: `npm run test:unit`) |
 | `mailer.js` | Construye HTML del correo (con `escapeHtml`), envía vía SMTP por usuario o global |
 | `migrar.js` | Script one-shot para migrar datos desde `data/db.json` (formato anterior) a SQLite |
 | `check_db.js` | CLI para inspeccionar tablas y ver muestras de datos |
@@ -55,9 +56,11 @@ node migrar.js     # Migración one-shot desde db.json legado (solo para datos h
 ## Notas del scheduler
 
 - Hora por defecto: 08:00 America/Bogota. Configurable con `CRON_HORA` y `CRON_MIN` en `.env`.
-- `tocaCobrarHoy()` prioriza `fecha_alta` sobre `dia_cobro` del plan para calcular el día base.
-- Idempotencia en `/run` (endpoint manual): si ya hay envíos del día, requiere `{ confirmarReenvio: true }` en el body.
+- La decisión de qué enviar vive en `cobros.js` (`planificarCobros`), no en `scheduler.js`. `tocaCobrarEn(sus, fecha)` prioriza `fecha_alta` sobre `dia_cobro` del plan.
+- **Cobros vencidos:** el cron envía los cobros de hoy y reintenta los vencidos (día de cobro pasado sin envío `Enviado` en esa fecha o después) durante `COBROS_REINTENTO_DIAS` días (7 por defecto; 0 = solo hoy). Más allá de la ventana el cobro es "perdido": no se envía, solo aparece en `GET /cobros/resumen`.
+- Idempotencia en `/run` (endpoint manual): responde 409 solo cuando no hay nada nuevo que enviar y sí hay cobros de hoy ya enviados; entonces requiere `{ confirmarReenvio: true }`.
 - El mutex `procesandoCobros` es en memoria: no protege contra múltiples procesos Node.js.
+- Pruebas: `npm run test:unit` (lógica de fechas), `npm run test:integration` (scheduler con usuario temporal en la base de desarrollo y correo simulado), `npm test` (smoke de la API). Ninguna debe ejecutarse contra producción.
 
 ## Gotchas
 

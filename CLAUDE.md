@@ -56,7 +56,7 @@ El DDL está en `backend/database.js`. Las migraciones se hacen con bloques `try
 
 ### Scheduler de cobros
 
-`backend/scheduler.js` ejecuta `procesarCobrosDelDia()` diariamente a la hora configurada. `tocaCobrarHoy()` decide por frecuencia (`mensual`, `quincenal`, `semanal`, `anual`) usando `fecha_alta` como fecha base cuando está disponible. Hay un mutex booleano `procesandoCobros` para evitar concurrencia.
+`backend/scheduler.js` ejecuta `procesarCobrosDelDia()` diariamente a la hora configurada. Las reglas de fechas están en `backend/cobros.js`: `tocaCobrarEn()` decide por frecuencia (`mensual`, `quincenal`, `semanal`, `anual`) usando `fecha_alta` como fecha base cuando está disponible, y `planificarCobros()` incluye los cobros vencidos (reintento hasta `COBROS_REINTENTO_DIAS`, 7 por defecto). Hay un mutex booleano `procesandoCobros` para evitar concurrencia.
 
 ### Frontend SPA
 
