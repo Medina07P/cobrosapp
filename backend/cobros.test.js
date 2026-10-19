@@ -141,9 +141,10 @@ test('una fila de historial con fecha inválida se ignora y no rompe el cálculo
 
 test('una fecha de historial sin zona (YYYY-MM-DD HH:MM:SS) se interpreta como UTC', () => {
   const s = sus({ fecha_alta: '2026-01-17' });
-  // 2026-10-18 03:00 UTC = 2026-10-17 22:00 en Bogotá: cubre el cobro del día 17
-  const h = [enviado(1, '2026-10-18 03:00:00')];
-  assert.equal(ultimoCobroSinEnviar(s, h, '2026-10-19'), null);
+  // 2026-10-17 03:00 UTC = 2026-10-16 22:00 en Bogotá: es anterior al cobro del día 17, no lo cubre.
+  // Leído como hora local de Bogotá sería el día 17 y lo cubriría por error.
+  const h = [enviado(1, '2026-10-17 03:00:00')];
+  assert.equal(ultimoCobroSinEnviar(s, h, '2026-10-19').fechaCobro, '2026-10-17');
 });
 
 test('fecha_alta con parte de hora se usa solo por su fecha', () => {
