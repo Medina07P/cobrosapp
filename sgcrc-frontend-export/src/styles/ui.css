@@ -128,3 +128,37 @@ textarea.field-control { min-height: 5.5rem; resize: vertical; }
 @media (min-width: 640px) {
   .toast-region { left: auto; right: 1.25rem; justify-items: end; }
 }
+
+/* ---------- Estructura de página ---------- */
+.pagina { display: grid; gap: 1.25rem; }
+.pagina-cab { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 0.75rem; }
+.pagina-titulo { margin: 0; font-size: 1.75rem; line-height: 1.2; }
+.pagina-desc { margin: 0.25rem 0 0; color: var(--ink-2); }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 1.25rem; }
+.panel-titulo { margin: 0 0 1rem; font-size: 1.125rem; }
+
+.form-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); align-items: start; }
+.form-acciones { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1rem; }
+.check {
+  display: inline-flex; align-items: center; gap: 0.6rem; min-height: 2.75rem;
+  font-weight: 600; cursor: pointer;
+}
+.check input { width: 1.25rem; height: 1.25rem; accent-color: var(--color-primario); }
+.herramientas { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.75rem; }
+.herramientas .field { flex: 1; min-width: 14rem; }
+
+/* ---------- Tabla ---------- */
+.tabla-wrap { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow-x: auto; }
+.tabla { width: 100%; border-collapse: collapse; }
+.tabla th {
+  padding: 0.75rem 1rem; text-align: left; white-space: nowrap;
+  font-size: 0.8125rem; font-weight: 600; color: var(--ink-2);
+  background: var(--surface-alt); border-bottom: 1px solid var(--line);
+}
+.tabla td { padding: 0.85rem 1rem; vertical-align: middle; border-bottom: 1px solid var(--line); }
+.tabla tbody tr:last-child td { border-bottom: 0; }
+.tabla th.num, .tabla td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.tabla th.acciones, .tabla td.acciones { text-align: right; white-space: nowrap; }
+.tabla td.acciones > * + * { margin-left: 0.5rem; }
+.celda-nota { display: block; font-size: 0.8125rem; color: var(--ink-2); }

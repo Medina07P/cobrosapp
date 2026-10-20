@@ -3,12 +3,12 @@ import Icon from './Icon.jsx'
 
 // Campo de formulario con label visible asociado, ayuda y error en línea.
 // `as` elige el control: 'input' (por defecto), 'select' o 'textarea'; los children pasan al control.
-export default function Field({ label, ayuda, error, requerido = false, as: Control = 'input', id, className = '', ...resto }) {
+export default function Field({ label, ayuda, error, requerido = false, as: Control = 'input', id, className = '', 'aria-describedby': describedbyExtra, ...resto }) {
   const autoId = useId()
   const idCampo = id || autoId
   const idAyuda = ayuda ? `${idCampo}-ayuda` : null
   const idError = error ? `${idCampo}-error` : null
-  const descrito = [idAyuda, idError].filter(Boolean).join(' ') || undefined
+  const descrito = [describedbyExtra, idAyuda, idError].filter(Boolean).join(' ') || undefined
 
   return (
     <div className="field">

@@ -80,7 +80,8 @@ export default function Dialog({ abierto, titulo, onCerrar, cerrable = true, pie
       if (i !== -1) pila.splice(i, 1)
       if (fichaRef.current === ficha) fichaRef.current = null
       if (pila.length === 0) document.body.style.overflow = desbordeOriginal
-      if (previo && typeof previo.focus === 'function') previo.focus()
+      if (previo && document.contains(previo) && typeof previo.focus === 'function') previo.focus()
+      else document.getElementById('contenido')?.focus()
     }
   }, [abierto])
 

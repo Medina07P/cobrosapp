@@ -18,7 +18,15 @@ const ICONOS = { ok: 'check-circle', error: 'warning-circle', info: 'bell' }
 export function ToastRegion() {
   const items = useSyncExternalStore(tostadas.subscribe, tostadas.getSnapshot)
   return createPortal(
-    <div className="toast-region" aria-live="polite" aria-relevant="additions">
+    <div
+      className="toast-region"
+      aria-live="polite"
+      aria-relevant="additions"
+      onMouseEnter={tostadas.pausar}
+      onMouseLeave={tostadas.reanudar}
+      onFocus={tostadas.pausar}
+      onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) tostadas.reanudar() }}
+    >
       {items.map((t) => (
         <div key={t.id} className={`toast toast-${t.tipo}`}>
           <Icon name={ICONOS[t.tipo]} size={20} />
