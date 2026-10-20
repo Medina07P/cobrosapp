@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { estadoContrasteCorreo } from './contrasteCorreo.js'
-import { TINTA } from './colorTema.js'
+import { TINTA, ratioContraste } from './colorTema.js'
 
 test('amarillo: texto de tinta en el botón y monto en tinta, contraste suficiente', () => {
   const e = estadoContrasteCorreo('#FFD400')
@@ -29,4 +29,19 @@ test('entrada inválida usa el color por defecto', () => {
   assert.equal(e.textoBoton, '#FFFFFF')
   assert.equal(e.colorMonto, '#1F6B4F')
   assert.equal(e.suficiente, true)
+})
+
+test('verde medio: botón blanco pero monto en tinta (blanco < 4.5 y blanco >= tinta)', () => {
+  const color = '#2E8B57'
+  const blanco = ratioContraste(color, '#FFFFFF')
+  assert.ok(blanco < 4.5 && blanco >= ratioContraste(color, TINTA), 'premisa del caso')
+  const e = estadoContrasteCorreo(color)
+  assert.equal(e.textoBoton, '#FFFFFF')
+  assert.equal(e.colorMonto, TINTA)
+  assert.notEqual(e.colorMonto, color)
+  assert.equal(e.suficiente, false)
+})
+
+test('gris medio: el monto también cae a tinta', () => {
+  assert.equal(estadoContrasteCorreo('#808080').colorMonto, TINTA)
 })

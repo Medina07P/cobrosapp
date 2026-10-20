@@ -139,7 +139,10 @@ export default function Configuracion({ onGuardado }) {
                   <span>Contraste bajo en tus correos ({texto}:1): el texto del botón se leerá mal. Prueba un tono más oscuro o más claro.</span>
                 </p>
               )}
-              <p className="sr-only" aria-live="polite">{suficiente ? 'Contraste suficiente' : 'Contraste bajo'}</p>
+              {colorMonto !== color && (
+                <p className="field-ayuda">El monto se mostrará en tono oscuro para que se lea sobre el fondo blanco del correo.</p>
+              )}
+              <p className="sr-only" aria-live="polite">{`Contraste del texto del botón en tus correos: ${suficiente ? 'suficiente' : 'bajo'}`}</p>
             </div>
             <Field
               label="WhatsApp para reportar pagos"
@@ -156,8 +159,10 @@ export default function Configuracion({ onGuardado }) {
           </div>
           <div ref={previaRef} className="vista-previa">
             <p className="vista-previa-rotulo">Así se verá en tus correos</p>
-            <span className="vista-previa-boton" aria-hidden="true">Reportar pago por WhatsApp</span>
-            <span className="vista-previa-monto tabular" style={{ color: colorMonto }} aria-hidden="true">$ 50.000</span>
+            <div className="vista-previa-correo" aria-hidden="true">
+              <span className="vista-previa-boton">Reportar pago por WhatsApp</span>
+              <span className="vista-previa-monto tabular" style={{ color: colorMonto }}>$ 50.000</span>
+            </div>
           </div>
           <div className="form-acciones">
             <Button type="submit" cargando={guardando} icono="check">Guardar cambios</Button>
