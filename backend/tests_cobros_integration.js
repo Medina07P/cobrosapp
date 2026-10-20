@@ -30,7 +30,9 @@ async function run() {
 
     const suscribir = (nombre, plan, fechaAlta) => {
       const cliente = db.clientes.create({ nombre, correo: `${nombre}@test.local` }, usuarioId);
-      return db.suscripciones.create({ cliente_id: cliente.id, plan_id: plan.id, fecha_alta: fechaAlta }, usuarioId);
+      const s = db.suscripciones.create({ cliente_id: cliente.id, plan_id: plan.id, fecha_alta: fechaAlta }, usuarioId);
+      database.prepare('UPDATE suscripciones SET cobro_desde = NULL WHERE id = ?').run(s.id); // simula suscripción antigua
+      return s;
     };
     const registrar = (sus, estado, diasAtras) => db.historial.create({
       suscripcion_id: sus.id, estado, detalles: 'prueba', monto: sus.monto,
