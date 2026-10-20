@@ -11,6 +11,7 @@ export default function ConfirmDialog({
     <Dialog
       abierto={abierto}
       titulo={titulo}
+      rol="alertdialog"
       onCerrar={onCancelar}
       cerrable={!cargando}
       pie={(

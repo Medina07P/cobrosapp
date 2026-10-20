@@ -18,8 +18,8 @@ npm run preview  # Preview del build local
 
 | Archivo / Carpeta | Rol |
 |---|---|
-| `main.jsx` | Bootstrap React: importa fuentes y los estilos `src/styles/tokens.css` y `src/styles/base.css`, y monta la app |
-| `styles/` | `tokens.css` (variables CSS) y `base.css` (estilos base) |
+| `main.jsx` | Bootstrap React: importa fuentes y los estilos `src/styles/tokens.css`, `src/styles/base.css` y `src/styles/ui.css`, y monta la app junto con `ToastRegion` |
+| `styles/` | `tokens.css` (variables CSS), `base.css` (estilos base) y `ui.css` (clases de los componentes base) |
 | `lib/colorTema.js` | `aplicarColorTema` y helpers de contraste del color de marca (tests: `npm test`) |
 | `ui/Icon.jsx` | Componente de iconos; `npm run icons` regenera `ui/icons.generated.js` |
 | `ui/Logo.jsx` | Logo SGCRC en SVG |
@@ -41,7 +41,10 @@ npm run preview  # Preview del build local
 - Usar `toast.exito/error/info` (de `ui/Toast.jsx`) en vez de `alert`.
 - Usar `ConfirmDialog` en vez de `confirm`.
 - Usar `Field` (label obligatorio y asociado) en vez de `<input>` suelto.
-- `Button` con `variante` (`primario`/`secundario`/`peligro`), `tam` (`md`/`sm`) y `cargando`.
+- `Button` con `variante` (`primario`/`secundario`/`peligro`), `tam` (`md`/`sm`) y `cargando`. Con `cargando` usa `aria-disabled` (no `disabled` nativo) para conservar el foco y no ejecuta `onClick`.
+- `ToastRegion` se monta una sola vez (en `main.jsx`).
+- `data-autofocus` en un elemento del `Dialog` elige el foco inicial.
+- `ConfirmDialog` usa `role="alertdialog"` (el `Dialog` acepta la prop `rol`) y enlaza el cuerpo con `aria-describedby`.
 
 ## Cómo agregar una vista
 
@@ -74,7 +77,7 @@ export const miRecurso = {
 - El color de marca se aplica SOLO mediante `aplicarColorTema(document.documentElement, hex)` de `src/lib/colorTema.js` (llamada desde `App.jsx` al login/refrescar perfil y desde `Configuracion.jsx` para la vista previa en vivo). Define `--color-primario`, `--color-primario-glow` y `--color-primario-contraste`.
 - El texto sobre un fondo con color de marca debe usar `var(--color-primario-contraste)`, no `text-white`.
 - Nunca llamar a `setProperty('--color-primario', ...)` directamente.
-- Los componentes deben usar `var(--color-primario)` en estilos inline o clases Tailwind con `[color:var(--color-primario)]`. No hardcodear colores de marca.
+- Los componentes deben usar `var(--color-primario)` en estilos inline o clases Tailwind con `[color:var(--color-primario)]`; esto aplica solo a vistas aún no migradas. En `ui/*` y en las vistas migradas se usan las clases de `ui.css` y variables CSS, sin Tailwind. No hardcodear colores de marca.
 
 ## Tailwind por CDN
 

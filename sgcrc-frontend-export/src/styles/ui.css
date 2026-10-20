@@ -16,12 +16,12 @@
 }
 .btn-sm { min-height: 2.25rem; padding: 0.3rem 0.8rem; font-size: 0.875rem; }
 .btn-primario { background: var(--color-primario); color: var(--color-primario-contraste); }
-.btn-primario:hover:not(:disabled) { filter: brightness(1.1); }
+.btn-primario:hover:not(:disabled):not([aria-disabled="true"]) { filter: brightness(1.1); }
 .btn-secundario { background: var(--surface); color: var(--ink); border-color: var(--line); }
-.btn-secundario:hover:not(:disabled) { background: var(--surface-alt); }
+.btn-secundario:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--surface-alt); }
 .btn-peligro { background: var(--bad-bg); color: var(--bad); border-color: var(--bad); }
-.btn-peligro:hover:not(:disabled) { filter: brightness(0.97); }
-.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn-peligro:hover:not(:disabled):not([aria-disabled="true"]) { filter: brightness(0.97); }
+.btn:disabled, .btn[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; }
 .btn-girando { animation: btn-giro 0.9s linear infinite; }
 @keyframes btn-giro { to { transform: rotate(360deg); } }
 
@@ -120,7 +120,7 @@ textarea.field-control { min-height: 5.5rem; resize: vertical; }
 .toast-texto { flex: 1; color: var(--ink); }
 .toast-cerrar {
   display: inline-flex; align-items: center; justify-content: center;
-  min-width: 2.25rem; min-height: 2.25rem;
+  min-width: 2.75rem; min-height: 2.75rem;
   padding: 0.25rem; border: 0; border-radius: 4px;
   background: transparent; color: var(--ink-2); cursor: pointer;
 }

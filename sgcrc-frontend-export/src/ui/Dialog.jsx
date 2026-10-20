@@ -4,14 +4,18 @@ import { siguienteFoco } from '../lib/focoDialog.js'
 
 const ENFOCABLES = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
 
+// Solo los visibles: un enfocable con display:none no recibe foco y rompería la trampa.
+const visibles = (el) => [...el.querySelectorAll(ENFOCABLES)].filter((n) => n.getClientRects().length > 0)
+
 // Pila de diálogos abiertos (el último es el de arriba) y overflow original del body,
 // compartidos por todas las instancias para que cierres fuera de orden no desbloqueen de más.
 const pila = []
 let desbordeOriginal = ''
 
-export default function Dialog({ abierto, titulo, onCerrar, cerrable = true, pie, children }) {
+export default function Dialog({ abierto, titulo, onCerrar, cerrable = true, pie, rol = 'dialog', children }) {
   const raiz = useRef(null)
   const idTitulo = useId()
+  const idCuerpo = useId()
   // Refs para que el efecto dependa solo de `abierto` (no se reinicia el foco si cambia un callback)
   const cerrarRef = useRef(onCerrar)
   const cerrableRef = useRef(cerrable)
@@ -30,7 +34,7 @@ export default function Dialog({ abierto, titulo, onCerrar, cerrable = true, pie
       document.body.style.overflow = 'hidden'
     }
     pila.push(ficha)
-    ;(el.querySelector('[data-autofocus]') || el.querySelector(ENFOCABLES) || el).focus()
+    ;(el.querySelector('[data-autofocus]') || visibles(el)[0] || el).focus()
 
     const alTeclear = (e) => {
       if (pila[pila.length - 1] !== ficha) return // solo responde el diálogo de arriba
@@ -40,7 +44,7 @@ export default function Dialog({ abierto, titulo, onCerrar, cerrable = true, pie
         return
       }
       if (e.key !== 'Tab') return
-      const lista = [...el.querySelectorAll(ENFOCABLES)]
+      const lista = visibles(el)
       const destino = siguienteFoco(lista, document.activeElement, e.shiftKey)
       if (destino) {
         e.preventDefault()
@@ -94,9 +98,9 @@ export default function Dialog({ abierto, titulo, onCerrar, cerrable = true, pie
       className="dialog-velo"
       onMouseDown={(e) => { if (e.target === e.currentTarget && cerrable) onCerrar?.() }}
     >
-      <div ref={raiz} className="dialog" role="dialog" aria-modal="true" aria-labelledby={idTitulo} tabIndex={-1}>
+      <div ref={raiz} className="dialog" role={rol} aria-modal="true" aria-labelledby={idTitulo} aria-describedby={idCuerpo} tabIndex={-1}>
         <h2 id={idTitulo} className="dialog-titulo">{titulo}</h2>
-        <div className="dialog-cuerpo">{children}</div>
+        <div id={idCuerpo} className="dialog-cuerpo">{children}</div>
         {pie && <div className="dialog-pie">{pie}</div>}
       </div>
     </div>,
