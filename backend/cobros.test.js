@@ -152,3 +152,26 @@ test('fecha_alta con parte de hora se usa solo por su fecha', () => {
   assert.equal(tocaCobrarEn(s, '2026-10-17'), true);
   assert.equal(tocaCobrarEn(s, '2026-10-18'), false);
 });
+
+test('cobro_desde: los cobros anteriores a esa fecha no cuentan como vencidos', () => {
+  const posterior = sus({ fecha_alta: '2026-01-17', cobro_desde: '2026-10-18' });
+  assert.equal(ultimoCobroSinEnviar(posterior, [], '2026-10-19'), null); // el cobro del 17 es anterior
+  const igual = sus({ fecha_alta: '2026-01-17', cobro_desde: '2026-10-17' });
+  assert.deepEqual(ultimoCobroSinEnviar(igual, [], '2026-10-19'), { fechaCobro: '2026-10-17', diasVencido: 2 });
+});
+
+test('cobro_desde: un cobro anterior ni se envía ni figura como perdido; el de hoy sí se envía', () => {
+  const hoy = '2026-10-19';
+  const reactivada = sus({ id: 1, fecha_alta: '2026-01-15', cobro_desde: hoy });   // venció el 15
+  const deHoy = sus({ id: 2, fecha_alta: '2026-01-19', cobro_desde: hoy });         // toca hoy
+  const plan = planificarCobros([reactivada, deHoy], [], hoy);
+  assert.deepEqual(plan.enviar.map((i) => i.sus.id), [2]);
+  assert.deepEqual(plan.perdidos, []);
+});
+
+test('cobro_desde con parte de hora o vacío se trata como fecha o sin restricción', () => {
+  const conHora = sus({ fecha_alta: '2026-01-17', cobro_desde: '2026-10-18T05:00:00Z' });
+  assert.equal(ultimoCobroSinEnviar(conHora, [], '2026-10-19'), null);
+  const vacio = sus({ fecha_alta: '2026-01-17', cobro_desde: null });
+  assert.equal(ultimoCobroSinEnviar(vacio, [], '2026-10-19').diasVencido, 2);
+});

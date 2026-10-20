@@ -80,8 +80,12 @@ function ultimoCobroSinEnviar(sus, historial, hoy, diasAtras = VENTANA_BUSQUEDA_
     .map((h) => fechaDeRegistro(h.fecha))
     .filter(Boolean);
 
+  // Los cobros anteriores a cobro_desde no cuentan (suscripción creada, reactivada o con fecha_alta editada después)
+  const desde = sus.cobro_desde ? String(sus.cobro_desde).slice(0, 10) : null;
+
   for (let atras = 0; atras <= diasAtras; atras++) {
     const iso = sumarDias(hoy, -atras);
+    if (desde && iso < desde) return null;
     if (!tocaCobrarEn(sus, iso)) continue;
     const cubierto = enviados.some((f) => f >= iso);
     return cubierto ? null : { fechaCobro: iso, diasVencido: atras };

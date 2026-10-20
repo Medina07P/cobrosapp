@@ -94,6 +94,8 @@ try { db.prepare("ALTER TABLE historial ADD COLUMN monto REAL").run(); } catch(e
 try { db.prepare("ALTER TABLE suscripciones ADD COLUMN descripcion TEXT").run(); } catch(e) {}
 // Bloque de migración por si ya existe la tabla sin esa columna
 try { db.prepare("ALTER TABLE suscripciones ADD COLUMN fecha_alta TEXT").run(); } catch(e) {}
+// Cobros anteriores a esta fecha no se consideran vencidos (se fija al crear, reactivar o cambiar fecha_alta)
+try { db.prepare("ALTER TABLE suscripciones ADD COLUMN cobro_desde TEXT").run(); } catch(e) {}
 /**
  * --- BLOQUE DE MIGRACIÓN SEGURO ---
  */
