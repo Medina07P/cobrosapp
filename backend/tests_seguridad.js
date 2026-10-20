@@ -2,6 +2,7 @@
 // y cobro_desde. Usa la base de desarrollo (backend/data/sgcrc.db) con usuarios temporales
 // que se borran al terminar. NO ejecutar contra la base de producción.
 require('dotenv').config();
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'secreto-solo-para-pruebas';
 const assert = require('assert');
 const http = require('http');
 const database = require('./database');

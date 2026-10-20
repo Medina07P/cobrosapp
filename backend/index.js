@@ -5,16 +5,18 @@ require("dotenv").config();
 const { iniciarScheduler }  = require("./scheduler");
 const { iniciarAPI }        = require("./api");
 const { verificarConexion } = require("./mailer");
+const { jwtSecret }         = require("./config");
 
 const PUERTO = process.env.PORT || 3000;
 
 async function main() {
+  // JWT_SECRET es obligatorio: si falta, lanza y el proceso termina con código 1
+  if (jwtSecret().length < 32) {
+    console.warn("JWT_SECRET es corta: usa al menos 32 caracteres");
+  }
   console.log("═══════════════════════════════════════════");
   console.log("  SGCRC — Sistema de Gestión de Cobros     ");
   console.log("═══════════════════════════════════════════");
-  if (!process.env.JWT_SECRET) {
-    console.warn("⚠️  JWT_SECRET no está definido: se usa una clave por defecto del código. Define JWT_SECRET en .env.");
-  }
 
   // 1. Verificar conexión SMTP
   const smtpOk = await verificarConexion();

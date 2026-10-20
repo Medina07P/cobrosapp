@@ -33,7 +33,9 @@ PORT=3000
 CRON_HORA=08
 CRON_MIN=00
 
-# Seguridad — obligatorio en producción
+# Seguridad — OBLIGATORIO: el servidor no arranca sin JWT_SECRET (sin clave por defecto).
+# Generar: node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+# Al desplegar, defínelo antes; si cambia, los tokens anteriores quedan inválidos y todos deben iniciar sesión de nuevo.
 JWT_SECRET=clave_larga_y_aleatoria_aqui
 
 # Opcionales

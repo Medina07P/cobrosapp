@@ -78,11 +78,11 @@ CRON_MIN=00
 JWT_SECRET=una_clave_larga_y_aleatoria   # Obligatorio — ver gotchas
 ```
 
-Ver `backend/.env.example` para referencia (le faltan `JWT_SECRET`, `CORS_ORIGIN`, `SMTP_REQUIRED`).
+Ver `backend/.env.example` para referencia (le faltan `CORS_ORIGIN`, `SMTP_REQUIRED`).
 
 ## Gotchas importantes
 
-- **JWT_SECRET sin setear**: `api.js:8` y `auth.js:5` tienen el fallback hardcodeado `'clave_maestra_super_secreta_123'`. Si `JWT_SECRET` no está en `.env`, tokens de cualquier instancia son válidos. Siempre configurar.
+- **JWT_SECRET obligatorio**: `backend/config.js` lanza error si falta o está vacío y `index.js` lo exige al arrancar (el servidor no inicia, código 1). Ya no hay clave por defecto. Despliegue: definirlo en `backend/.env` antes de desplegar; los tokens firmados con la clave por defecto anterior quedan inválidos y, si el secreto cambia, todos los usuarios deben iniciar sesión de nuevo.
 - **CORS abierto**: `api.js` usa `Access-Control-Allow-Origin: *` fijo. La variable `CORS_ORIGIN` del `.env.example` no está implementada en el código actual.
 - **Tailwind por CDN**: el frontend carga Tailwind desde CDN en `index.html`. No hay `tailwind.config.js` ni PostCSS — no agregar configuración local esperando que funcione.
 - **`axios` en `package.json` pero no usado**: el código del frontend usa `fetch` en `src/api.js`. No mezclar los dos.

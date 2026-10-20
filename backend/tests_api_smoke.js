@@ -1,4 +1,5 @@
 require('dotenv').config();
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'secreto-solo-para-pruebas';
 const assert = require('assert');
 const http = require('http');
 

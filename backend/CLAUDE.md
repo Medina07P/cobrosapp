@@ -73,7 +73,7 @@ node migrar.js     # Migración one-shot desde db.json legado (solo para datos h
 
 ## Gotchas
 
-- `JWT_SECRET` tiene fallback hardcodeado en `api.js:8` y `auth.js:5`. Siempre setear en `.env`.
+- `JWT_SECRET` es obligatorio (`config.js`): sin él el servidor no arranca (sale con código 1) y `api.js`/`auth.js` fallan. Ya no existe clave por defecto. Despliegue: definirlo en `.env` antes de desplegar; los tokens firmados con la clave por defecto anterior quedan inválidos, y si el secreto cambia todos los usuarios deben iniciar sesión de nuevo.
 - El smoke test (`npm test`) usa un email con timestamp para no colisionar en re-ejecuciones, pero deja datos de prueba en la DB real. No ejecutar en producción.
 - `database.js` usa siempre `data/sgcrc.db` (ignora `DB_PATH`): en el servidor, las pruebas `npm test` y `npm run test:integration` escribirían en la base de producción. No ejecutarlas allí.
 - El log `"✅ Base de datos refactorizada..."` aparece duplicado en `database.js:108-110` (líneas 108 y 110 son iguales; no afecta comportamiento).
@@ -90,7 +90,6 @@ node migrar.js     # Migración one-shot desde db.json legado (solo para datos h
 ## Problemas conocidos
 
 - Sin política de contraseña ni validación de email en el registro.
-- `JWT_SECRET` cae a una clave hardcodeada en `api.js`/`auth.js` (`index.js` solo advierte).
 - CORS abierto (`*`).
 - Sin límite de tamaño del cuerpo de la petición.
 - El registro permite enumerar emails (responde "El email ya existe").

@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 const { colorValido, normalizarWhatsapp } = require("./perfil");
 const { procesarCobrosDelDia, estaProcesandoCobros, procesarSeleccionados, previsualizarCobros, resumenCobros } = require("./scheduler");
 
-const SECRET_KEY = process.env.JWT_SECRET || 'clave_maestra_super_secreta_123';
+const { jwtSecret } = require("./config");
 
 // ── Helpers HTTP ───────────────────────────────────────────────────────
 function responseHeaders(extra = {}) {
@@ -50,8 +50,10 @@ function obtenerUsuario(req) {
   const authHeader = req.headers["authorization"];
   if (!authHeader) return null;
   const token = authHeader.split(" ")[1];
+  // Fuera del try: si falta JWT_SECRET el error se propaga (500 + log), no se convierte en 401
+  const secreto = jwtSecret();
   try {
-    return jwt.verify(token, SECRET_KEY, { algorithms: ['HS256'] });
+    return jwt.verify(token, secreto, { algorithms: ['HS256'] });
   } catch (err) {
     return null;
   }

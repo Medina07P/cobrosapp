@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const db = require('./database'); 
 
-const SECRET_KEY = process.env.JWT_SECRET || 'clave_maestra_super_secreta_123';
+const { jwtSecret } = require('./config');
 
 // Helper para enviar JSON (Mantenemos el tuyo, es correcto)
 function enviarJSON(res, status, data) {
@@ -66,7 +66,7 @@ const auth = {
             // Generamos el Token JWT
             const token = jwt.sign(
                 { id: user.id, email: user.email, nombre: user.nombre },
-                SECRET_KEY,
+                jwtSecret(),
                 { algorithm: 'HS256', expiresIn: '24h' }
             );
 
