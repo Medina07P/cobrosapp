@@ -25,7 +25,8 @@ npm run preview  # Preview del build local
 | `ui/Logo.jsx` | Logo SGCRC en SVG |
 | `App.jsx` | Shell de la SPA: estado `view`, objeto `VIEWS`, sidebar desktop + tabs mobile |
 | `api.js` | Cliente HTTP con `fetch`, base `/api`, inyecta `Authorization: Bearer <token>`, borra la sesión del localStorage en 401 (sin recargar) |
-| `components.jsx` | Componentes compartidos (tarjetas, tabla, modal, badges) |
+| `ui/` | Componentes base (Button, Badge/EstadoBadge, Field, Dialog, ConfirmDialog, Toast, EmptyState, Skeleton, ErrorMsg, Icon, Logo); estilos en `styles/ui.css` |
+| `lib/formato.js`, `lib/toastStore.js`, `lib/focoDialog.js` | `fmt` (COP), almacén de toasts y trampa de foco (con pruebas, `npm test`) |
 | `views/Login.jsx` | Login y registro (toggle en la misma vista) |
 | `views/Dashboard.jsx` | KPIs + próximos cobros + botón "ejecutar cobros del día" |
 | `views/Clientes.jsx` | ABM de clientes |
@@ -34,6 +35,13 @@ npm run preview  # Preview del build local
 | `views/Historial.jsx` | Listado de envíos con estado y monto |
 | `views/Calendario.jsx` | Vista calendario de próximos cobros |
 | `views/Configuracion.jsx` | Perfil: nombre + color de marca + WhatsApp |
+
+## Componentes base
+
+- Usar `toast.exito/error/info` (de `ui/Toast.jsx`) en vez de `alert`.
+- Usar `ConfirmDialog` en vez de `confirm`.
+- Usar `Field` (label obligatorio y asociado) en vez de `<input>` suelto.
+- `Button` con `variante` (`primario`/`secundario`/`peligro`), `tam` (`md`/`sm`) y `cargando`.
 
 ## Cómo agregar una vista
 

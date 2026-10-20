@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { api } from '../api.js'
-import { Spinner, ErrorMsg, fmt } from '../components.jsx'
+import Skeleton from '../ui/Skeleton.jsx'
+import ErrorMsg from '../ui/ErrorMsg.jsx'
+import { fmt } from '../lib/formato.js'
 import Icon from '../ui/Icon.jsx'
 
 const MONTHS   = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
@@ -96,7 +98,7 @@ export default function Calendario() {
   const prev = () => setView(v => v.month === 0  ? { month:11, year:v.year-1 } : { month:v.month-1, year:v.year })
   const next = () => setView(v => v.month === 11 ? { month:0,  year:v.year+1 } : { month:v.month+1, year:v.year })
 
-  if (loading) return <Spinner />
+  if (loading) return <Skeleton />
   if (error)   return <ErrorMsg msg={error} onRetry={cargar} />
 
   const cells = [...Array(firstDay).fill(null), ...Array.from({length:daysInMonth},(_,i)=>i+1)]

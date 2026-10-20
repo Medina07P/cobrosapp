@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api.js'
-import { Badge, Spinner, ErrorMsg, Btn, fmt } from '../components.jsx'
-import Icon from '../ui/Icon.jsx'
+import { EstadoBadge } from '../ui/Badge.jsx'
+import Skeleton from '../ui/Skeleton.jsx'
+import ErrorMsg from '../ui/ErrorMsg.jsx'
+import Button from '../ui/Button.jsx'
+import { fmt } from '../lib/formato.js'
 
 const tarjeta = { background:'var(--surface)',border:'1px solid var(--line)',borderRadius:'8px' }
 const numero = { fontVariantNumeric:'tabular-nums',fontWeight:700 }
@@ -25,7 +28,7 @@ export default function Historial() {
 
   useEffect(() => { cargar() }, [])
 
-  if (loading) return <Spinner />
+  if (loading) return <Skeleton />
 
   const enriquecido = historial.map(h => {
     const sus = subs.find(s => s.id === h.suscripcion_id)
@@ -65,10 +68,7 @@ export default function Historial() {
               cursor:'pointer',fontSize:'0.85rem',fontWeight:600
             }}>{f === 'todos' ? 'Todos' : f}</button>
           ))}
-          <Btn variant='secondary' style={{ padding:'0.45rem 0.9rem',fontSize:'0.85rem' }} onClick={cargar}>
-            <Icon name="arrow-clockwise" size={16} />
-            Actualizar
-          </Btn>
+          <Button variante="secundario" tam="sm" icono="arrow-clockwise" onClick={cargar}>Actualizar</Button>
         </div>
       </div>
 
@@ -115,7 +115,7 @@ export default function Historial() {
                       {/* CORRECCIÓN: Usamos monto_final */}
                       {fmt(h.monto_final)}
                     </td>
-                    <td style={{ padding:'0.85rem 1rem' }}><Badge status={h.estado} /></td>
+                    <td style={{ padding:'0.85rem 1rem' }}><EstadoBadge estado={h.estado} /></td>
                   </tr>
                 ))
             }

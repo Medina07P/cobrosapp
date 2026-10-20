@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api.js'
 import Icon from '../ui/Icon.jsx'
+import ConfirmDialog from '../ui/ConfirmDialog.jsx'
+import { toast } from '../ui/Toast.jsx'
+import Button from '../ui/Button.jsx'
 
 // Formateador de moneda colombiana
 const fmt = (n) => new Intl.NumberFormat('es-CO', { 
@@ -39,6 +42,7 @@ export default function Dashboard() {
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
   const [loadingProceso, setLoadingProceso] = useState(false)
+  const [reenvio, setReenvio] = useState(null)
 
   const cargar = async () => {
     setError('')
@@ -55,26 +59,25 @@ export default function Dashboard() {
   }
 
   const handleForzarCobros = async (confirmarReenvio = false) => {
-    setLoadingProceso(true);
+    setLoadingProceso(true)
     try {
-      const res = await api.runCobros({ confirmarReenvio });
-      alert(res.message || "Proceso completado exitosamente");
-      await cargar(); 
+      const res = await api.runCobros({ confirmarReenvio })
+      setReenvio(null)
+      toast.exito(res.message || 'Proceso completado exitosamente')
+      await cargar()
     } catch (err) {
-      const errorStatus = err.response?.status || err.status;
-      const errorData = err.response?.data || err.data;
+      const errorStatus = err.response?.status || err.status
+      const errorData = err.response?.data || err.data
       if (errorStatus === 409 && errorData?.requiereConfirmacion) {
-        const msg = errorData?.mensaje || "Ya se procesaron cobros hoy.";
-        if (window.confirm(`${msg}\n\n¿Deseas forzar el reenvío para todos los pendientes de hoy?`)) {
-          return handleForzarCobros(true);
-        }
+        setReenvio(errorData?.mensaje || 'Ya se procesaron cobros hoy.')
       } else {
-        alert("Error: " + (errorData?.error || err.message));
+        setReenvio(null)
+        toast.error(errorData?.error || err.message)
       }
     } finally {
-      setLoadingProceso(false);
+      setLoadingProceso(false)
     }
-  };
+  }
 
   useEffect(() => {
     cargar()
@@ -124,19 +127,9 @@ export default function Dashboard() {
           <p className="text-slate-500 text-sm">Resumen de {new Date().toLocaleDateString('es-CO', {month:'long', year:'numeric'})}</p>
         </div>
         {/* BOTÓN DINÁMICO */}
-        <button 
-          disabled={loadingProceso}
-          style={!loadingProceso
-            ? { backgroundColor: 'var(--color-primario)', color: 'var(--color-primario-contraste)' }
-            : { color: '#fff' }}
-          className={`${
-            loadingProceso ? 'bg-slate-400' : 'hover:brightness-110 active:scale-95'
-          } font-semibold rounded-xl px-6 py-3 transition-all shadow-lg flex items-center gap-2`}
-          onClick={() => handleForzarCobros(false)}
-        >
-          {loadingProceso ? <Icon name="arrow-clockwise" size={20} className="animate-spin" /> : <Icon name="paper-plane-tilt" size={20} />}
-          {loadingProceso ? 'Procesando...' : 'Forzar Cobros de Hoy'}
-        </button>
+        <Button icono="paper-plane-tilt" cargando={loadingProceso && !reenvio} onClick={() => handleForzarCobros(false)}>
+          {loadingProceso && !reenvio ? 'Procesando...' : 'Forzar Cobros de Hoy'}
+        </Button>
       </div>
 
       {/* Stats Grid */}
@@ -204,6 +197,18 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        abierto={reenvio !== null}
+        titulo="Reenviar cobros de hoy"
+        textoConfirmar="Reenviar"
+        cargando={loadingProceso}
+        onConfirmar={() => handleForzarCobros(true)}
+        onCancelar={() => setReenvio(null)}
+      >
+        <p>{reenvio}</p>
+        <p>¿Deseas forzar el reenvío para todos los pendientes de hoy?</p>
+      </ConfirmDialog>
     </div>
   )
 }
