@@ -40,6 +40,19 @@ test('colorTextoMarca oscurece hacia la tinta hasta 4.5:1 conservando matiz', ()
   assert.ok(ratioContraste(colorTextoMarca('#FFFFFF'), '#FFFFFF') >= 4.5)
 })
 
+test('colorTextoMarca contrasta >= 4.5 también sobre el fondo de página y el alterno', () => {
+  const fondos = ['#FFFFFF', '#F6F3EC', '#FBF9F4']
+  const limite = '#068356' // legible sobre blanco pero no sobre #F6F3EC
+  assert.ok(ratioContraste(limite, '#FFFFFF') >= 4.5)
+  assert.ok(ratioContraste(limite, '#F6F3EC') < 4.5, 'premisa: el límite falla sobre el fondo de página')
+  for (const c of ['#FFD400', limite, '#2E8B57', '#808080', '#FFFFFF']) {
+    const t = colorTextoMarca(c)
+    for (const f of fondos) assert.ok(ratioContraste(t, f) >= 4.5, `${c} -> ${t} sobre ${f}: ${ratioContraste(t, f).toFixed(2)}`)
+  }
+  assert.notEqual(colorTextoMarca(limite), limite)
+  assert.equal(colorTextoMarca('#1F6B4F'), '#1F6B4F')
+})
+
 test('aplicarColorTema fija --color-primario-texto', () => {
   const m = {}
   const root = { style: { setProperty: (k, v) => { m[k] = v } } }

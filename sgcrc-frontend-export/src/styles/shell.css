@@ -49,8 +49,10 @@
 .principal > .barra-movil, .principal > .nav-movil { margin-left: 1rem; margin-right: 1rem; }
 .principal > .barra-movil { margin-top: 1rem; }
 .contenido { flex: 1; min-width: 0; padding: 1rem; }
-.contenido h1:focus { outline: none; }
-.contenido:focus { outline: none; }
+/* El foco programático va al h1 (conserva el anillo global de base.css). El contenedor main solo recibe
+   foco como respaldo y no debe dibujar anillo: `.contenido:focus-visible` (0,2,0) supera por
+   especificidad a `:focus-visible` (0,1,0) de base.css, ambos con !important, así que gana aquí. */
+.contenido:focus-visible { outline: none !important; box-shadow: none; }
 @media (min-width: 768px) { .contenido { padding: 2rem 2.5rem; } }
 
 /* Móvil: barra superior y navegación en fila (la barra inferior llega en la Fase 5) */
@@ -58,7 +60,7 @@
 .barra-movil .estado-server { padding: 0; }
 .barra-movil .marca { font-size: 1.25rem; }
 .nav-movil { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.25rem; }
-.nav-movil .nav-item { width: auto; padding-left: 0.75rem; border: 1px solid var(--line); background: var(--surface); }
+.nav-movil .nav-item { width: auto; padding-left: 0.75rem; border: 1px solid var(--line-control); background: var(--surface); }
 .nav-movil .nav-item[aria-current="page"] { border-color: var(--ink); }
 .nav-movil .nav-item[aria-current="page"]::before { display: none; }
 @media (min-width: 768px) { .barra-movil, .nav-movil { display: none; } }

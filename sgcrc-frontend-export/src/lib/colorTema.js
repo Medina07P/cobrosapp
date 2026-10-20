@@ -1,6 +1,9 @@
 export const COLOR_POR_DEFECTO = '#1F6B4F'
 export const TINTA = '#1F2421'
 const BLANCO = '#FFFFFF'
+// Superficies sobre las que puede aparecer texto de marca (tokens.css: --surface-page, --surface-alt)
+const FONDOS_TEXTO = [BLANCO, '#F6F3EC', '#FBF9F4']
+const contrastaSobreFondos = (hex) => FONDOS_TEXTO.every((f) => ratioContraste(hex, f) >= 4.5)
 
 export function parseHex(hex) {
   if (typeof hex !== 'string') return null
@@ -45,12 +48,12 @@ export function colorLegibleSobreBlanco(hex) {
 const aHex = ({ r, g, b }) =>
   '#' + [r, g, b].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('').toUpperCase()
 
-// Variante del color de marca apta como texto sobre blanco: lo mezcla con la tinta
-// en pasos del 10 % hasta alcanzar 4.5:1, así conserva el matiz.
+// Variante del color de marca apta como texto sobre las superficies de la app (blanco, página y alterno,
+// la más exigente es #F6F3EC): lo mezcla con la tinta en pasos del 10 % hasta alcanzar 4.5:1 en todas.
 export function colorTextoMarca(hex) {
   const base = parseHex(hex)
   if (!base) return COLOR_POR_DEFECTO
-  if (ratioContraste(hex, BLANCO) >= 4.5) return hex
+  if (contrastaSobreFondos(hex)) return hex
   const tinta = parseHex(TINTA)
   for (let paso = 1; paso <= 10; paso++) {
     const t = paso / 10
@@ -59,7 +62,7 @@ export function colorTextoMarca(hex) {
       g: base.g * (1 - t) + tinta.g * t,
       b: base.b * (1 - t) + tinta.b * t,
     })
-    if (ratioContraste(mezcla, BLANCO) >= 4.5) return mezcla
+    if (contrastaSobreFondos(mezcla)) return mezcla
   }
   return TINTA
 }

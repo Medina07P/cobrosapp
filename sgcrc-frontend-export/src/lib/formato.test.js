@@ -1,3 +1,8 @@
+// Zona fija (Colombia, UTC-5): en un CI con TZ=UTC la prueba de esHoyLocal a las 20:00 locales
+// (01:00 UTC del día siguiente) no discriminaría entre fecha local y fecha UTC.
+// Debe fijarse antes de crear cualquier Date.
+process.env.TZ = 'America/Bogota'
+
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { fmt, fmtFecha, esHoyLocal } from './formato.js'

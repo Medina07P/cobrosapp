@@ -147,7 +147,7 @@ export default function App() {
 
   const estadoTexto = backendOk === null ? 'Comprobando servidor…' : backendOk ? 'Servidor conectado' : 'Sin conexión con el servidor'
   const estadoServidor = (
-    <span className="estado-server" data-ok={backendOk === null ? undefined : String(backendOk)} role={backendOk === false ? 'status' : undefined}>
+    <span className="estado-server" data-ok={backendOk === null ? undefined : String(backendOk)}>
       <i aria-hidden="true" />{estadoTexto}
     </span>
   )
@@ -169,6 +169,8 @@ export default function App() {
   return (
     <div className="shell">
       <a className="saltar" href="#contenido">Saltar al contenido</a>
+      {/* Región persistente (siempre montada): los lectores de pantalla anuncian el cambio de su contenido, no su aparición. */}
+      <span className="sr-only" role="status">{backendOk === false ? 'Sin conexión con el servidor' : ''}</span>
 
       <aside className="lateral">
         <div className="marca"><Logo size={30} decorativo /><span>SGCRC</span></div>
