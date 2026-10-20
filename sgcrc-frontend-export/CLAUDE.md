@@ -74,12 +74,12 @@ Dashboard, Historial y Calendario conservan estilos antiguos (clases Tailwind y 
 ## Cómo agregar una vista
 
 1. Crear `src/views/MiVista.jsx` exportando un componente React.
-2. En `App.jsx`, importar el componente y registrarlo en el objeto `VIEWS`:
+2. En `App.jsx`, importar el componente y registrarlo en el objeto `VIEWS`, que guarda elementos JSX (no se memoiza, para que los callbacks como `onGuardado` nunca queden obsoletos):
    ```jsx
    const VIEWS = {
      // ... existentes ...
-     mivista: MiVista,
-   };
+     mivista: <MiVista />,
+   }
    ```
 3. Agregar el ítem al array `NAV` de `App.jsx` (`id`, `label`, `icon`); alimenta tanto el sidebar como la navegación móvil.
 4. Encabezar la vista con `PageHeader` (único `h1`) dentro de `.pagina`.
@@ -89,13 +89,12 @@ Dashboard, Historial y Calendario conservan estilos antiguos (clases Tailwind y 
 Toda comunicación con el backend pasa por `src/api.js`. Agregar métodos ahí para nuevos endpoints:
 
 ```js
-export const miRecurso = {
-  getAll: () => apiFetch('/mi-recurso'),
-  create: (data) => apiFetch('/mi-recurso', { method: 'POST', body: JSON.stringify(data) }),
-};
+// dentro del objeto exportado `api`
+getMisRecursos: () => req('GET', '/mi-recurso'),
+createMiRecurso: (data) => req('POST', '/mi-recurso', data),
 ```
 
-`apiFetch` ya inyecta el token JWT y maneja el 401 automáticamente.
+`req(method, path, body)` es el cliente interno (no se exporta; se exporta el objeto `api`). Antepone `/api`, serializa el cuerpo a JSON, inyecta el token JWT y lanza un `Error` con `err.response = { status, data }` si la respuesta no es OK.
 
 ## Theming
 
@@ -113,8 +112,10 @@ Tailwind se carga desde CDN en `index.html` únicamente por las vistas pendiente
 ## Sesión / Auth
 
 - El JWT se guarda en `localStorage` con la clave `sgcrc_session` como objeto `{ token, user }`.
-- `api.js` lee `sgcrc_session.token` para el header `Authorization`.
-- En cualquier respuesta 401, `api.js` elimina `sgcrc_session` del localStorage pero NO recarga la página ni redirige (el `reload` está comentado); `App.jsx` cierra sesión cuando una petición de perfil falla con 401.
+- `api.js` guarda el token en memoria (variable `runtimeToken`) mediante `setApiKey(token)`; no lee `localStorage`. `App.jsx` lo establece al restaurar la sesión desde `sgcrc_session` y en el login, y lo vacía al cerrar sesión.
+- En cualquier respuesta 401, `api.js` elimina `sgcrc_session` del localStorage pero NO recarga la página ni redirige (el `reload` está comentado); `App.jsx` cierra sesión (`handleLogout`) cuando `getPerfil` o el health check fallan con 401.
+- Al guardar Configuración, `onGuardado(payload)` actualiza `session.user` y `sgcrc_session`, de modo que el nombre del shell se refleja sin recargar.
+- Antes de desplegar, probar `npm run build && npm run preview`: el preflight de Tailwind CDN puede interactuar con las clases de `ui.css`.
 
 ## Gotchas
 

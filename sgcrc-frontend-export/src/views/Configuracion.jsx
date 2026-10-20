@@ -21,7 +21,7 @@ function colorValido(hex) {
 
 const fmtRatio = (n) => n.toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
 
-export default function Configuracion() {
+export default function Configuracion({ onGuardado }) {
   const [perfil, setPerfil] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [errorCarga, setErrorCarga] = useState('')
@@ -81,6 +81,7 @@ export default function Configuracion() {
       await api.updatePerfil(payload)
       aplicarColorTema(document.documentElement, payload.color_tema)
       toast.exito('Configuración guardada.')
+      onGuardado?.(payload)
     } catch (err) {
       toast.error(err.response?.data?.error || err.message || 'No se pudo guardar.')
     } finally {

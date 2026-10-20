@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api, setApiKey } from './api.js'
 import { aplicarColorTema, COLOR_POR_DEFECTO } from './lib/colorTema.js'
 import Icon from './ui/Icon.jsx'
@@ -43,25 +43,33 @@ export default function App() {
 
   // 1. EFECTO PARA SINCRONIZAR COLOR Y NOMBRE DESDE LA DB AL ENTRAR
   useEffect(() => {
-    if (!session) return;
+    if (!session) return
+    // Si la sesión cambia (logout/login) mientras la petición está en curso, se ignora su resultado.
+    let vigente = true
 
     const refrescarConfiguracion = async () => {
       try {
-        const perfil = await api.getPerfil();
-        aplicarColorTema(document.documentElement, perfil.color_tema);
-        
+        const perfil = await api.getPerfil()
+        if (!vigente) return
+        aplicarColorTema(document.documentElement, perfil.color_tema)
         // Actualizamos la sesión local por si el nombre cambió
-        const nuevaSesion = { ...session, user: perfil };
-        setSession(nuevaSesion);
-        localStorage.setItem('sgcrc_session', JSON.stringify(nuevaSesion));
+        setSession((s) => {
+          if (!s) return s
+          const nueva = { ...s, user: perfil }
+          localStorage.setItem('sgcrc_session', JSON.stringify(nueva))
+          return nueva
+        })
       } catch (err) {
+        if (!vigente) return
+        if (err.response?.status === 401) handleLogout()
         // Si falla el fetch inicial, usamos lo que tengamos en sesión
-        aplicarColorTema(document.documentElement, session.user?.color_tema);
+        else aplicarColorTema(document.documentElement, session.user?.color_tema)
       }
-    };
+    }
 
-    refrescarConfiguracion();
-  }, [session?.token]); // Se ejecuta solo cuando cambia el token (login)
+    refrescarConfiguracion()
+    return () => { vigente = false }
+  }, [session?.token]) // Se ejecuta solo cuando cambia el token (login)
 
   // 2. HEALTH CHECK Y LOGOUT AUTOMÁTICO
   useEffect(() => {
@@ -72,26 +80,36 @@ export default function App() {
         if (err.response?.status === 401) handleLogout()
         else setBackendOk(false)
       })
-  }, [session])
+  }, [session?.token])
 
-  // 3. REGISTRO DE VISTAS
-  const VIEWS = useMemo(() => ({
+  const handleLogout = () => {
+    localStorage.removeItem('sgcrc_session')
+    setApiKey('')
+    setSession(null)
+    setBackendOk(null)
+    setView('dashboard')
+    aplicarColorTema(document.documentElement, COLOR_POR_DEFECTO)
+  }
+
+  // Refleja en el shell lo guardado en Configuración (el updater funcional evita cierres obsoletos).
+  const handleGuardado = (payload) => {
+    setSession((s) => {
+      if (!s) return s
+      const nueva = { ...s, user: { ...s.user, ...payload } }
+      localStorage.setItem('sgcrc_session', JSON.stringify(nueva))
+      return nueva
+    })
+  }
+
+  // 3. REGISTRO DE VISTAS (sin memoizar: así onGuardado nunca queda obsoleto)
+  const VIEWS = {
     dashboard: <Dashboard />,
     clientes: <Clientes />,
     planes: <Planes />,
     suscripciones: <Suscripciones />,
     historial: <Historial />,
     calendario: <Calendario />,
-    configuracion: <Configuracion onUpdate={() => setView('dashboard')} />, // Pasamos callback por si quieres redirigir tras guardar
-  }), [])
-
-  const handleLogout = () => {
-    localStorage.removeItem('sgcrc_session')
-    setApiKey('') 
-    setSession(null)
-    setBackendOk(null)
-    setView('dashboard')
-    aplicarColorTema(document.documentElement, COLOR_POR_DEFECTO)
+    configuracion: <Configuracion onGuardado={handleGuardado} />,
   }
 
   if (!session) {
