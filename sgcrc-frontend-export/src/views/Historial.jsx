@@ -9,7 +9,7 @@ import PageHeader from '../ui/PageHeader.jsx'
 import { toast } from '../ui/Toast.jsx'
 import { mensajeError } from '../lib/errores.js'
 import { fmt } from '../lib/formato.js'
-import { enriquecerHistorial, limitarFilas, fechaHistorial, LIMITE_FILAS } from '../lib/historial.js'
+import { enriquecerHistorial, limitarFilas, fechaHistorial, textoRegistros, LIMITE_FILAS } from '../lib/historial.js'
 
 const FILTROS = ['todos', 'Enviado', 'Fallido']
 
@@ -31,6 +31,8 @@ export default function Historial() {
   const [conDatos, setConDatos]   = useState(false)
   const hayDatos = useRef(false)
   const enCurso = useRef(false)
+  const montado = useRef(true)
+  const pieRef = useRef(null)
 
   const cargar = async () => {
     if (enCurso.current) return
@@ -38,20 +40,26 @@ export default function Historial() {
     setCargando(true); setError('')
     try {
       const [h, c, s] = await Promise.all([api.getHistorial(), api.getClientes(), api.getSuscripciones()])
+      if (!montado.current) return
       setHistorial(h); setClientes(c); setSubs(s)
       hayDatos.current = true
       setConDatos(true)
     } catch (e) {
+      if (!montado.current) return
       // Con datos previos se conservan y se avisa con un toast; sin datos solo se muestra el error.
       if (hayDatos.current) toast.error(mensajeError(e))
       else setError(mensajeError(e))
     } finally {
       enCurso.current = false
-      setCargando(false)
+      if (montado.current) setCargando(false)
     }
   }
 
-  useEffect(() => { cargar() }, [])
+  useEffect(() => {
+    montado.current = true
+    cargar()
+    return () => { montado.current = false }
+  }, [])
 
   const enriquecido = useMemo(() => enriquecerHistorial(historial, subs, clientes), [historial, subs, clientes])
   const filtrados = useMemo(
@@ -66,6 +74,14 @@ export default function Historial() {
   const mostrados = limitarFilas(filtrados, visibles)
 
   const elegirFiltro = (f) => { setFiltro(f); setVisibles(LIMITE_FILAS) }
+  const quitarFiltro = () => {
+    elegirFiltro('todos')
+    requestAnimationFrame(() => document.getElementById('hist-filtro-todos')?.focus())
+  }
+  const verMas = () => {
+    setVisibles(v => v + LIMITE_FILAS)
+    requestAnimationFrame(() => pieRef.current?.focus())
+  }
 
   let cuerpo
   if (!conDatos && error) {
@@ -78,14 +94,14 @@ export default function Historial() {
         <div className="hist-barra">
           <div className="hist-filtros" role="group" aria-label="Filtrar por estado">
             {FILTROS.map(f => (
-              <Button key={f} tam="sm" variante={filtro === f ? 'primario' : 'secundario'}
+              <Button key={f} id={`hist-filtro-${f === 'todos' ? 'todos' : f.toLowerCase()}`} tam="sm" variante={filtro === f ? 'primario' : 'secundario'}
                 aria-pressed={filtro === f} onClick={() => elegirFiltro(f)}>
                 {f === 'todos' ? 'Todos' : f}
               </Button>
             ))}
           </div>
         </div>
-        <p className="sr-only" aria-live="polite">{filtrados.length} registros</p>
+        <p className="sr-only" aria-live="polite">{textoRegistros(filtrados.length)}</p>
 
         <div className="hist-resumen">
           <div className="hist-tarjeta">
@@ -108,7 +124,7 @@ export default function Historial() {
           </EmptyState>
         ) : filtrados.length === 0 ? (
           <EmptyState icono="magnifying-glass" nivel={2} titulo="Ningún envío con ese estado"
-            accion={<Button variante="secundario" onClick={() => elegirFiltro('todos')}>Quitar filtro</Button>}>
+            accion={<Button variante="secundario" onClick={quitarFiltro}>Quitar filtro</Button>}>
             {`No hay envíos con estado «${filtro}».`}
           </EmptyState>
         ) : (
@@ -142,9 +158,9 @@ export default function Historial() {
               </table>
             </div>
             <div className="hist-pie">
-              <p>Mostrando {mostrados.length} de {filtrados.length}</p>
+              <p ref={pieRef} tabIndex={-1} aria-live="polite">Mostrando {mostrados.length} de {filtrados.length}</p>
               {mostrados.length < filtrados.length && (
-                <Button variante="secundario" tam="sm" onClick={() => setVisibles(v => v + LIMITE_FILAS)}>Ver más</Button>
+                <Button variante="secundario" tam="sm" onClick={verMas}>Ver más</Button>
               )}
             </div>
           </>
@@ -157,7 +173,7 @@ export default function Historial() {
     <div className="pagina">
       <PageHeader
         titulo="Historial de Envíos"
-        acciones={<Button variante="secundario" tam="sm" icono="arrow-clockwise" cargando={cargando && conDatos} onClick={cargar}>Actualizar</Button>}
+        acciones={<Button variante="secundario" tam="sm" icono="arrow-clockwise" cargando={cargando} onClick={cargar}>Actualizar</Button>}
       />
       {cuerpo}
     </div>

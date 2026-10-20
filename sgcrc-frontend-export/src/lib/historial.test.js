@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { indexarPorId, enriquecerHistorial, limitarFilas, fechaHistorial, LIMITE_FILAS } from './historial.js'
+import { indexarPorId, enriquecerHistorial, limitarFilas, fechaHistorial, textoRegistros, LIMITE_FILAS } from './historial.js'
 
 test('indexarPorId crea un Map por id y tolera entradas no válidas', () => {
   const m = indexarPorId([{ id: 1, a: 'x' }, { id: 2, a: 'y' }])
@@ -41,4 +41,10 @@ test('fechaHistorial: vacío, solo fecha y fecha con hora', () => {
   assert.equal(fechaHistorial('2026-03-01'), '01/03/2026')
   assert.notEqual(fechaHistorial('2026-03-01T15:30:00Z'), '')
   assert.notEqual(fechaHistorial('2026-03-01T15:30:00Z'), '01/03/2026')
+})
+
+test('textoRegistros usa singular solo para 1', () => {
+  assert.equal(textoRegistros(0), '0 registros')
+  assert.equal(textoRegistros(1), '1 registro')
+  assert.equal(textoRegistros(25), '25 registros')
 })

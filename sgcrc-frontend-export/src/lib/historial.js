@@ -31,3 +31,5 @@ export function fechaHistorial(valor) {
   if (Number.isNaN(t)) return ''
   return new Date(t).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })
 }
+
+export const textoRegistros = (n) => `${n} ${n === 1 ? 'registro' : 'registros'}`
