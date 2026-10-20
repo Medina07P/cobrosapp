@@ -9,7 +9,7 @@ import Skeleton from '../ui/Skeleton.jsx'
 import { toast } from '../ui/Toast.jsx'
 import { validarPerfil } from '../lib/validaciones.js'
 import { enfocarPrimerInvalido } from '../lib/formularios.js'
-import { aplicarColorTema, COLOR_POR_DEFECTO, parseHex, ratioContraste, textoSobre } from '../lib/colorTema.js'
+import { aplicarColorTema, COLOR_POR_DEFECTO, parseHex, ratioContraste } from '../lib/colorTema.js'
 
 // Hexadecimal de 6 dígitos válido para mostrar y calcular; si el guardado es inválido, el color por defecto.
 function colorValido(hex) {
@@ -77,7 +77,7 @@ export default function Configuracion() {
     }
     setGuardando(true)
     try {
-      const payload = { nombre: perfil.nombre.trim(), color_tema: perfil.color_tema, whatsapp: perfil.whatsapp.trim() }
+      const payload = { nombre: perfil.nombre.trim(), color_tema: colorValido(perfil.color_tema), whatsapp: perfil.whatsapp.trim() }
       await api.updatePerfil(payload)
       aplicarColorTema(document.documentElement, payload.color_tema)
       toast.exito('Configuración guardada.')
@@ -95,7 +95,7 @@ export default function Configuracion() {
     contenido = <ErrorMsg msg={errorCarga} onRetry={reintentar} />
   } else {
     const color = colorValido(perfil.color_tema)
-    const ratio = ratioContraste(color, textoSobre(color))
+    const ratio = ratioContraste(color, '#FFFFFF')
     const texto = fmtRatio(ratio)
     contenido = (
       <section className="panel">
@@ -127,10 +127,10 @@ export default function Configuracion() {
               <p id="cfg-color-ayuda" className="field-ayuda">Se usa en los botones de tus correos y en esta aplicación.</p>
               <div aria-live="polite">
                 {ratio >= 4.5 ? (
-                  <Badge tono="ok" icono="check-circle">Contraste suficiente ({texto}:1)</Badge>
+                  <Badge tono="ok" icono="check-circle">Contraste suficiente en tus correos ({texto}:1)</Badge>
                 ) : (
                   <Badge tono="warn" icono="warning">
-                    Contraste bajo ({texto}:1): el texto de los botones se leerá mal. Prueba un tono más oscuro o más claro.
+                    Contraste bajo en tus correos ({texto}:1): el botón lleva texto blanco y el monto usa este color sobre fondo blanco. Prueba un tono más oscuro.
                   </Badge>
                 )}
               </div>
@@ -149,8 +149,9 @@ export default function Configuracion() {
             />
           </div>
           <div ref={previaRef} className="vista-previa">
-            <p className="vista-previa-rotulo">Así se ve el botón de tus correos</p>
-            <Button>Reportar pago por WhatsApp</Button>
+            <p className="vista-previa-rotulo">Así se verá en tus correos</p>
+            <span className="vista-previa-boton" aria-hidden="true">Reportar pago por WhatsApp</span>
+            <span className="vista-previa-monto tabular" aria-hidden="true">$ 50.000</span>
           </div>
           <div className="form-acciones">
             <Button type="submit" cargando={guardando} icono="check">Guardar cambios</Button>

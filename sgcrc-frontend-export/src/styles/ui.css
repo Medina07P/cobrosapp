@@ -170,4 +170,10 @@ textarea.field-control { min-height: 5.5rem; resize: vertical; }
   margin-top: 1rem; padding: 1rem;
   background: var(--surface-alt); border: 1px dashed var(--line); border-radius: 8px;
 }
+.vista-previa-boton {
+  display: inline-block; padding: 0.625rem 1.25rem; border-radius: 8px; font-weight: 700;
+  background: var(--color-primario);
+  color: #FFFFFF; /* el correo usa siempre texto blanco */
+}
+.vista-previa-monto { font-size: 1.25rem; font-weight: 700; color: var(--color-primario); font-variant-numeric: tabular-nums; }
 .vista-previa-rotulo { margin: 0; font-size: 0.8125rem; font-weight: 600; color: var(--ink-2); }

@@ -48,7 +48,8 @@ export default function Login({ onLogin }) {
     setLoading(true)
 
     const endpoint = isRegister ? '/auth/register' : '/auth/login'
-    const payload = isRegister ? { email, password, nombre } : { email, password }
+    const emailLimpio = email.trim()
+    const payload = isRegister ? { email: emailLimpio, password, nombre: nombre.trim() } : { email: emailLimpio, password }
 
     try {
       const res = await fetch(`${API_URL}${endpoint}`, {
@@ -61,17 +62,20 @@ export default function Login({ onLogin }) {
       if (text) {
         try { data = JSON.parse(text) } catch { throw new Error('Respuesta inesperada del servidor.') }
       }
-      if (!res.ok) throw new Error(data.error || 'Error en la operación')
+      if (!res.ok) throw new Error(typeof data.error === 'string' && data.error ? data.error : 'Error en la operación')
+      if (!isRegister && !data.token) throw new Error('Respuesta inesperada del servidor.')
 
       if (isRegister) {
         toast.exito('Cuenta creada. Ahora puedes iniciar sesión.')
         setIsRegister(false)
         setPassword('')
+        setVer(false)
+        requestAnimationFrame(() => document.getElementById('login-password')?.focus())
       } else {
         onLogin(data)
       }
     } catch (err) {
-      setError(err.message === 'Failed to fetch'
+      setError(err instanceof TypeError
         ? 'No se pudo conectar con el servidor. ¿Está encendido el backend?'
         : err.message)
     } finally {
@@ -107,7 +111,7 @@ export default function Login({ onLogin }) {
             value={email} onChange={(e) => setEmail(e.target.value)} error={errores.email}
           />
           <Field
-            label="Contraseña" requerido type={ver ? 'text' : 'password'}
+            label="Contraseña" id="login-password" requerido type={ver ? 'text' : 'password'}
             autoComplete={isRegister ? 'new-password' : 'current-password'}
             value={password} onChange={(e) => setPassword(e.target.value)} error={errores.password}
           />
@@ -118,7 +122,7 @@ export default function Login({ onLogin }) {
           <Button type="submit" cargando={loading}>{isRegister ? 'Crear cuenta' : 'Entrar'}</Button>
         </form>
 
-        <Button variante="secundario" onClick={alternar}>
+        <Button variante="secundario" disabled={loading} onClick={alternar}>
           {isRegister ? '¿Ya tienes cuenta? Inicia sesión' : '¿No tienes cuenta? Regístrate'}
         </Button>
       </div>
