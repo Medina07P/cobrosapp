@@ -181,3 +181,17 @@ textarea.field-control { min-height: 5.5rem; resize: vertical; }
 }
 .vista-previa-monto { font-size: 1.25rem; font-weight: 700; color: var(--color-primario); font-variant-numeric: tabular-nums; }
 .vista-previa-rotulo { margin: 0; font-size: 0.8125rem; font-weight: 600; color: var(--ink-2); }
+
+/* Historial */
+.hist-barra { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 1.25rem; }
+.hist-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.hist-resumen { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem; }
+.hist-tarjeta { flex: 1; min-width: 10rem; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 0.8rem 1.2rem; }
+.hist-cifra { font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.hist-cifra-ok { color: var(--ok); }
+.hist-cifra-mal { color: var(--bad); }
+.hist-cifra-info { color: var(--info); }
+.hist-rotulo { color: var(--ink-2); font-size: 0.875rem; }
+.hist-fecha { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.hist-pie { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.75rem; margin-top: 1rem; color: var(--ink-2); font-size: 0.875rem; }
+.hist-pie p { margin: 0; }

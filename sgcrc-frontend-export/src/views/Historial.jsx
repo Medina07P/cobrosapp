@@ -1,129 +1,165 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { api } from '../api.js'
 import { EstadoBadge } from '../ui/Badge.jsx'
 import Skeleton from '../ui/Skeleton.jsx'
 import ErrorMsg from '../ui/ErrorMsg.jsx'
-import { mensajeError } from '../lib/errores.js'
+import EmptyState from '../ui/EmptyState.jsx'
 import Button from '../ui/Button.jsx'
 import PageHeader from '../ui/PageHeader.jsx'
+import { toast } from '../ui/Toast.jsx'
+import { mensajeError } from '../lib/errores.js'
 import { fmt } from '../lib/formato.js'
+import { enriquecerHistorial, limitarFilas, fechaHistorial, LIMITE_FILAS } from '../lib/historial.js'
 
-const tarjeta = { background:'var(--surface)',border:'1px solid var(--line)',borderRadius:'8px' }
-const numero = { fontVariantNumeric:'tabular-nums',fontWeight:700 }
+const FILTROS = ['todos', 'Enviado', 'Fallido']
+
+const SinDato = () => (
+  <>
+    <span aria-hidden="true">—</span>
+    <span className="sr-only">Sin dato</span>
+  </>
+)
 
 export default function Historial() {
   const [historial, setHistorial] = useState([])
   const [clientes, setClientes]   = useState([])
   const [subs, setSubs]           = useState([])
-  const [loading, setLoading]     = useState(true)
-  const [error, setError]         = useState(null)
+  const [cargando, setCargando]   = useState(true)
+  const [error, setError]         = useState('')
   const [filtro, setFiltro]       = useState('todos')
+  const [visibles, setVisibles]   = useState(LIMITE_FILAS)
+  const [conDatos, setConDatos]   = useState(false)
+  const hayDatos = useRef(false)
+  const enCurso = useRef(false)
 
   const cargar = async () => {
-    setLoading(true); setError(null)
+    if (enCurso.current) return
+    enCurso.current = true
+    setCargando(true); setError('')
     try {
       const [h, c, s] = await Promise.all([api.getHistorial(), api.getClientes(), api.getSuscripciones()])
       setHistorial(h); setClientes(c); setSubs(s)
-    } catch (e) { setError(mensajeError(e)) }
-    finally { setLoading(false) }
+      hayDatos.current = true
+      setConDatos(true)
+    } catch (e) {
+      // Con datos previos se conservan y se avisa con un toast; sin datos solo se muestra el error.
+      if (hayDatos.current) toast.error(mensajeError(e))
+      else setError(mensajeError(e))
+    } finally {
+      enCurso.current = false
+      setCargando(false)
+    }
   }
 
   useEffect(() => { cargar() }, [])
 
-  if (loading) return <Skeleton />
+  const enriquecido = useMemo(() => enriquecerHistorial(historial, subs, clientes), [historial, subs, clientes])
+  const filtrados = useMemo(
+    () => (filtro === 'todos' ? enriquecido : enriquecido.filter(h => h.estado === filtro)),
+    [enriquecido, filtro]
+  )
+  const total = useMemo(
+    () => enriquecido.filter(h => h.estado === 'Enviado').reduce((a, h) => a + (Number(h.monto_final) || 0), 0),
+    [enriquecido]
+  )
+  const fallidos = useMemo(() => enriquecido.filter(h => h.estado === 'Fallido').length, [enriquecido])
+  const mostrados = limitarFilas(filtrados, visibles)
 
-  const enriquecido = historial.map(h => {
-    const sus = subs.find(s => s.id === h.suscripcion_id)
-    const cli = clientes.find(c => c.id === sus?.cliente_id)
+  const elegirFiltro = (f) => { setFiltro(f); setVisibles(LIMITE_FILAS) }
 
-    return {
-      ...h,
-      sus,
-      cli,
-      // CORRECCIÓN: Si h.monto no existe (registros viejos), usamos el de la suscripción
-      monto_final: h.monto || sus?.monto || 0,
-      // CORRECCIÓN: Buscamos 'fecha' (nuevo backend) o 'fecha_envio' (registros viejos)
-      fecha_valida: h.fecha || h.fecha_envio
-    }
-  }).sort((a, b) => new Date(b.fecha_valida) - new Date(a.fecha_valida));
+  let cuerpo
+  if (!conDatos && error) {
+    cuerpo = <ErrorMsg msg={error} onRetry={cargar} />
+  } else if (!conDatos) {
+    cuerpo = <Skeleton />
+  } else {
+    cuerpo = (
+      <>
+        <div className="hist-barra">
+          <div className="hist-filtros" role="group" aria-label="Filtrar por estado">
+            {FILTROS.map(f => (
+              <Button key={f} tam="sm" variante={filtro === f ? 'primario' : 'secundario'}
+                aria-pressed={filtro === f} onClick={() => elegirFiltro(f)}>
+                {f === 'todos' ? 'Todos' : f}
+              </Button>
+            ))}
+          </div>
+        </div>
+        <p className="sr-only" aria-live="polite">{filtrados.length} registros</p>
 
-  const filtrados = filtro === 'todos' ? enriquecido : enriquecido.filter(h => h.estado === filtro)
+        <div className="hist-resumen">
+          <div className="hist-tarjeta">
+            <div className="hist-cifra hist-cifra-ok">{fmt(total)}</div>
+            <div className="hist-rotulo">Total cobrado (historial)</div>
+          </div>
+          <div className="hist-tarjeta">
+            <div className="hist-cifra hist-cifra-mal">{fallidos}</div>
+            <div className="hist-rotulo">Envíos fallidos</div>
+          </div>
+          <div className="hist-tarjeta">
+            <div className="hist-cifra hist-cifra-info">{enriquecido.length}</div>
+            <div className="hist-rotulo">Total registros</div>
+          </div>
+        </div>
 
-  // CORRECCIÓN: Usamos monto_final para el cálculo del total
-  const total   = enriquecido
-    .filter(h => h.estado === 'Enviado')
-    .reduce((a, h) => a + (Number(h.monto_final) || 0), 0)
-
-  const fallidos = enriquecido.filter(h => h.estado === 'Fallido').length
+        {enriquecido.length === 0 ? (
+          <EmptyState icono="tag" nivel={2} titulo="Aún no hay envíos">
+            Cuando se envíen recordatorios de cobro aparecerán aquí.
+          </EmptyState>
+        ) : filtrados.length === 0 ? (
+          <EmptyState icono="magnifying-glass" nivel={2} titulo="Ningún envío con ese estado"
+            accion={<Button variante="secundario" onClick={() => elegirFiltro('todos')}>Quitar filtro</Button>}>
+            {`No hay envíos con estado «${filtro}».`}
+          </EmptyState>
+        ) : (
+          <>
+            <div className="tabla-wrap" tabIndex={0} role="region" aria-label="Historial de envíos">
+              <table className="tabla">
+                <caption className="sr-only">Historial de envíos</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Fecha</th>
+                    <th scope="col">Cliente</th>
+                    <th scope="col">Suscripción</th>
+                    <th scope="col" className="num">Monto</th>
+                    <th scope="col">Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mostrados.map(h => {
+                    const fecha = fechaHistorial(h.fecha_valida)
+                    return (
+                      <tr key={h.id}>
+                        <td data-label="Fecha" className="hist-fecha">{fecha || <SinDato />}</td>
+                        <td data-label="Cliente">{h.cli?.nombre || <SinDato />}</td>
+                        <td data-label="Suscripción">{h.sus?.tipo || <SinDato />}</td>
+                        <td data-label="Monto" className="num">{fmt(h.monto_final)}</td>
+                        <td data-label="Estado"><EstadoBadge estado={h.estado} /></td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="hist-pie">
+              <p>Mostrando {mostrados.length} de {filtrados.length}</p>
+              {mostrados.length < filtrados.length && (
+                <Button variante="secundario" tam="sm" onClick={() => setVisibles(v => v + LIMITE_FILAS)}>Ver más</Button>
+              )}
+            </div>
+          </>
+        )}
+      </>
+    )
+  }
 
   return (
-    <div>
-      <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.5rem',flexWrap:'wrap',gap:'1rem' }}>
-        <PageHeader titulo="Historial de Envíos" />
-        <div style={{ display:'flex',gap:'0.5rem',alignItems:'center',flexWrap:'wrap' }}>
-          {['todos','Enviado','Fallido'].map(f => (
-            <button key={f} type="button" onClick={() => setFiltro(f)} aria-pressed={filtro===f} style={{
-              background: filtro===f ? 'var(--color-primario)' : 'var(--surface)',
-              border: filtro===f ? '1px solid transparent' : '1px solid var(--line)',
-              borderRadius:'6px',padding:'0.45rem 0.9rem',
-              color: filtro===f ? 'var(--color-primario-contraste)' : 'var(--ink)',
-              cursor:'pointer',fontSize:'0.85rem',fontWeight:600
-            }}>{f === 'todos' ? 'Todos' : f}</button>
-          ))}
-          <Button variante="secundario" tam="sm" icono="arrow-clockwise" onClick={cargar}>Actualizar</Button>
-        </div>
-      </div>
-
-      {error && <ErrorMsg msg={error} onRetry={cargar} />}
-
-      <div style={{ display:'flex',gap:'1rem',marginBottom:'1.2rem',flexWrap:'wrap' }}>
-        <div style={{ ...tarjeta,padding:'0.8rem 1.2rem',flex:1,minWidth:'160px' }}>
-          <div style={{ ...numero,color:'var(--ok)',fontSize:'1.2rem' }}>{fmt(total)}</div>
-          <div style={{ color:'var(--ink-2)',fontSize:'0.85rem' }}>Total cobrado (historial)</div>
-        </div>
-        <div style={{ ...tarjeta,padding:'0.8rem 1.2rem',flex:1,minWidth:'160px' }}>
-          <div style={{ ...numero,color:'var(--bad)',fontSize:'1.2rem' }}>{fallidos}</div>
-          <div style={{ color:'var(--ink-2)',fontSize:'0.85rem' }}>Envíos fallidos</div>
-        </div>
-        <div style={{ ...tarjeta,padding:'0.8rem 1.2rem',flex:1,minWidth:'160px' }}>
-          <div style={{ ...numero,color:'var(--info)',fontSize:'1.2rem' }}>{enriquecido.length}</div>
-          <div style={{ color:'var(--ink-2)',fontSize:'0.85rem' }}>Total registros</div>
-        </div>
-      </div>
-
-      <div style={{ ...tarjeta,overflow:'auto' }}>
-        <table style={{ width:'100%',borderCollapse:'collapse',fontSize:'0.9rem' }}>
-          <thead>
-            <tr style={{ background:'var(--surface-alt)',borderBottom:'1px solid var(--line)' }}>
-              {['Fecha','Cliente','Suscripción','Monto','Estado'].map(h =>
-                <th key={h} scope="col" style={{ textAlign:h==='Monto'?'right':'left',padding:'0.9rem 1rem',color:'var(--ink-2)',fontWeight:600,fontSize:'0.8rem',textTransform:'uppercase',letterSpacing:'0.04em' }}>{h}</th>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {filtrados.length === 0
-              ? <tr><td colSpan={5} style={{ padding:'2rem',textAlign:'center',color:'var(--ink-2)' }}>Sin registros</td></tr>
-              : filtrados.map(h => (
-                  <tr key={h.id} style={{ borderBottom:'1px solid var(--line)' }}>
-                    <td style={{ padding:'0.85rem 1rem',color:'var(--ink-2)',fontVariantNumeric:'tabular-nums',whiteSpace:'nowrap',fontSize:'0.85rem' }}>
-                      {/* CORRECCIÓN: Manejo de fecha con fallback */}
-                      {h.fecha_valida
-                        ? new Date(h.fecha_valida).toLocaleString('es-CO', { dateStyle:'short', timeStyle:'short' })
-                        : '—'}
-                    </td>
-                    <td style={{ padding:'0.85rem 1rem',color:'var(--ink)' }}>{h.cli?.nombre || '—'}</td>
-                    <td style={{ padding:'0.85rem 1rem',color:'var(--ink-2)' }}>{h.sus?.tipo || '—'}</td>
-                    <td style={{ padding:'0.85rem 1rem',textAlign:'right',color:'var(--ink)',fontVariantNumeric:'tabular-nums' }}>
-                      {/* CORRECCIÓN: Usamos monto_final */}
-                      {fmt(h.monto_final)}
-                    </td>
-                    <td style={{ padding:'0.85rem 1rem' }}><EstadoBadge estado={h.estado} /></td>
-                  </tr>
-                ))
-            }
-          </tbody>
-        </table>
-      </div>
+    <div className="pagina">
+      <PageHeader
+        titulo="Historial de Envíos"
+        acciones={<Button variante="secundario" tam="sm" icono="arrow-clockwise" cargando={cargando && conDatos} onClick={cargar}>Actualizar</Button>}
+      />
+      {cuerpo}
     </div>
   )
 }
