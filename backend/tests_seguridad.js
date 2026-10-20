@@ -32,8 +32,9 @@ function esperar(respuesta, status, mensaje) {
   return respuesta.body ? JSON.parse(respuesta.body) : null;
 }
 
-async function crearUsuario(port, prefijo) {
+async function crearUsuario(port, prefijo, correos) {
   const email = `${prefijo}_${Date.now()}@test.local`;
+  correos.push(email); // antes de registrar: si algo falla, el finally lo borra
   esperar(await json(port, 'POST', '/auth/register', { email, password: 'test1234', nombre: prefijo }), 201, 'registro');
   const login = esperar(await json(port, 'POST', '/auth/login', { email, password: 'test1234' }), 200, 'login');
   const id = database.prepare('SELECT id FROM usuarios WHERE email = ?').get(email).id;
@@ -52,8 +53,8 @@ async function run() {
   const fila = (tabla, id) => database.prepare(`SELECT * FROM ${tabla} WHERE id = ?`).get(id);
 
   try {
-    const A = await crearUsuario(port, 'seg_a'); correos.push(A.email);
-    const B = await crearUsuario(port, 'seg_b'); correos.push(B.email);
+    const A = await crearUsuario(port, 'seg_a', correos);
+    const B = await crearUsuario(port, 'seg_b', correos);
 
     // Datos de cada usuario
     const crear = async (u, etiqueta) => {
@@ -122,6 +123,71 @@ async function run() {
     // 6. Una suscripción nueva con fecha_alta pasada también arranca desde hoy
     const subPasada = esperar(await json(port, 'POST', '/suscripciones', { cliente_id: datosA.cliente.id, plan_id: datosA.plan.id, fecha_alta: '2025-01-01' }, A.token), 201, 'suscripción con fecha pasada');
     assert.strictEqual(fila('suscripciones', subPasada.id).cobro_desde, hoy);
+
+    // 7. Claves maliciosas y reasignación de usuario también en planes y suscripciones
+    esperar(await json(port, 'PUT', `/planes/${datosA.plan.id}`, { "nombre_plan = 'x', usuario_id": 999 }, A.token), 200, 'PUT plan con clave maliciosa');
+    esperar(await json(port, 'PUT', `/planes/${datosA.plan.id}`, { usuario_id: B.id }, A.token), 200, 'PUT plan con usuario_id');
+    assert.strictEqual(fila('planes', datosA.plan.id).usuario_id, A.id, 'usuario_id del plan no se reasigna');
+    assert.strictEqual(fila('planes', datosA.plan.id).nombre_plan, 'Plan A2');
+    esperar(await json(port, 'PUT', `/suscripciones/${subA.id}`, { "descripcion = 'x', usuario_id": 999 }, A.token), 200, 'PUT sub con clave maliciosa');
+    esperar(await json(port, 'PUT', `/suscripciones/${subA.id}`, { usuario_id: B.id }, A.token), 200, 'PUT sub con usuario_id');
+    assert.strictEqual(fila('suscripciones', subA.id).usuario_id, A.id, 'usuario_id de la suscripción no se reasigna');
+
+    // 8. Cliente ajeno en PUT de suscripción, ids inexistentes y no numéricos
+    esperar(await json(port, 'PUT', `/suscripciones/${subA.id}`, { cliente_id: datosB.cliente.id }, A.token), 400, 'A usa cliente de B');
+    for (const ruta of ['clientes', 'planes', 'suscripciones']) {
+      esperar(await json(port, 'PUT', `/${ruta}/99999999`, { descripcion: 'x' }, A.token), 404, `PUT ${ruta} inexistente`);
+      esperar(await json(port, 'PUT', `/${ruta}/abc`, { descripcion: 'x' }, A.token), 404, `PUT ${ruta} id no numérico`);
+    }
+
+    // 9. Valores inválidos -> 400 (nunca 500)
+    const c = `/clientes/${datosA.cliente.id}`, p = `/planes/${datosA.plan.id}`, s = `/suscripciones/${subA.id}`;
+    const malo = async (metodo, ruta, cuerpo, etiqueta) => {
+      const r = esperar(await json(port, metodo, ruta, cuerpo, A.token), 400, etiqueta);
+      assert.ok(r && typeof r.error === 'string' && !r.error.includes('VALIDATION_ERROR'), `${etiqueta}: mensaje limpio`);
+    };
+    await malo('PUT', c, { nombre: { a: 1 } }, 'cliente nombre objeto');
+    await malo('PUT', c, { nombre: null }, 'cliente nombre null');
+    await malo('PUT', c, { correo: 'sin-arroba' }, 'cliente correo sin arroba');
+    await malo('POST', '/clientes', { nombre: [], correo: 'x@y.z' }, 'POST cliente nombre arreglo');
+    await malo('POST', '/clientes', { nombre: 'X' }, 'POST cliente sin correo');
+    await malo('PUT', p, { monto: 'abc' }, 'plan monto abc');
+    await malo('PUT', p, { monto: true }, 'plan monto booleano');
+    await malo('PUT', p, { frecuencia: 'diaria' }, 'plan frecuencia inválida');
+    await malo('PUT', p, { dia_cobro: 40 }, 'plan dia_cobro 40');
+    await malo('POST', '/planes', { nombre_plan: 'X', monto: -1, frecuencia: 'mensual', dia_cobro: 5 }, 'POST plan monto negativo');
+    await malo('PUT', s, { activa: 'false' }, 'sub activa string false');
+    await malo('PUT', s, { activa: 'x' }, 'sub activa basura');
+    await malo('PUT', s, { fecha_alta: 'ayer' }, 'sub fecha_alta ayer');
+    await malo('PUT', s, { fecha_alta: '' }, 'sub fecha_alta vacía');
+    await malo('PUT', s, { fecha_alta: null }, 'sub fecha_alta null');
+    await malo('PUT', s, { fecha_alta: '2026-02-31' }, 'sub fecha_alta inexistente');
+    await malo('PUT', s, { cliente_id: true }, 'sub cliente_id booleano');
+    await malo('POST', '/suscripciones', { cliente_id: true, plan_id: datosA.plan.id }, 'POST sub cliente_id true');
+    await malo('POST', '/suscripciones', { cliente_id: datosA.cliente.id, plan_id: [1] }, 'POST sub plan_id arreglo');
+    await malo('POST', '/suscripciones', { cliente_id: datosA.cliente.id, plan_id: datosA.plan.id, fecha_alta: '2026-13-01' }, 'POST sub fecha inválida');
+    assert.strictEqual(fila('clientes', datosA.cliente.id).nombre, 'Cliente A2', 'los rechazos no modifican datos');
+
+    // 10. Cadenas numéricas aceptadas y guardadas como números; extras del frontend ignorados
+    esperar(await json(port, 'PUT', p, { monto: '2500', dia_cobro: '10', frecuencia: 'MENSUAL', id: 5, tipo: 'x' }, A.token), 200, 'plan con números en cadena');
+    const planNum = fila('planes', datosA.plan.id);
+    assert.strictEqual(planNum.monto, 2500); assert.strictEqual(planNum.dia_cobro, 10); assert.strictEqual(planNum.frecuencia, 'mensual');
+    esperar(await json(port, 'PUT', p, { monto: 0 }, A.token), 200, 'monto 0 permitido');
+    const subCreada = esperar(await json(port, 'POST', '/suscripciones', { cliente_id: String(datosA.cliente.id), plan_id: String(datosA.plan.id), fecha_alta: '', descripcion: null, activa: true }, A.token), 201, 'POST sub con cadenas y fecha vacía');
+    assert.strictEqual(fila('suscripciones', subCreada.id).fecha_alta, hoy, 'fecha vacía al crear = hoy');
+    assert.strictEqual(fila('suscripciones', subCreada.id).descripcion, '');
+
+    // 11. planes.update ajusta cobro_desde solo si cambia frecuencia o dia_cobro
+    fijarAntiguo();
+    esperar(await json(port, 'PUT', p, { monto: 3000, nombre_plan: 'Plan A3', descripcion: 'd' }, A.token), 200, 'plan: solo monto');
+    assert.strictEqual(cobroDesde(), '2020-01-01', 'cambiar monto no toca cobro_desde');
+    esperar(await json(port, 'PUT', p, { frecuencia: 'mensual', dia_cobro: 10 }, A.token), 200, 'plan: mismos valores');
+    assert.strictEqual(cobroDesde(), '2020-01-01', 'mismos valores no tocan cobro_desde');
+    esperar(await json(port, 'PUT', p, { frecuencia: 'quincenal' }, A.token), 200, 'plan: frecuencia');
+    assert.strictEqual(cobroDesde(), hoy, 'cambiar frecuencia fija cobro_desde = hoy');
+    fijarAntiguo();
+    esperar(await json(port, 'PUT', p, { dia_cobro: 12 }, A.token), 200, 'plan: dia_cobro');
+    assert.strictEqual(cobroDesde(), hoy, 'cambiar dia_cobro fija cobro_desde = hoy');
 
     console.log('OK pruebas de seguridad');
   } finally {

@@ -21,6 +21,109 @@ function filtrar(tabla, campos) {
     );
 }
 
+// --- VALIDACIÓN DE VALORES ---
+const invalido = (msg) => { throw new Error("VALIDATION_ERROR: " + msg); };
+
+function texto(v, etiqueta, max, { obligatorio = true } = {}) {
+    if (v === undefined || v === null) {
+        if (obligatorio) invalido(`${etiqueta} es obligatorio.`);
+        return '';
+    }
+    if (typeof v !== 'string') invalido(`${etiqueta} debe ser texto.`);
+    const t = v.trim();
+    if (obligatorio && t === '') invalido(`${etiqueta} es obligatorio.`);
+    if (t.length > max) invalido(`${etiqueta} no puede superar ${max} caracteres.`);
+    return t;
+}
+
+// Número (o cadena numérica) -> number; booleanos, objetos y arreglos se rechazan
+function numero(v, etiqueta) {
+    let n;
+    if (typeof v === 'number') n = v;
+    else if (typeof v === 'string' && v.trim() !== '') n = Number(v);
+    else invalido(`${etiqueta} debe ser un número.`);
+    if (!Number.isFinite(n)) invalido(`${etiqueta} debe ser un número.`);
+    return n;
+}
+
+function entero(v, etiqueta, min, max) {
+    const n = numero(v, etiqueta);
+    if (!Number.isInteger(n) || n < min || (max !== undefined && n > max)) {
+        invalido(max !== undefined
+            ? `${etiqueta} debe ser un entero entre ${min} y ${max}.`
+            : `${etiqueta} debe ser un entero positivo.`);
+    }
+    return n;
+}
+
+function fechaISO(v, etiqueta) {
+    if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) invalido(`${etiqueta} debe tener formato AAAA-MM-DD.`);
+    const [a, m, d] = v.split('-').map(Number);
+    const f = new Date(Date.UTC(a, m - 1, d));
+    if (f.getUTCFullYear() !== a || f.getUTCMonth() !== m - 1 || f.getUTCDate() !== d) invalido(`${etiqueta} no es una fecha válida.`);
+    return v;
+}
+
+const FRECUENCIAS = ['semanal', 'quincenal', 'mensual', 'anual'];
+
+// Cada validador recibe los campos ya filtrados. En alta exige los obligatorios y aplica
+// valores por defecto; en edición solo valida las claves presentes.
+const VALIDADORES = {
+    clientes(c, crear) {
+        const r = {};
+        if (crear || 'nombre' in c) r.nombre = texto(c.nombre, 'El nombre', 120);
+        if (crear || 'correo' in c) {
+            r.correo = texto(c.correo, 'El correo', 254);
+            if (!r.correo.includes('@')) invalido('El correo no es válido.');
+        }
+        return r;
+    },
+    planes(c, crear) {
+        const r = {};
+        if (crear || 'nombre_plan' in c) r.nombre_plan = texto(c.nombre_plan, 'El nombre del plan', 120);
+        if (crear || 'monto' in c) {
+            const m = numero(c.monto, 'El monto');
+            if (m < 0) invalido('El monto no puede ser negativo.');
+            r.monto = m;
+        }
+        if (crear || 'frecuencia' in c) {
+            const f = (crear && (c.frecuencia === undefined || c.frecuencia === null)) ? 'mensual' : c.frecuencia;
+            const fl = typeof f === 'string' ? f.trim().toLowerCase() : null;
+            if (!FRECUENCIAS.includes(fl)) invalido('La frecuencia debe ser semanal, quincenal, mensual o anual.');
+            r.frecuencia = fl;
+        }
+        if (crear || 'dia_cobro' in c) {
+            const d = (crear && (c.dia_cobro === undefined || c.dia_cobro === null)) ? 1 : c.dia_cobro;
+            r.dia_cobro = entero(d, 'El día de cobro', 1, 31);
+        }
+        if (crear || 'descripcion' in c) r.descripcion = texto(c.descripcion, 'La descripción', 500, { obligatorio: false });
+        return r;
+    },
+    suscripciones(c, crear) {
+        const r = {};
+        if (crear || 'cliente_id' in c) r.cliente_id = entero(c.cliente_id, 'El cliente', 1);
+        if (crear || 'plan_id' in c) r.plan_id = entero(c.plan_id, 'El plan', 1);
+        if ('descripcion' in c) r.descripcion = texto(c.descripcion, 'La descripción', 500, { obligatorio: false });
+        if ('activa' in c) {
+            const a = c.activa;
+            if (a === true || a === 1) r.activa = 1;
+            else if (a === false || a === 0) r.activa = 0;
+            else invalido('El estado activa debe ser verdadero o falso.');
+        }
+        if ('fecha_alta' in c) {
+            const f = c.fecha_alta;
+            if (crear && (f === '' || f === null)) r.fecha_alta = cobros.hoyISO();
+            else r.fecha_alta = fechaISO(f, 'La fecha de alta');
+        } else if (crear) r.fecha_alta = cobros.hoyISO();
+        return r;
+    },
+};
+
+// Filtra por lista blanca, coerciona y valida. Lanza VALIDATION_ERROR.
+function validar(tabla, campos, crear) {
+    return VALIDADORES[tabla](filtrar(tabla, campos), crear);
+}
+
 function existePropia(tabla, id, usuarioId) {
     return !!db.prepare(`SELECT 1 FROM ${tabla} WHERE id = ? AND usuario_id = ?`).get(id, usuarioId);
 }
@@ -52,19 +155,28 @@ const planes = {
     find(id) {
         return db.prepare('SELECT * FROM planes WHERE id = ?').get(id);
     },
-    // Dentro del objeto planes -> create
-    create({ nombre_plan, monto, dia_cobro, frecuencia, descripcion }, usuarioId = 1) {
-        const stmt = db.prepare(`
-            INSERT INTO planes (usuario_id, nombre_plan, monto, frecuencia, dia_cobro, descripcion) 
+    create(campos, usuarioId = 1) {
+        const v = validar('planes', campos, true);
+        const info = db.prepare(`
+            INSERT INTO planes (usuario_id, nombre_plan, monto, frecuencia, dia_cobro, descripcion)
             VALUES (?, ?, ?, ?, ?, ?)
-        `);
-        // Usamos || 1 para que nunca sea NULL si la base de datos no lo permite
-        const info = stmt.run(usuarioId, nombre_plan, parseFloat(monto), frecuencia || 'mensual', Number(dia_cobro) || 1, descripcion || '');
-        return { id: info.lastInsertRowid, nombre_plan, monto, frecuencia };
+        `).run(usuarioId, v.nombre_plan, v.monto, v.frecuencia, v.dia_cobro, v.descripcion);
+        return { id: info.lastInsertRowid, nombre_plan: v.nombre_plan, monto: v.monto, frecuencia: v.frecuencia };
     },
     update(id, campos, usuarioId) {
-        if (!existePropia('planes', id, usuarioId)) return null;
-        ejecutarUpdate('planes', id, filtrar('planes', campos), usuarioId);
+        const actual = db.prepare('SELECT * FROM planes WHERE id = ? AND usuario_id = ?').get(id, usuarioId);
+        if (!actual) return null;
+        const nuevos = validar('planes', campos, false);
+        db.transaction(() => {
+            ejecutarUpdate('planes', id, nuevos, usuarioId);
+            // Un cambio de calendario no debe generar cobros vencidos falsos
+            const cambiaCalendario = (nuevos.frecuencia !== undefined && nuevos.frecuencia !== actual.frecuencia) ||
+                (nuevos.dia_cobro !== undefined && nuevos.dia_cobro !== actual.dia_cobro);
+            if (cambiaCalendario) {
+                db.prepare('UPDATE suscripciones SET cobro_desde = ? WHERE plan_id = ? AND usuario_id = ?')
+                    .run(cobros.hoyISO(), id, usuarioId);
+            }
+        })();
         return this.find(id);
     },
     delete(id, usuarioId) {
@@ -86,14 +198,15 @@ const clientes = {
     find(id) {
         return db.prepare('SELECT * FROM clientes WHERE id = ?').get(id);
     },
-    create({ nombre, correo }, usuarioId = 1) {
+    create(campos, usuarioId = 1) {
+        const { nombre, correo } = validar('clientes', campos, true);
         const stmt = db.prepare('INSERT INTO clientes (nombre, correo, usuario_id) VALUES (?, ?, ?)');
         const info = stmt.run(nombre, correo, usuarioId);
         return { id: info.lastInsertRowid, nombre, correo };
     },
     update(id, campos, usuarioId) {
         if (!existePropia('clientes', id, usuarioId)) return null;
-        ejecutarUpdate('clientes', id, filtrar('clientes', campos), usuarioId);
+        ejecutarUpdate('clientes', id, validar('clientes', campos, false), usuarioId);
         return this.find(id);
     },
     delete(id, usuarioId) {
@@ -139,21 +252,23 @@ const suscripciones = {
     },
 
     // 2. CREATE actualizado: Ahora recibe y guarda 'fecha_alta'
-    create({ cliente_id, plan_id, descripcion, fecha_alta }, usuarioId = 1) {
-        if (!cliente_id || !plan_id) throw new Error("VALIDATION_ERROR: Cliente y Plan son obligatorios.");
-        validarPropiedad({ cliente_id: Number(cliente_id), plan_id: Number(plan_id) }, usuarioId);
+    create(campos, usuarioId = 1) {
+        const v = validar('suscripciones', campos, true);
+        validarPropiedad(v, usuarioId);
+        const { cliente_id, plan_id } = v;
+        const descripcion = v.descripcion || '';
 
         try {
             // Si no envías fecha, usa la fecha de hoy (YYYY-MM-DD, zona de la aplicación)
             const hoy = cobros.hoyISO();
-            const fechaFinal = fecha_alta || hoy;
+            const fechaFinal = v.fecha_alta;
 
             // cobro_desde = hoy: una fecha_alta pasada no genera cobros "vencidos" anteriores al registro
             const stmt = db.prepare(`
                 INSERT INTO suscripciones (cliente_id, plan_id, usuario_id, activa, descripcion, fecha_alta, cobro_desde)
                 VALUES (?, ?, ?, 1, ?, ?, ?)
             `);
-            const info = stmt.run(cliente_id, plan_id, usuarioId, descripcion || '', fechaFinal, hoy);
+            const info = stmt.run(cliente_id, plan_id, usuarioId, descripcion, fechaFinal, hoy);
             return this.find(info.lastInsertRowid);
         } catch (err) {
             if (err.message.includes("FOREIGN KEY")) {
@@ -168,10 +283,7 @@ const suscripciones = {
         const actual = db.prepare('SELECT * FROM suscripciones WHERE id = ? AND usuario_id = ?').get(id, usuarioId);
         if (!actual) return null;
 
-        const nuevos = filtrar('suscripciones', campos);
-        if (nuevos.activa !== undefined) nuevos.activa = nuevos.activa ? 1 : 0;
-        if (nuevos.plan_id !== undefined) nuevos.plan_id = Number(nuevos.plan_id);
-        if (nuevos.cliente_id !== undefined) nuevos.cliente_id = Number(nuevos.cliente_id);
+        const nuevos = validar('suscripciones', campos, false);
 
         validarPropiedad(nuevos, usuarioId);
 

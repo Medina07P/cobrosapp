@@ -49,6 +49,15 @@ function obtenerUsuario(req) {
 
 // ── Router Principal ───────────────────────────────────────────────────
 
+// VALIDATION_ERROR -> 400 con el mensaje limpio; cualquier otro error -> 500 genérico (sin detalles internos)
+function errorDeDatos(res, err) {
+  if (err && typeof err.message === "string" && err.message.startsWith("VALIDATION_ERROR: ")) {
+    return json(res, 400, { error: err.message.replace("VALIDATION_ERROR: ", "") });
+  }
+  console.error("🔥 Error en API:", err);
+  return json(res, 500, { error: "Error interno del servidor" });
+}
+
 async function handler(req, res) {
   const host = req.headers.host || 'localhost:3000';
   const requestUrl = new URL(req.url, `http://${host}`);
@@ -84,12 +93,15 @@ async function handler(req, res) {
       
       if (method === "POST" && !id) {
         const body = await parseBody(req);
-        return json(res, 201, db.clientes.create(body, usuario.id));
+        try { return json(res, 201, db.clientes.create(body, usuario.id)); }
+        catch (e) { return errorDeDatos(res, e); }
       }
       
       if (method === "PUT" && id) {
         const body = await parseBody(req);
-        const actualizado = db.clientes.update(Number(id), body, usuario.id);
+        let actualizado;
+        try { actualizado = db.clientes.update(Number(id), body, usuario.id); }
+        catch (e) { return errorDeDatos(res, e); }
         if (!actualizado) return json(res, 404, { error: "Cliente no encontrado" });
         return json(res, 200, actualizado);
       }
@@ -109,12 +121,15 @@ async function handler(req, res) {
       
       if (method === "POST" && !id) {
         const body = await parseBody(req);
-        return json(res, 201, db.planes.create(body, usuario.id));
+        try { return json(res, 201, db.planes.create(body, usuario.id)); }
+        catch (e) { return errorDeDatos(res, e); }
       }
 
       if (method === "PUT" && id) {
         const body = await parseBody(req);
-        const actualizado = db.planes.update(Number(id), body, usuario.id);
+        let actualizado;
+        try { actualizado = db.planes.update(Number(id), body, usuario.id); }
+        catch (e) { return errorDeDatos(res, e); }
         if (!actualizado) return json(res, 404, { error: "Plan no encontrado" });
         return json(res, 200, actualizado);
       }
@@ -138,8 +153,7 @@ async function handler(req, res) {
           const nuevaSub = db.suscripciones.create(body, usuario.id);
           return json(res, 201, nuevaSub);
         } catch (dbErr) {
-          const status = dbErr.message.includes("VALIDATION_ERROR") ? 400 : 500;
-          return json(res, status, { error: dbErr.message.replace("VALIDATION_ERROR: ", "") });
+          return errorDeDatos(res, dbErr);
         }
       }
 
@@ -150,8 +164,7 @@ async function handler(req, res) {
           if (!actualizada) return json(res, 404, { error: "Suscripción no encontrada" });
           return json(res, 200, actualizada);
         } catch (dbErr) {
-          const status = dbErr.message.includes("VALIDATION_ERROR") ? 400 : 500;
-          return json(res, status, { error: dbErr.message.replace("VALIDATION_ERROR: ", "") });
+          return errorDeDatos(res, dbErr);
         }
       }
 
@@ -249,7 +262,7 @@ async function handler(req, res) {
 
   } catch (err) {
     console.error("🔥 Error crítico en API:", err); 
-    json(res, 500, { error: "Error interno del servidor: " + err.message });
+    json(res, 500, { error: "Error interno del servidor" });
   }
 }
 
