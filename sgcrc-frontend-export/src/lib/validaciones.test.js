@@ -35,7 +35,8 @@ test('suscripción: cliente, plan y fecha', () => {
   assert.equal(e.cliente_id, 'Elige un cliente.')
   assert.equal(e.plan_id, 'Elige un plan.')
   assert.equal(e.fecha_alta, 'La fecha de inicio no es válida.')
-  assert.deepEqual(validarSuscripcion({ cliente_id: 1, plan_id: 1, fecha_alta: '' }), {})
+  assert.equal(validarSuscripcion({ cliente_id: 1, plan_id: 1, fecha_alta: '' }).fecha_alta, 'Elige la fecha de inicio.')
+  assert.equal(validarSuscripcion({ cliente_id: 1, plan_id: 1 }).fecha_alta, 'Elige la fecha de inicio.')
 })
 
 test('perfil: nombre obligatorio y WhatsApp vacío o 8-15 dígitos', () => {

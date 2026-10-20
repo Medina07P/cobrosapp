@@ -34,12 +34,17 @@ export default function Planes() {
   const [nombreEliminar, setNombreEliminar] = useState('')
   const formRef = useRef(null)
 
+  const hayDatos = useRef(false)
+
   const cargar = async () => {
     setErrorCarga('')
     try {
       setPlanes(await api.getPlanes())
+      hayDatos.current = true
     } catch (e) {
-      setErrorCarga(e.message)
+      // Tras una operación se conserva la lista y se avisa con un toast.
+      if (hayDatos.current) toast.error(e.message)
+      else setErrorCarga(e.message)
     } finally {
       setCargando(false)
     }
@@ -177,7 +182,7 @@ export default function Planes() {
                 <td data-label="Día de cobro">{`Día ${p.dia_cobro}`}</td>
                 <td data-label="Acciones" className="acciones">
                   <Button variante="secundario" tam="sm" icono="pencil-simple" aria-label={`Editar ${p.nombre_plan}`} disabled={guardando} onClick={() => editar(p)}>Editar</Button>
-                  <Button variante="peligro" tam="sm" icono="trash" aria-label={`Eliminar ${p.nombre_plan}`} onClick={() => pedirEliminar(p)}>Eliminar</Button>
+                  <Button variante="peligro" tam="sm" icono="trash" aria-label={`Eliminar ${p.nombre_plan}`} disabled={guardando} onClick={() => pedirEliminar(p)}>Eliminar</Button>
                 </td>
               </tr>
             ))}

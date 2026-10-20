@@ -30,7 +30,8 @@ export function validarSuscripcion({ cliente_id, plan_id, fecha_alta }) {
   const e = {}
   if (cliente_id === '' || cliente_id == null) e.cliente_id = 'Elige un cliente.'
   if (plan_id === '' || plan_id == null) e.plan_id = 'Elige un plan.'
-  if (fecha_alta && !/^\d{4}-\d{2}-\d{2}$/.test(fecha_alta)) e.fecha_alta = 'La fecha de inicio no es válida.'
+  if (fecha_alta === '' || fecha_alta == null) e.fecha_alta = 'Elige la fecha de inicio.'
+  else if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha_alta)) e.fecha_alta = 'La fecha de inicio no es válida.'
   return e
 }
 

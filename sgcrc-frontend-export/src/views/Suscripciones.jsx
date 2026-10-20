@@ -33,6 +33,12 @@ const FILTROS = [
   { id: 'inactivas', texto: 'Inactivas' },
 ]
 
+const mensajeSinResultados = (filtro, q) => {
+  if (filtro === 'todas') return q ? `Ninguna suscripción coincide con «${q}».` : 'No hay suscripciones.'
+  const tipo = filtro === 'activas' ? 'activa' : 'inactiva'
+  return q ? `Ninguna suscripción ${tipo} coincide con «${q}».` : `No hay suscripciones ${tipo}s.`
+}
+
 export default function Suscripciones() {
   const [hoy] = useState(fechaHoyLocal)
   const formVacio = useMemo(
@@ -55,6 +61,8 @@ export default function Suscripciones() {
   const [nombreEliminar, setNombreEliminar] = useState('')
   const formRef = useRef(null)
 
+  const hayDatos = useRef(false)
+
   const cargar = async () => {
     setErrorCarga('')
     try {
@@ -62,8 +70,11 @@ export default function Suscripciones() {
       setSubs(s)
       setClientes(c)
       setPlanes(p)
+      hayDatos.current = true
     } catch (e) {
-      setErrorCarga(e.message)
+      // Tras una operación se conserva la lista y se avisa con un toast.
+      if (hayDatos.current) toast.error(e.message)
+      else setErrorCarga(e.message)
     } finally {
       setCargando(false)
     }
@@ -115,8 +126,8 @@ export default function Suscripciones() {
   const editar = (s) => {
     setEditando(s)
     setForm({
-      cliente_id: String(s.cliente_id),
-      plan_id: String(s.plan_id),
+      cliente_id: clientes.some((c) => c.id === s.cliente_id) ? String(s.cliente_id) : '',
+      plan_id: planes.some((p) => p.id === s.plan_id) ? String(s.plan_id) : '',
       activa: !!s.activa,
       descripcion: s.descripcion || '',
       fecha_alta: (s.fecha_alta || hoy).slice(0, 10),
@@ -297,7 +308,7 @@ export default function Suscripciones() {
         </div>
         {filtradas.length === 0 ? (
           <EmptyState icono="magnifying-glass" nivel={2} titulo="Sin resultados">
-            {q ? `Ninguna suscripción coincide con «${q}».` : 'No hay suscripciones con este filtro.'}
+            {mensajeSinResultados(filtro, q)}
           </EmptyState>
         ) : (
           <div className="tabla-wrap" tabIndex={0} role="region" aria-label="Lista de suscripciones">
@@ -331,7 +342,7 @@ export default function Suscripciones() {
                       <td data-label="Estado"><EstadoBadge estado={s.activa ? 'Activa' : 'Inactiva'} /></td>
                       <td data-label="Acciones" className="acciones">
                         <Button variante="secundario" tam="sm" icono="pencil-simple" aria-label={`Editar la suscripción de ${nombre}`} disabled={guardando} onClick={() => editar(s)}>Editar</Button>
-                        <Button variante="peligro" tam="sm" icono="trash" aria-label={`Eliminar la suscripción de ${nombre}`} onClick={() => pedirEliminar(s)}>Eliminar</Button>
+                        <Button variante="peligro" tam="sm" icono="trash" aria-label={`Eliminar la suscripción de ${nombre}`} disabled={guardando} onClick={() => pedirEliminar(s)}>Eliminar</Button>
                       </td>
                     </tr>
                   )

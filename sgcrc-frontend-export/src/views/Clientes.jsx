@@ -30,14 +30,19 @@ export default function Clientes() {
   const [nombreEliminar, setNombreEliminar] = useState('')
   const formRef = useRef(null)
 
+  const hayDatos = useRef(false)
+
   const cargar = async () => {
     setErrorCarga('')
     try {
       const [c, s] = await Promise.all([api.getClientes(), api.getSuscripciones()])
       setClientes(c)
       setSubs(s)
+      hayDatos.current = true
     } catch (e) {
-      setErrorCarga(e.message)
+      // Tras una operación se conserva la lista y se avisa con un toast.
+      if (hayDatos.current) toast.error(e.message)
+      else setErrorCarga(e.message)
     } finally {
       setCargando(false)
     }
@@ -199,7 +204,7 @@ export default function Clientes() {
                     <td data-label="Suscripciones activas" className="num">{porCliente[c.id] || 0}</td>
                     <td data-label="Acciones" className="acciones">
                       <Button variante="secundario" tam="sm" icono="pencil-simple" aria-label={`Editar a ${c.nombre}`} disabled={guardando} onClick={() => editar(c)}>Editar</Button>
-                      <Button variante="peligro" tam="sm" icono="trash" aria-label={`Eliminar a ${c.nombre}`} onClick={() => pedirEliminar(c)}>Eliminar</Button>
+                      <Button variante="peligro" tam="sm" icono="trash" aria-label={`Eliminar a ${c.nombre}`} disabled={guardando} onClick={() => pedirEliminar(c)}>Eliminar</Button>
                     </td>
                   </tr>
                 ))}
