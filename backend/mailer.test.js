@@ -56,3 +56,22 @@ test('construirRemitente usa SGCRC si el nombre falta o queda vacio y trunca a 1
   assert.strictEqual(construirRemitente({ nombre: '"' + String.fromCharCode(10) + '"' }, 'a@b.c').name, 'SGCRC');
   assert.strictEqual(construirRemitente({ nombre: 'n'.repeat(500) }, 'a@b.c').name.length, 120);
 });
+
+test('con color de marca claro el botón usa texto oscuro y el monto tinta legible', () => {
+  const html = buildHtml({ ...base, color: '#FFD400' });
+  assert.ok(html.includes('color: #1F2421 !important'));
+  assert.ok(html.includes('.total-amount { font-size: 32px; font-weight: 800; color: #1F2421;'));
+  assert.ok(html.includes('background-color: #FFD400;'));
+});
+
+test('con color de marca oscuro el botón usa texto blanco y el monto conserva el color', () => {
+  const html = buildHtml({ ...base, color: '#1F6B4F' });
+  assert.ok(html.includes('color: #FFFFFF !important'));
+  assert.ok(html.includes('.total-amount { font-size: 32px; font-weight: 800; color: #1F6B4F;'));
+});
+
+test('con color inválido el índigo por defecto usa texto blanco', () => {
+  const html = buildHtml({ ...base, color: 'rojo' });
+  assert.ok(html.includes('background-color: #4f46e5;'));
+  assert.ok(html.includes('color: #FFFFFF !important'));
+});

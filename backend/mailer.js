@@ -1,6 +1,6 @@
 const nodemailer = require("nodemailer");
 require("dotenv").config();
-const { colorValido, normalizarWhatsapp } = require("./perfil");
+const { colorValido, normalizarWhatsapp, textoSobre, colorLegibleSobreBlanco } = require("./perfil");
 
 function crearTransporter(usuarioConfig = null) {
   let config;
@@ -37,6 +37,8 @@ function escapeHtml(value) {
 // Agregamos 'color' a los parámetros
 function buildHtml({ cliente, suscripcion, nombreVendedor = "SGCRC", color: colorEntrada = "#4f46e5", whatsapp = null }) {
   const color = colorValido(colorEntrada) ? colorEntrada : "#4f46e5";
+  const textoBoton = textoSobre(color);
+  const colorMonto = colorLegibleSobreBlanco(color);
   const fecha = new Date().toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" });
   const monto = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(suscripcion.monto);
   
@@ -88,12 +90,12 @@ function buildHtml({ cliente, suscripcion, nombreVendedor = "SGCRC", color: colo
     .total-label { font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: bold; }
     
     /* MONTO CON COLOR DINÁMICO */
-    .total-amount { font-size: 32px; font-weight: 800; color: ${color}; margin: 4px 0; }
+    .total-amount { font-size: 32px; font-weight: 800; color: ${colorMonto}; margin: 4px 0; }
     
     .btn-container { text-align: center; margin-top: 32px; }
     
     /* BOTÓN CON COLOR DINÁMICO */
-    .btn { background-color: ${color}; color: #ffffff !important; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 16px; display: inline-block; }
+    .btn { background-color: ${color}; color: ${textoBoton} !important; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 16px; display: inline-block; }
     
     .footer { text-align: center; padding: 24px; font-size: 12px; color: #9ca3af; }
     .divider { border-top: 1px solid #f3f4f6; margin: 24px 0; }

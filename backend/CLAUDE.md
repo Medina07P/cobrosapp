@@ -30,8 +30,8 @@ node migrar.js     # Migración one-shot desde db.json legado (solo para datos h
 | `db.js` | Capa repositorio: objetos `clientes`, `planes`, `suscripciones`, `historial`, `usuarios` |
 | `scheduler.js` | Cron diario con `node-cron`, función `procesarCobrosDelDia()`, mutex `procesandoCobros` |
 | `cobros.js` | Reglas puras de fechas de cobro: `tocaCobrarEn`, detección de vencidos y `planificarCobros` (tests: `npm run test:unit`) |
-| `perfil.js` | Validadores puros del perfil: color `#RRGGBB` y WhatsApp (solo dígitos, 8–15, con código de país). Tests: `npm run test:unit` |
-| `mailer.js` | Construye HTML del correo (con `escapeHtml`), envía vía SMTP por usuario o global |
+| `perfil.js` | Validadores puros del perfil: color `#RRGGBB` y WhatsApp (solo dígitos, 8–15, con código de país); contraste WCAG (`ratioContraste`, `textoSobre`, `colorLegibleSobreBlanco`, mismo algoritmo que el frontend). Tests: `npm run test:unit` |
+| `mailer.js` | Construye HTML del correo (con `escapeHtml`; texto del botón y color del monto según contraste con el color de marca), envía vía SMTP por usuario o global |
 | `migrar.js` | Script one-shot para migrar datos desde `data/db.json` (formato anterior) a SQLite |
 | `check_db.js` | CLI para inspeccionar tablas y ver muestras de datos |
 | `tests_api_smoke.js` | Smoke test: registra usuario temporal, obtiene JWT, verifica endpoints clave |
