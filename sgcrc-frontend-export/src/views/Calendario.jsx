@@ -4,6 +4,7 @@ import Skeleton from '../ui/Skeleton.jsx'
 import ErrorMsg from '../ui/ErrorMsg.jsx'
 import { fmt } from '../lib/formato.js'
 import Icon from '../ui/Icon.jsx'
+import PageHeader from '../ui/PageHeader.jsx'
 
 const MONTHS   = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 const DAYS     = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
@@ -106,7 +107,7 @@ export default function Calendario() {
 
   return (
     <div>
-      <h2 style={{ fontFamily:'var(--font-display)',color:'var(--ink)',marginBottom:'1.5rem',fontSize:'1.8rem' }}>Calendario de Cobros</h2>
+      <PageHeader titulo="Calendario de Cobros" />
 
       <div style={{ display:'grid',gridTemplateColumns:'1fr auto',gap:'1.5rem',alignItems:'start' }}>
         <div style={{ ...panel,padding:'1.5rem' }}>

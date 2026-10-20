@@ -3,14 +3,15 @@ import { api, setApiKey } from './api.js'
 import { aplicarColorTema } from './lib/colorTema.js'
 import Icon from './ui/Icon.jsx'
 import Logo from './ui/Logo.jsx'
+import Button from './ui/Button.jsx'
 import Login from './views/Login.jsx'
 import Dashboard from './views/Dashboard.jsx'
 import Clientes from './views/Clientes.jsx'
 import Suscripciones from './views/Suscripciones.jsx'
 import Historial from './views/Historial.jsx'
 import Calendario from './views/Calendario.jsx'
-import Planes from './views/Planes.jsx' 
-import Configuracion from './views/Configuracion.jsx' // IMPORTANTE: Importar tu nueva vista
+import Planes from './views/Planes.jsx'
+import Configuracion from './views/Configuracion.jsx'
 
 const NAV = [
   { id: 'dashboard', label: 'Dashboard', icon: 'squares-four' },
@@ -73,7 +74,7 @@ export default function App() {
       })
   }, [session])
 
-  // 3. REGISTRO DE VISTAS (Añadido configuración)
+  // 3. REGISTRO DE VISTAS
   const VIEWS = useMemo(() => ({
     dashboard: <Dashboard />,
     clientes: <Clientes />,
@@ -102,100 +103,45 @@ export default function App() {
     )
   }
 
-  // Estilos dinámicos para la navegación activa
-  const activeStyle = {
-    backgroundColor: 'var(--color-primario)',
-    boxShadow: '0 4px 12px var(--color-primario-glow)',
-    color: 'var(--color-primario-contraste)'
-  };
+  const estadoTexto = backendOk === null ? 'Comprobando servidor…' : backendOk ? 'Servidor conectado' : 'Sin conexión con el servidor'
+  const nombreEmpresa = session.user?.nombre || 'Mi negocio'
+
+  const items = () => NAV.map((n) => (
+    <button
+      key={n.id}
+      type="button"
+      className="nav-item"
+      aria-current={view === n.id ? 'page' : undefined}
+      onClick={() => setView(n.id)}
+    >
+      <Icon name={n.icon} size={20} />
+      {n.label}
+    </button>
+  ))
 
   return (
-    <div className="min-h-screen flex">
-      {/* Sidebar - Desktop */}
-      <aside className="hidden md:flex md:flex-col w-64 bg-slate-900 text-slate-100 p-4 gap-2 shadow-2xl">
-        <div className="text-xl font-bold mb-1 flex items-center gap-2 px-2 py-4">
-          <Logo size={30} style={{ color: 'var(--color-primario)' }} />
-          <span className="tracking-tight">SGCRC</span>
+    <div className="shell">
+      <a className="saltar" href="#contenido">Saltar al contenido</a>
+
+      <aside className="lateral">
+        <div className="marca"><Logo size={30} /><span>SGCRC</span></div>
+        <p className="empresa">Empresa<strong>{nombreEmpresa}</strong></p>
+        <nav className="nav" aria-label="Principal">{items()}</nav>
+        <div className="lateral-pie">
+          <span className="estado-server" data-ok={backendOk === null ? undefined : String(backendOk)} role="status">
+            <i aria-hidden="true" />{estadoTexto}
+          </span>
+          <Button variante="secundario" icono="sign-out" onClick={handleLogout}>Salir</Button>
         </div>
-        
-        <div className="text-[10px] text-slate-500 mb-6 uppercase tracking-widest font-bold px-2 bg-slate-800/50 py-2 rounded-lg border border-slate-700/50">
-          Empresa: {session.user?.nombre || 'Mi negocio'}
-        </div>
-        
-        <nav className="flex-1 flex flex-col gap-1">
-          {NAV.map((n) => (
-            <button 
-              key={n.id} 
-              onClick={() => setView(n.id)} 
-              style={view === n.id ? activeStyle : {}}
-              className={`flex items-center gap-3 text-left px-4 py-2.5 rounded-xl transition-all duration-200 text-sm font-semibold ${
-                view === n.id ? '' : 'hover:bg-slate-800 text-slate-400 hover:text-slate-200'
-              } ${n.id === 'configuracion' ? 'mt-auto pt-4 border-t border-slate-800' : ''}`}
-            >
-              <Icon name={n.icon} size={18} />
-              {n.label}
-            </button>
-          ))}
-        </nav>
       </aside>
 
-      <main className="flex-1 p-4 md:p-6 overflow-y-auto">
-        {/* Header Superior */}
-        <header className="bg-white rounded-2xl p-5 shadow-sm mb-6 flex items-center justify-between gap-3 border border-slate-200/60">
-          <div className="flex items-center gap-4">
-            <div 
-              className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xl shadow-lg"
-              style={{ backgroundColor: 'var(--color-primario)', color: 'var(--color-primario-contraste)' }}
-            >
-              {(session.user?.nombre || 'M').charAt(0)}
-            </div>
-            <div>
-              <h1 className="font-extrabold text-slate-800 tracking-tight">
-                {session.user?.nombre || 'Mi negocio'}
-              </h1>
-              <p className="text-xs text-slate-400 font-medium italic">Sistema de Gestión de Cobros</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div className="hidden sm:flex flex-col items-end">
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Estado Server</span>
-              <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
-                backendOk ? 'text-emerald-500' : 'text-red-400'
-              }`}>
-                {backendOk ? '● Conectado' : '● Error'}
-              </span>
-            </div>
-            
-            <button 
-              className="text-xs font-bold px-4 py-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-600 transition-all duration-300 border border-transparent hover:border-red-100" 
-              onClick={handleLogout}
-            >
-              Salir
-            </button>
-          </div>
-        </header>
-
-        {/* Navigation - Mobile */}
-        <div className="md:hidden bg-white rounded-2xl p-2 shadow-sm mb-6 flex flex-wrap gap-2 border border-slate-200/60">
-          {NAV.map((n) => (
-            <button 
-              key={n.id} 
-              onClick={() => setView(n.id)} 
-              style={view === n.id ? { backgroundColor: 'var(--color-primario)', color: 'var(--color-primario-contraste)' } : {}}
-              className={`text-[11px] px-4 py-2 rounded-xl font-bold transition-all ${
-                view === n.id ? 'shadow-md' : 'bg-slate-50 text-slate-500'
-              }`}
-            >
-              {n.label}
-            </button>
-          ))}
+      <main id="contenido" className="contenido" tabIndex={-1}>
+        <div className="barra-movil">
+          <div className="marca"><Logo size={26} /><span>SGCRC</span></div>
+          <Button variante="secundario" tam="sm" icono="sign-out" onClick={handleLogout}>Salir</Button>
         </div>
-
-        {/* Contenedor de Vistas con Animación */}
-        <div className="animate-in fade-in slide-in-from-bottom-3 duration-700 ease-out">
-          {VIEWS[view]}
-        </div>
+        <nav className="nav-movil" aria-label="Principal">{items()}</nav>
+        {VIEWS[view]}
       </main>
     </div>
   )

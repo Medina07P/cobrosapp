@@ -4,6 +4,7 @@ import Icon from '../ui/Icon.jsx'
 import ConfirmDialog from '../ui/ConfirmDialog.jsx'
 import { toast } from '../ui/Toast.jsx'
 import Button from '../ui/Button.jsx'
+import PageHeader from '../ui/PageHeader.jsx'
 
 // Formateador de moneda colombiana
 const fmt = (n) => new Intl.NumberFormat('es-CO', { 
@@ -122,16 +123,15 @@ export default function Dashboard() {
   return (
     <div className="space-y-6 p-4 animate-in fade-in duration-500">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-3xl font-extrabold text-slate-800 tracking-tight">Dashboard</h2>
-          <p className="text-slate-500 text-sm">Resumen de {new Date().toLocaleDateString('es-CO', {month:'long', year:'numeric'})}</p>
-        </div>
-        {/* BOTÓN DINÁMICO */}
-        <Button icono="paper-plane-tilt" cargando={loadingProceso && !reenvio} onClick={() => handleForzarCobros(false)}>
-          {loadingProceso && !reenvio ? 'Procesando...' : 'Forzar Cobros de Hoy'}
-        </Button>
-      </div>
+      <PageHeader
+        titulo="Dashboard"
+        descripcion={`Resumen de ${new Date().toLocaleDateString('es-CO', {month:'long', year:'numeric'})}`}
+        acciones={
+          <Button icono="paper-plane-tilt" cargando={loadingProceso && !reenvio} onClick={() => handleForzarCobros(false)}>
+            {loadingProceso && !reenvio ? 'Procesando...' : 'Forzar Cobros de Hoy'}
+          </Button>
+        }
+      />
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">

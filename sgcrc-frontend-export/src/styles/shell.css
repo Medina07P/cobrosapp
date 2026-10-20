@@ -1,0 +1,59 @@
+/* Shell de la aplicación: sidebar clara en escritorio, barra superior y navegación en móvil. */
+.saltar {
+  position: absolute; left: 0.75rem; top: -4rem; z-index: 70;
+  padding: 0.6rem 1rem; border-radius: 6px;
+  background: var(--ink); color: var(--surface); font-weight: 600; text-decoration: none;
+}
+.saltar:focus { top: 0.75rem; }
+
+.shell { min-height: 100vh; display: flex; }
+
+.lateral {
+  display: none; flex-direction: column; gap: 0.25rem;
+  width: 16rem; flex-shrink: 0; height: 100vh; position: sticky; top: 0;
+  padding: 1.25rem 1rem;
+  background: var(--surface); border-right: 1px solid var(--line);
+}
+@media (min-width: 768px) { .lateral { display: flex; } }
+
+.marca { display: flex; align-items: center; gap: 0.6rem; font-family: var(--font-display); font-size: 1.375rem; font-weight: 600; color: var(--ink); }
+.marca svg { color: var(--color-primario); }
+.lateral .marca { padding: 0.25rem 0.5rem 1rem; }
+
+.empresa { margin: 0 0.5rem 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--line); font-size: 0.875rem; color: var(--ink-2); }
+.empresa strong { display: block; font-size: 1rem; color: var(--ink); overflow-wrap: anywhere; }
+
+.nav { display: flex; flex-direction: column; gap: 0.125rem; }
+.nav-item {
+  position: relative; display: flex; align-items: center; gap: 0.75rem;
+  width: 100%; min-height: 2.75rem; padding: 0.5rem 0.75rem 0.5rem 1rem;
+  border: 0; border-radius: 6px; background: transparent;
+  font: inherit; font-weight: 500; text-align: left; color: var(--ink-2); cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+.nav-item:hover { background: var(--surface-alt); color: var(--ink); }
+.nav-item[aria-current="page"] { background: var(--surface-alt); color: var(--ink); font-weight: 600; }
+.nav-item[aria-current="page"]::before {
+  content: ""; position: absolute; left: 0; top: 0.4rem; bottom: 0.4rem;
+  width: 3px; border-radius: 2px; background: var(--color-primario);
+}
+.nav-item[aria-current="page"] svg { color: var(--color-primario); }
+
+.lateral-pie { margin-top: auto; display: grid; gap: 0.5rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.estado-server { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0 0.5rem; font-size: 0.8125rem; color: var(--ink-2); }
+.estado-server i { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--ink-2); }
+.estado-server[data-ok="true"] i { background: var(--ok); }
+.estado-server[data-ok="false"] i { background: var(--bad); }
+
+.contenido { flex: 1; min-width: 0; padding: 1rem; }
+.contenido:focus { outline: none; }
+@media (min-width: 768px) { .contenido { padding: 2rem 2.5rem; } }
+
+/* Móvil: barra superior y navegación en fila (la barra inferior llega en la Fase 5) */
+.barra-movil { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.75rem; }
+.barra-movil .marca { font-size: 1.25rem; }
+.nav-movil { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.25rem; }
+.nav-movil .nav-item { width: auto; padding-left: 0.75rem; border: 1px solid var(--line); background: var(--surface); }
+.nav-movil .nav-item[aria-current="page"] { border-color: var(--ink); }
+.nav-movil .nav-item[aria-current="page"]::before { display: none; }
+@media (min-width: 768px) { .barra-movil, .nav-movil { display: none; } }

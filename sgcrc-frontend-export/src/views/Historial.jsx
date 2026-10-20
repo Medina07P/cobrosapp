@@ -4,6 +4,7 @@ import { EstadoBadge } from '../ui/Badge.jsx'
 import Skeleton from '../ui/Skeleton.jsx'
 import ErrorMsg from '../ui/ErrorMsg.jsx'
 import Button from '../ui/Button.jsx'
+import PageHeader from '../ui/PageHeader.jsx'
 import { fmt } from '../lib/formato.js'
 
 const tarjeta = { background:'var(--surface)',border:'1px solid var(--line)',borderRadius:'8px' }
@@ -57,7 +58,7 @@ export default function Historial() {
   return (
     <div>
       <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.5rem',flexWrap:'wrap',gap:'1rem' }}>
-        <h2 style={{ fontFamily:'var(--font-display)',color:'var(--ink)',margin:0,fontSize:'1.8rem' }}>Historial de Envíos</h2>
+        <PageHeader titulo="Historial de Envíos" />
         <div style={{ display:'flex',gap:'0.5rem',alignItems:'center',flexWrap:'wrap' }}>
           {['todos','Enviado','Fallido'].map(f => (
             <button key={f} type="button" onClick={() => setFiltro(f)} aria-pressed={filtro===f} style={{
