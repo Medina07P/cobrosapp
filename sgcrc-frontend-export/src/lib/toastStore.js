@@ -20,13 +20,28 @@ export function crearTostadas({ duracion = 5000, programar = setTimeout, cancela
     avisar()
   }
 
+  const programarCierre = (t) => {
+    temporizadores.set(t.id, programar(() => cerrar(t.id), t.tipo === 'error' ? duracion * 2 : duracion))
+  }
+
   const mostrar = (mensaje, tipo = 'info') => {
     if (items.length >= MAX_VISIBLES) cerrar(items[0].id)
     const id = siguiente++
-    items = [...items, { id, mensaje, tipo }]
-    temporizadores.set(id, programar(() => cerrar(id), tipo === 'error' ? duracion * 2 : duracion))
+    const t = { id, mensaje, tipo }
+    items = [...items, t]
+    programarCierre(t)
     avisar()
     return id
+  }
+
+  // Mientras el puntero o el foco están sobre los avisos, no se cierran solos (WCAG 2.2.1)
+  const pausar = () => {
+    temporizadores.forEach((tm) => cancelar(tm))
+    temporizadores.clear()
+  }
+
+  const reanudar = () => {
+    items.forEach((t) => { if (!temporizadores.has(t.id)) programarCierre(t) })
   }
 
   const subscribe = (fn) => {
@@ -34,5 +49,5 @@ export function crearTostadas({ duracion = 5000, programar = setTimeout, cancela
     return () => { oyentes.delete(fn) }
   }
 
-  return { mostrar, cerrar, subscribe, getSnapshot: () => items }
+  return { mostrar, cerrar, pausar, reanudar, subscribe, getSnapshot: () => items }
 }

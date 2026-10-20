@@ -73,3 +73,25 @@ test('subscribe devuelve una función que da de baja al oyente', () => {
   t.mostrar('x')
   assert.equal(avisos, 0)
 })
+
+test('la duración por defecto es 5000 ms y la de error 10000 ms', () => {
+  const f = falsos()
+  const t = crearTostadas({ programar: f.programar, cancelar: f.cancelar })
+  t.mostrar('a', 'info')
+  t.mostrar('b', 'error')
+  assert.deepEqual([...f.tareas.values()].map((x) => x.ms), [5000, 10000])
+})
+
+test('pausar cancela los temporizadores y reanudar los reprograma sin cerrar nada', () => {
+  const f = falsos()
+  const t = crearTostadas({ duracion: 1000, programar: f.programar, cancelar: f.cancelar })
+  t.mostrar('a')
+  t.mostrar('b', 'error')
+  t.pausar()
+  assert.equal(f.tareas.size, 0)
+  assert.equal(t.getSnapshot().length, 2)
+  t.reanudar()
+  assert.deepEqual([...f.tareas.values()].map((x) => x.ms), [1000, 2000])
+  t.reanudar()
+  assert.equal(f.tareas.size, 2)
+})
