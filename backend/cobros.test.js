@@ -175,3 +175,11 @@ test('cobro_desde con parte de hora o vacío se trata como fecha o sin restricci
   const vacio = sus({ fecha_alta: '2026-01-17', cobro_desde: null });
   assert.equal(ultimoCobroSinEnviar(vacio, [], '2026-10-19').diasVencido, 2);
 });
+
+test('planificar: con cobro_desde posterior a hoy no se envía ni se reporta como ya enviado', () => {
+  const s = sus({ id: 1, fecha_alta: '2026-01-19', cobro_desde: '2026-10-20' });
+  const plan = planificarCobros([s], [], '2026-10-19', { confirmarReenvio: true });
+  assert.deepEqual(plan.enviar, []);
+  assert.deepEqual(plan.yaEnviadosHoy, []);
+  assert.deepEqual(plan.perdidos, []);
+});

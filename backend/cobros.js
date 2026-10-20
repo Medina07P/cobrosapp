@@ -107,7 +107,7 @@ function planificarCobros(suscripciones, historial, hoy, { ventana = VENTANA_REI
     const pendiente = ultimoCobroSinEnviar(sus, historial, hoy);
     if (pendiente) {
       (pendiente.diasVencido <= ventana ? enviar : perdidos).push({ sus, ...pendiente });
-    } else if (tocaCobrarEn(sus, hoy)) {
+    } else if (tocaCobrarEn(sus, hoy) && !(sus.cobro_desde && String(sus.cobro_desde).slice(0, 10) > hoy)) {
       if (confirmarReenvio) enviar.push({ sus, fechaCobro: hoy, diasVencido: 0 });
       else yaEnviadosHoy.push(sus);
     }
