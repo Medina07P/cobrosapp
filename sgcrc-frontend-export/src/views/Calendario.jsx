@@ -1,185 +1,156 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { api } from '../api.js'
 import Skeleton from '../ui/Skeleton.jsx'
 import ErrorMsg from '../ui/ErrorMsg.jsx'
-import { mensajeError } from '../lib/errores.js'
-import { fmt } from '../lib/formato.js'
-import Icon from '../ui/Icon.jsx'
+import EmptyState from '../ui/EmptyState.jsx'
+import Button from '../ui/Button.jsx'
 import PageHeader from '../ui/PageHeader.jsx'
+import { toast } from '../ui/Toast.jsx'
+import { mensajeError } from '../lib/errores.js'
+import { fmt, fmtFecha } from '../lib/formato.js'
+import { MESES, rejillaMes, agruparCobrosPorDia, fechaLarga } from '../lib/calendario.js'
 
-const MONTHS   = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
-const DAYS     = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
-
-const panel = { background:'var(--surface)',border:'1px solid var(--line)',borderRadius:'8px' }
-const botonNav = { background:'var(--surface)',border:'1px solid var(--line)',borderRadius:'8px',padding:'0.5rem 0.8rem',color:'var(--ink)',cursor:'pointer',display:'inline-flex',alignItems:'center' }
+const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+const plural = (n) => `${n} ${n === 1 ? 'cobro' : 'cobros'}`
 
 export default function Calendario() {
-  const [subs, setSubs]       = useState([])
+  const [subs, setSubs]         = useState([])
   const [clientes, setClientes] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError]     = useState(null)
+  const [, setCargando]         = useState(true)
+  const [error, setError]       = useState('')
+  const [conDatos, setConDatos] = useState(false)
   const [selected, setSelected] = useState(null)
+  const hayDatos = useRef(false)
+  const enCurso = useRef(false)
 
-  const today = new Date()
-  const [view, setView] = useState({ month: today.getMonth(), year: today.getFullYear() })
+  const hoy = new Date()
+  const [view, setView] = useState({ month: hoy.getMonth(), year: hoy.getFullYear() })
 
   const cargar = async () => {
-    setLoading(true); setError(null)
+    if (enCurso.current) return
+    enCurso.current = true
+    setCargando(true); setError('')
     try {
       const [s, c] = await Promise.all([api.getSuscripciones(), api.getClientes()])
       setSubs(s.filter(x => x.activa)); setClientes(c)
-    } catch (e) { setError(mensajeError(e)) }
-    finally { setLoading(false) }
+      hayDatos.current = true
+      setConDatos(true)
+    } catch (e) {
+      // Con datos previos se conserva el calendario y se avisa con un toast.
+      if (hayDatos.current) toast.error(mensajeError(e))
+      else setError(mensajeError(e))
+    } finally {
+      enCurso.current = false
+      setCargando(false)
+    }
   }
 
   useEffect(() => { cargar() }, [])
 
-  const daysInMonth = new Date(view.year, view.month + 1, 0).getDate()
-  const firstDay    = new Date(view.year, view.month, 1).getDay()
+  const { dias: daysInMonth, desfase } = rejillaMes(view.year, view.month)
+  const cobrosPorDia = useMemo(
+    () => agruparCobrosPorDia(subs, clientes, view.year, view.month),
+    [subs, clientes, view.month, view.year]
+  )
 
-  // --- LÓGICA DE PROYECCIÓN CORREGIDA ---
-  // --- LÓGICA DE PROYECCIÓN CORREGIDA ---
-  // --- LÓGICA DE PROYECCIÓN CORREGIDA ---
-  const cobrosPorDia = useMemo(() => {
-    const map = {}
+  const prev = () => { setSelected(null); setView(v => v.month === 0  ? { month: 11, year: v.year - 1 } : { month: v.month - 1, year: v.year }) }
+  const next = () => { setSelected(null); setView(v => v.month === 11 ? { month: 0,  year: v.year + 1 } : { month: v.month + 1, year: v.year }) }
+  const irAHoy = () => {
+    const h = new Date()
+    setView({ month: h.getMonth(), year: h.getFullYear() })
+    setSelected(h.getDate())
+  }
 
-    const registrar = (dia, s) => {
-      const fechaCelda = new Date(view.year, view.month, dia);
-      const fechaInicio = s.fecha_alta ? new Date(s.fecha_alta) : null;
+  const cabecera = <PageHeader titulo="Calendario de Cobros" />
 
-      // 1. FILTRO DE FECHA: No mostrar cobros antes de que empezara la suscripción
-      if (fechaInicio && fechaCelda < fechaInicio) return;
+  if (!conDatos && error) return <div className="pagina">{cabecera}<ErrorMsg msg={error} onRetry={cargar} /></div>
+  if (!conDatos) return <div className="pagina">{cabecera}<Skeleton /></div>
+  if (subs.length === 0) {
+    return (
+      <div className="pagina">
+        {cabecera}
+        <EmptyState icono="calendar-blank" nivel={2} titulo="Aún no hay suscripciones activas">
+          Cuando tengas suscripciones activas, sus cobros aparecerán en el calendario.
+        </EmptyState>
+      </div>
+    )
+  }
 
-      const d = Math.min(dia, daysInMonth)
-      if (!map[d]) map[d] = { total: 0, items: [] }
-      const cl = clientes.find(c => c.id === s.cliente_id)
-      map[d].total += s.monto
-      map[d].items.push({ ...s, cl })
-    }
-
-    subs.forEach(s => {
-      const f = s.frecuencia || 'mensual';
-
-      // 2. OBTENER EL DÍA REAL: Si existe fecha_alta, usamos ese día.
-      // Si no, usamos el dia_cobro del plan.
-      let diaReal = s.dia_cobro;
-      if (s.fecha_alta) {
-        // Extraemos el día del string "YYYY-MM-DD" (evita desfases de zona horaria)
-        diaReal = parseInt(s.fecha_alta.split('-')[2]);
-      }
-
-      switch (f) {
-        case 'semanal':
-          for (let d = 1; d <= daysInMonth; d++) {
-            if (new Date(view.year, view.month, d).getDay() === (diaReal % 7)) {
-              registrar(d, s)
-            }
-          }
-          break
-
-        case 'quincenal':
-          registrar(diaReal, s)
-          const segundaQuincena = diaReal + 15
-          if (segundaQuincena <= daysInMonth) registrar(segundaQuincena, s)
-          break
-
-        case 'anual':
-          if (view.month === (s.mes_cobro || 0)) registrar(diaReal, s)
-          break
-
-        case 'mensual':
-        default:
-          registrar(diaReal, s)
-          break
-      }
-    })
-    return map
-  }, [subs, clientes, daysInMonth, view.month, view.year])
-  // ---------------------------------------
-
-  const prev = () => setView(v => v.month === 0  ? { month:11, year:v.year-1 } : { month:v.month-1, year:v.year })
-  const next = () => setView(v => v.month === 11 ? { month:0,  year:v.year+1 } : { month:v.month+1, year:v.year })
-
-  if (loading) return <Skeleton />
-  if (error)   return <ErrorMsg msg={error} onRetry={cargar} />
-
-  const cells = [...Array(firstDay).fill(null), ...Array.from({length:daysInMonth},(_,i)=>i+1)]
+  const cells = [...Array(desfase).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)]
   const selectedData = selected ? cobrosPorDia[selected] : null
+  const mesVacio = Object.keys(cobrosPorDia).length === 0
 
   return (
-    <div>
-      <div style={{ marginBottom: '1.5rem' }}>
-        <PageHeader titulo="Calendario de Cobros" />
-      </div>
+    <div className="pagina">
+      {cabecera}
 
-      <div style={{ display:'grid',gridTemplateColumns:'1fr auto',gap:'1.5rem',alignItems:'start' }}>
-        <div style={{ ...panel,padding:'1.5rem' }}>
-          <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.5rem' }}>
-            <button type="button" onClick={prev} aria-label="Mes anterior" style={botonNav}><Icon name="caret-left" size={18} /></button>
-            <h3 style={{ margin:0,color:'var(--ink)',fontFamily:'var(--font-display)' }}>{MONTHS[view.month]} {view.year}</h3>
-            <button type="button" onClick={next} aria-label="Mes siguiente" style={botonNav}><Icon name="caret-right" size={18} /></button>
+      <div className="cal-layout">
+        <div className="panel cal-panel">
+          <div className="cal-barra">
+            <Button variante="secundario" icono="caret-left" className="cal-nav" onClick={prev} aria-label="Mes anterior" />
+            <h2 className="cal-mes" aria-live="polite">{MESES[view.month]} {view.year}</h2>
+            <Button variante="secundario" icono="caret-right" className="cal-nav" onClick={next} aria-label="Mes siguiente" />
+            <Button variante="secundario" className="cal-hoy" onClick={irAHoy}>Hoy</Button>
           </div>
 
-          <div style={{ display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:'0.3rem',marginBottom:'0.3rem' }}>
-            {DAYS.map(d => <div key={d} style={{ textAlign:'center',color:'var(--ink-2)',fontSize:'0.8rem',fontWeight:700 }}>{d}</div>)}
+          <div className="cal-semana" aria-hidden="true">
+            {DIAS.map(d => <div key={d} className="cal-dia-sem">{d}</div>)}
           </div>
 
-          <div style={{ display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:'0.3rem' }}>
+          <div className="cal-rejilla">
             {cells.map((day, i) => {
-              if (!day) return <div key={`e${i}`} />
-              const isToday   = day===today.getDate() && view.month===today.getMonth() && view.year===today.getFullYear()
-              const cobros    = cobrosPorDia[day]
-              const isSelected = selected === day
-              const estiloCelda = {
-                background: isSelected
-                  ? 'color-mix(in srgb, var(--color-primario) 14%, var(--surface))'
-                  : cobros ? 'color-mix(in srgb, var(--color-primario) 6%, var(--surface))' : 'var(--surface-alt)',
-                border: isSelected ? '2px solid var(--color-primario)' : isToday ? '2px solid var(--ink)' : '1px solid var(--line)',
-                borderRadius:'8px',padding:'0.45rem',minHeight:'60px',minWidth:0,overflow:'hidden',
-                textAlign:'left',font:'inherit',color:'inherit',display:'block',width:'100%',
-                cursor: cobros ? 'pointer' : 'default'
+              if (!day) return <div key={`e${i}`} aria-hidden="true" />
+              const esHoy = day === hoy.getDate() && view.month === hoy.getMonth() && view.year === hoy.getFullYear()
+              const cobros = cobrosPorDia[day]
+              const sel = selected === day
+              const clases = ['cal-celda', cobros ? 'cal-celda-cobros' : '', sel ? 'cal-celda-sel' : '', esHoy ? 'cal-celda-hoy' : ''].filter(Boolean).join(' ')
+              if (!cobros) {
+                return (
+                  <div key={day} className={clases} aria-current={esHoy ? 'date' : undefined} aria-hidden={esHoy ? undefined : 'true'}>
+                    <div className="cal-num">{day}</div>
+                    {esHoy && <span className="sr-only">{day} de {MESES[view.month]}, hoy, sin cobros</span>}
+                  </div>
+                )
               }
-              const numeroDia = (
-                <div style={{ fontSize:'0.85rem',fontWeight:700,color: cobros || isToday ? 'var(--ink)' : 'var(--ink-2)' }}>{day}</div>
-              )
-              if (!cobros) return <div key={day} style={estiloCelda}>{numeroDia}</div>
+              const n = cobros.items.length
               return (
                 <button
                   key={day}
                   type="button"
-                  aria-pressed={isSelected}
-                  aria-label={`${day} de ${MONTHS[view.month]}, ${cobros.items.length} ${cobros.items.length === 1 ? 'cobro' : 'cobros'}, ${fmt(cobros.total)}`}
-                  onClick={() => setSelected(isSelected ? null : day)}
-                  style={estiloCelda}
+                  className={clases}
+                  aria-pressed={sel}
+                  aria-current={esHoy ? 'date' : undefined}
+                  aria-label={`${day} de ${MESES[view.month]}${esHoy ? ', hoy' : ''}, ${plural(n)}, ${fmt(cobros.total)}`}
+                  onClick={() => setSelected(sel ? null : day)}
                 >
-                  {numeroDia}
-                  <div style={{ color:'var(--ok)',fontSize:'0.75rem',fontWeight:700,fontVariantNumeric:'tabular-nums',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis' }}>{fmt(cobros.total)}</div>
-                  <div style={{ color:'var(--ink-2)',fontSize:'0.75rem' }}>{cobros.items.length} {cobros.items.length === 1 ? 'cobro' : 'cobros'}</div>
+                  <span className="cal-num">{day}</span>
+                  <span className="cal-importe" title={fmt(cobros.total)}>{fmt(cobros.total)}</span>
+                  <span className="cal-cuenta">{n}<span className="cal-cuenta-txt"> {n === 1 ? 'cobro' : 'cobros'}</span></span>
                 </button>
               )
             })}
           </div>
         </div>
 
-        <div style={{ ...panel,minWidth:'240px',padding:'1.2rem' }}>
+        <div className="panel cal-detalle" role="region" aria-label="Detalle del día" aria-live="polite">
           {selectedData ? (
             <>
-              <h4 style={{ color:'var(--ink)',margin:'0 0 0.3rem' }}>Día {selected}</h4>
-              <div style={{ color:'var(--ok)',fontVariantNumeric:'tabular-nums',fontWeight:800,fontSize:'1.1rem',marginBottom:'1rem' }}>{fmt(selectedData.total)}</div>
+              <h3 className="cal-detalle-titulo">{fechaLarga(view.year, view.month, selected)}</h3>
+              <div className="cal-detalle-total">{fmt(selectedData.total)}</div>
               {selectedData.items.map((s, idx) => (
-                <div key={`${s.id}-${idx}`} style={{ borderTop:'1px solid var(--line)',paddingTop:'0.7rem',marginTop:'0.7rem' }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'start', gap:'0.5rem' }}>
-                    <div style={{ color:'var(--ink)',fontSize:'0.9rem',fontWeight:600 }}>{s.cl?.nombre}</div>
-                    <span style={{ fontSize:'0.75rem', color:'var(--ink-2)', border:'1px solid var(--line)', padding:'0 6px', borderRadius:'4px', textTransform:'uppercase' }}>{s.frecuencia || 'mensual'}</span>
+                <div key={`${s.id}-${idx}`} className="cal-item">
+                  <div className="cal-item-cab">
+                    <div className="cal-item-nombre">{s.cl?.nombre || 'Cliente eliminado'}</div>
+                    <span className="cal-chip">{s.frecuencia || 'mensual'}</span>
                   </div>
-                  <div style={{ color:'var(--ink-2)',fontSize:'0.85rem' }}>{s.tipo}</div>
-                  <div style={{ color:'var(--ink)',fontVariantNumeric:'tabular-nums',fontSize:'0.9rem' }}>{fmt(s.monto)}</div>
-                  <div style={{ color:'var(--ink-2)',fontSize:'0.8rem' }}>Inició: {s.fecha_alta}</div>
+                  <div className="cal-item-tipo">{s.tipo}</div>
+                  <div className="cal-item-monto">{fmt(s.monto)}</div>
+                  <div className="cal-item-fecha">Inició: {fmtFecha(s.fecha_alta) || 'Sin fecha'}</div>
                 </div>
               ))}
             </>
           ) : (
-            <div style={{ color:'var(--ink-2)',fontSize:'0.9rem',textAlign:'center' }}>Selecciona un día con cobros</div>
+            <p className="cal-detalle-vacio">{mesVacio ? 'Este mes no tiene cobros' : 'Selecciona un día con cobros'}</p>
           )}
         </div>
       </div>

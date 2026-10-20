@@ -195,3 +195,43 @@ textarea.field-control { min-height: 5.5rem; resize: vertical; }
 .hist-fecha { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .hist-pie { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.75rem; margin-top: 1rem; color: var(--ink-2); font-size: 0.875rem; }
 .hist-pie p { margin: 0; }
+
+/* Calendario */
+.cal-layout { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 1.5rem; align-items: start; }
+.cal-panel { padding: 1.5rem; min-width: 0; }
+.cal-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 1.25rem; }
+.cal-mes { flex: 1; min-width: 8rem; margin: 0; text-align: center; font-size: 1.25rem; font-family: var(--font-display); }
+.cal-nav { min-width: 44px; min-height: 44px; padding: 0.5rem; }
+.cal-hoy { min-height: 44px; }
+.cal-semana, .cal-rejilla { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.3rem; }
+.cal-semana { margin-bottom: 0.3rem; }
+.cal-dia-sem { text-align: center; color: var(--ink-2); font-size: 0.8125rem; font-weight: 700; }
+.cal-celda {
+  display: flex; flex-direction: column; gap: 0.1rem; width: 100%; min-width: 0; min-height: 60px; overflow: hidden;
+  padding: 0.45rem; text-align: left; font: inherit; color: inherit;
+  background: var(--surface-alt); border: 1px solid var(--line); border-radius: 8px;
+}
+button.cal-celda { cursor: pointer; border-color: var(--line-control); }
+.cal-celda-cobros { background: color-mix(in srgb, var(--color-primario) 6%, var(--surface)); }
+.cal-celda-sel { background: color-mix(in srgb, var(--color-primario) 14%, var(--surface)); border: 2px solid var(--ink); padding: calc(0.45rem - 1px); }
+.cal-celda-hoy:not(.cal-celda-sel) { border: 2px solid var(--ink); padding: calc(0.45rem - 1px); }
+.cal-num { font-size: 0.875rem; font-weight: 700; color: var(--ink-2); }
+.cal-celda-cobros .cal-num, .cal-celda-hoy .cal-num { color: var(--ink); }
+.cal-importe { display: block; color: var(--ink); font-size: 0.8125rem; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-cuenta { display: block; color: var(--ink-2); font-size: 0.8125rem; }
+.cal-detalle { min-width: 0; padding: 1.2rem; }
+.cal-detalle-titulo { margin: 0 0 0.3rem; font-size: 1.0625rem; }
+.cal-detalle-total { color: var(--ink); font-variant-numeric: tabular-nums; font-weight: 800; font-size: 1.125rem; margin-bottom: 1rem; }
+.cal-detalle-vacio { margin: 0; color: var(--ink-2); text-align: center; }
+.cal-item { border-top: 1px solid var(--line); padding-top: 0.7rem; margin-top: 0.7rem; }
+.cal-item-cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; }
+.cal-item-nombre { color: var(--ink); font-weight: 600; overflow-wrap: anywhere; }
+.cal-chip { flex-shrink: 0; font-size: 0.8125rem; color: var(--ink-2); border: 1px solid var(--line); padding: 0 6px; border-radius: 4px; text-transform: uppercase; }
+.cal-item-tipo { color: var(--ink-2); font-size: 0.875rem; }
+.cal-item-monto { color: var(--ink); font-variant-numeric: tabular-nums; }
+.cal-item-fecha { color: var(--ink-2); font-size: 0.8125rem; }
+@media (max-width: 40rem) {
+  .cal-panel { padding: 1rem; }
+  .cal-celda { padding: 0.3rem; min-height: 48px; }
+  .cal-importe, .cal-cuenta-txt { display: none; }
+}
