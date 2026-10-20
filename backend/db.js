@@ -40,10 +40,10 @@ function texto(v, etiqueta, max, { obligatorio = true } = {}) {
 function numero(v, etiqueta) {
     let n;
     if (typeof v === 'number') n = v;
-    else if (typeof v === 'string' && v.trim() !== '') n = Number(v);
+    else if (typeof v === 'string' && /^\d+(\.\d+)?$/.test(v)) n = Number(v);
     else invalido(`${etiqueta} debe ser un número.`);
     if (!Number.isFinite(n)) invalido(`${etiqueta} debe ser un número.`);
-    return n;
+    return n + 0; // -0 -> 0
 }
 
 function entero(v, etiqueta, min, max) {
@@ -111,9 +111,14 @@ const VALIDADORES = {
             else invalido('El estado activa debe ser verdadero o falso.');
         }
         if ('fecha_alta' in c) {
-            const f = c.fecha_alta;
+            let f = c.fecha_alta;
             if (crear && (f === '' || f === null)) r.fecha_alta = cobros.hoyISO();
-            else r.fecha_alta = fechaISO(f, 'La fecha de alta');
+            else if (!crear && f === null) { /* sin cambios: la UI reenvía la fila guardada */ }
+            else {
+                // Un valor heredado con hora (AAAA-MM-DDTHH...) se compara y guarda solo por fecha
+                if (typeof f === 'string' && /^\d{4}-\d{2}-\d{2}[T ]/.test(f)) f = f.slice(0, 10);
+                r.fecha_alta = fechaISO(f, 'La fecha de alta');
+            }
         } else if (crear) r.fecha_alta = cobros.hoyISO();
         return r;
     },
@@ -170,7 +175,7 @@ const planes = {
         db.transaction(() => {
             ejecutarUpdate('planes', id, nuevos, usuarioId);
             // Un cambio de calendario no debe generar cobros vencidos falsos
-            const cambiaCalendario = (nuevos.frecuencia !== undefined && nuevos.frecuencia !== actual.frecuencia) ||
+            const cambiaCalendario = (nuevos.frecuencia !== undefined && nuevos.frecuencia !== String(actual.frecuencia).toLowerCase()) ||
                 (nuevos.dia_cobro !== undefined && nuevos.dia_cobro !== actual.dia_cobro);
             if (cambiaCalendario) {
                 db.prepare('UPDATE suscripciones SET cobro_desde = ? WHERE plan_id = ? AND usuario_id = ?')
@@ -185,7 +190,7 @@ const planes = {
             const info = stmt.run(id, usuarioId);
             return { ok: info.changes > 0 };
         } catch (err) {
-            if (err.message.includes("FOREIGN KEY")) throw new Error("No puedes eliminar un plan con clientes suscritos.");
+            if (err.message.includes("FOREIGN KEY")) throw new Error("VALIDATION_ERROR: No puedes eliminar un plan con clientes suscritos.");
             throw err;
         }
     }
@@ -213,9 +218,9 @@ const clientes = {
         try {
             const stmt = db.prepare('DELETE FROM clientes WHERE id = ? AND usuario_id = ?');
             const info = stmt.run(id, usuarioId);
-            return { ok: true };
+            return { ok: info.changes > 0 };
         } catch (err) {
-            if (err.message.includes("FOREIGN KEY")) throw new Error("Cliente con suscripciones vinculadas.");
+            if (err.message.includes("FOREIGN KEY")) throw new Error("VALIDATION_ERROR: Cliente con suscripciones vinculadas.");
             throw err;
         }
     }
@@ -266,9 +271,9 @@ const suscripciones = {
             // cobro_desde = hoy: una fecha_alta pasada no genera cobros "vencidos" anteriores al registro
             const stmt = db.prepare(`
                 INSERT INTO suscripciones (cliente_id, plan_id, usuario_id, activa, descripcion, fecha_alta, cobro_desde)
-                VALUES (?, ?, ?, 1, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             `);
-            const info = stmt.run(cliente_id, plan_id, usuarioId, descripcion, fechaFinal, hoy);
+            const info = stmt.run(cliente_id, plan_id, usuarioId, v.activa === undefined ? 1 : v.activa, descripcion, fechaFinal, hoy);
             return this.find(info.lastInsertRowid);
         } catch (err) {
             if (err.message.includes("FOREIGN KEY")) {

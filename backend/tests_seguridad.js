@@ -160,7 +160,7 @@ async function run() {
     await malo('PUT', s, { activa: 'x' }, 'sub activa basura');
     await malo('PUT', s, { fecha_alta: 'ayer' }, 'sub fecha_alta ayer');
     await malo('PUT', s, { fecha_alta: '' }, 'sub fecha_alta vacía');
-    await malo('PUT', s, { fecha_alta: null }, 'sub fecha_alta null');
+    // fecha_alta null en edición significa "sin cambios" (ver sección 13), ya no es un 400
     await malo('PUT', s, { fecha_alta: '2026-02-31' }, 'sub fecha_alta inexistente');
     await malo('PUT', s, { cliente_id: true }, 'sub cliente_id booleano');
     await malo('POST', '/suscripciones', { cliente_id: true, plan_id: datosA.plan.id }, 'POST sub cliente_id true');
@@ -201,6 +201,88 @@ async function run() {
     esperar(await json(port, 'PATCH', '/usuario/config-tema', { whatsapp: '573001234567' }, B.token), 200, 'B guarda whatsapp');
     esperar(await json(port, 'PATCH', '/usuario/config-tema', { nombre: 'B renombrado' }, B.token), 200, 'B cambia nombre');
     assert.strictEqual(esperar(await json(port, 'GET', '/usuario/perfil', undefined, B.token), 200, 'perfil B').whatsapp, '573001234567');
+
+    // 13. Tolerancia a valores heredados, números estrictos, JSON roto y borrados
+    const sinSqlite = (r, etiqueta) => assert.ok(!/SQLITE|constraint/i.test(r.body), `${etiqueta}: sin detalles internos (${r.body})`);
+    // 13a. El frontend reenvía la fila guardada: un timestamp o NULL heredado no bloquea la edición
+    fijarAntiguo();
+    database.prepare("UPDATE suscripciones SET fecha_alta = '2026-01-05T00:00:00.000Z' WHERE id = ?").run(subA.id);
+    esperar(await json(port, 'PUT', s, { descripcion: 'fila completa', fecha_alta: '2026-01-05T00:00:00.000Z' }, A.token), 200, 'editar con fecha_alta heredada con hora');
+    assert.strictEqual(cobroDesde(), '2020-01-01', 'fecha_alta heredada con hora (misma fecha) no cambia cobro_desde');
+    database.prepare("UPDATE suscripciones SET fecha_alta = NULL WHERE id = ?").run(subA.id);
+    esperar(await json(port, 'PUT', s, { descripcion: 'fila completa 2', fecha_alta: null }, A.token), 200, 'editar con fecha_alta NULL heredada');
+    assert.strictEqual(cobroDesde(), '2020-01-01', 'fecha_alta null no cambia cobro_desde');
+    assert.strictEqual(fila('suscripciones', subA.id).fecha_alta, null, 'fecha_alta null = sin cambios');
+    esperar(await json(port, 'PUT', s, { fecha_alta: '2026-01-05T10:00:00Z' }, A.token), 200, 'timestamp válido');
+    fijarAntiguo(); // la fecha ya quedó en 2026-01-05 (antes era NULL, así que cobro_desde se movió)
+    esperar(await json(port, 'PUT', s, { fecha_alta: '2026-01-05' }, A.token), 200, 'misma fecha en formato corto');
+    assert.strictEqual(cobroDesde(), '2020-01-01', 'misma fecha (primeros 10 caracteres) no cambia cobro_desde');
+    await malo('PUT', s, { fecha_alta: '' }, 'sub fecha_alta vacía sigue siendo 400');
+    await malo('PUT', s, { fecha_alta: 'ayer' }, 'sub fecha_alta basura sigue siendo 400');
+    await malo('PUT', s, { fecha_alta: '2026-02-31T00:00:00Z' }, 'timestamp con fecha inexistente');
+
+    // 13b. Números estrictos
+    for (const m of ['0x10', '1e3', ' 5 ', '-5', '1e308', '0b11', '']) {
+      await malo('PUT', p, { monto: m }, `plan monto ${JSON.stringify(m)}`);
+    }
+    await malo('PUT', p, { dia_cobro: '0x10' }, 'plan dia_cobro 0x10');
+    await malo('PUT', p, { dia_cobro: '1e1' }, 'plan dia_cobro 1e1');
+    esperar(await json(port, 'PUT', p, { monto: '12.50' }, A.token), 200, 'monto decimal en cadena');
+    assert.strictEqual(fila('planes', datosA.plan.id).monto, 12.5);
+    // JSON.stringify(-0) da "0"; se envía el literal -0 a mano
+    esperar(await request({ port, method: 'PUT', path: p, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${A.token}` }, body: '{"monto":-0}' }), 200, 'monto -0');
+    assert.ok(Object.is(fila('planes', datosA.plan.id).monto, 0), 'monto -0 se guarda como 0');
+
+    // 13c. Longitudes máximas y mensajes claros
+    assert.strictEqual(esperar(await json(port, 'PUT', c, { nombre: 'x'.repeat(121) }, A.token), 400, 'nombre de 121 caracteres').error, 'El nombre no puede superar 120 caracteres.');
+    assert.strictEqual(esperar(await json(port, 'PUT', p, { descripcion: 'x'.repeat(501) }, A.token), 400, 'descripción de 501 caracteres').error, 'La descripción no puede superar 500 caracteres.');
+    assert.strictEqual(esperar(await json(port, 'PUT', c, { correo: 'sin-arroba' }, A.token), 400, 'correo sin arroba').error, 'El correo no es válido.');
+
+    // 13d. activa: 0 y 1 aceptados, '0' rechazado; al crear se respeta
+    esperar(await json(port, 'PUT', s, { activa: 0 }, A.token), 200, 'activa 0');
+    assert.strictEqual(fila('suscripciones', subA.id).activa, 0);
+    esperar(await json(port, 'PUT', s, { activa: 1 }, A.token), 200, 'activa 1');
+    assert.strictEqual(fila('suscripciones', subA.id).activa, 1);
+    await malo('PUT', s, { activa: '0' }, "activa '0'");
+    const subInactiva = esperar(await json(port, 'POST', '/suscripciones', { cliente_id: datosA.cliente.id, plan_id: datosA.plan.id, activa: false }, A.token), 201, 'crear inactiva');
+    assert.strictEqual(fila('suscripciones', subInactiva.id).activa, 0, 'activa:false al crear queda inactiva');
+    const subPorDefecto = esperar(await json(port, 'POST', '/suscripciones', { cliente_id: datosA.cliente.id, plan_id: datosA.plan.id }, A.token), 201, 'crear sin activa');
+    assert.strictEqual(fila('suscripciones', subPorDefecto.id).activa, 1, 'sin activa al crear queda activa');
+
+    // 13e. JSON malformado -> 400 limpio
+    const cabeceras = { 'Content-Type': 'application/json', Authorization: `Bearer ${A.token}` };
+    for (const [metodo, ruta] of [['PUT', c], ['POST', '/planes'], ['POST', '/clientes'], ['PUT', p], ['POST', '/suscripciones'], ['PUT', s], ['PATCH', '/usuario/config-tema']]) {
+      const cuerpo = esperar(await request({ port, method: metodo, path: ruta, headers: cabeceras, body: '{bad' }), 400, `JSON roto en ${metodo} ${ruta}`);
+      assert.strictEqual(cuerpo.error, 'JSON inválido', `${metodo} ${ruta}: mensaje fijo`);
+    }
+
+    // 13f. Borrados: mensajes amigables sin detalles internos, 404 si no es del usuario
+    const rPlan = await json(port, 'DELETE', p, undefined, A.token);
+    assert.strictEqual(esperar(rPlan, 400, 'borrar plan con suscripciones').error, 'No puedes eliminar un plan con clientes suscritos.');
+    sinSqlite(rPlan, 'DELETE plan');
+    const rCli = await json(port, 'DELETE', c, undefined, A.token);
+    assert.strictEqual(esperar(rCli, 400, 'borrar cliente con suscripciones').error, 'Cliente con suscripciones vinculadas.');
+    sinSqlite(rCli, 'DELETE cliente');
+    const ajenos = [['clientes', datosA.cliente.id, 'Cliente no encontrado'], ['planes', datosA.plan.id, 'Plan no encontrado'], ['suscripciones', subA.id, 'Suscripción no encontrada']];
+    for (const [tabla, id, msg] of ajenos) {
+      const r = await json(port, 'DELETE', `/${tabla}/${id}`, undefined, B.token);
+      assert.strictEqual(esperar(r, 404, `B borra ${tabla} de A`).error, msg);
+      sinSqlite(r, `DELETE ${tabla} ajeno`);
+      assert.ok(fila(tabla, id), `${tabla} de A sigue existiendo`);
+      esperar(await json(port, 'DELETE', `/${tabla}/99999999`, undefined, A.token), 404, `borrar ${tabla} inexistente`);
+    }
+    // Un recurso propio sin dependencias sí se borra
+    const libre = esperar(await json(port, 'POST', '/clientes', { nombre: 'Libre', correo: 'libre@test.local' }, A.token), 201, 'cliente libre');
+    esperar(await json(port, 'DELETE', `/clientes/${libre.id}`, undefined, A.token), 200, 'borrar cliente propio');
+    assert.ok(!fila('clientes', libre.id), 'el cliente propio se borró');
+    esperar(await json(port, 'DELETE', `/suscripciones/${subInactiva.id}`, undefined, A.token), 200, 'borrar suscripción propia');
+    assert.ok(!fila('suscripciones', subInactiva.id));
+
+    // 13g. Un 'Mensual' heredado en la base no reinicia cobro_desde si la frecuencia no cambia
+    database.prepare("UPDATE planes SET frecuencia = 'Mensual' WHERE id = ?").run(datosA.plan.id);
+    fijarAntiguo();
+    esperar(await json(port, 'PUT', p, { frecuencia: 'mensual', monto: 1 }, A.token), 200, 'plan con frecuencia heredada');
+    assert.strictEqual(cobroDesde(), '2020-01-01', 'Mensual heredado = mensual: cobro_desde intacto');
 
     console.log('OK pruebas de seguridad');
   } finally {

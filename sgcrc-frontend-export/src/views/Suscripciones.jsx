@@ -154,7 +154,7 @@ export default function Suscripciones() {
                     Editar
                   </button>
                   <button className="text-red-500 font-bold text-xs uppercase hover:underline" onClick={async () => {
-                    if (confirm('¿Eliminar suscripción?')) { await api.deleteSuscripcion(s.id); cargar(); }
+                    if (confirm('¿Eliminar suscripción?')) { try { await api.deleteSuscripcion(s.id); cargar(); } catch (e) { setError(e.message); } }
                   }}>
                     Borrar
                   </button>

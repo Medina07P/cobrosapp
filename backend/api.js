@@ -52,6 +52,9 @@ function obtenerUsuario(req) {
 
 // VALIDATION_ERROR -> 400 con el mensaje limpio; cualquier otro error -> 500 genérico (sin detalles internos)
 function errorDeDatos(res, err) {
+  if (err && typeof err.message === "string" && err.message.startsWith("JSON inválido")) {
+    return json(res, 400, { error: "JSON inválido" });
+  }
   if (err && typeof err.message === "string" && err.message.startsWith("VALIDATION_ERROR: ")) {
     return json(res, 400, { error: err.message.replace("VALIDATION_ERROR: ", "") });
   }
@@ -93,15 +96,13 @@ async function handler(req, res) {
       if (method === "GET" && !id) return json(res, 200, db.clientes.all(usuario.id));
       
       if (method === "POST" && !id) {
-        const body = await parseBody(req);
-        try { return json(res, 201, db.clientes.create(body, usuario.id)); }
+        try { return json(res, 201, db.clientes.create(await parseBody(req), usuario.id)); }
         catch (e) { return errorDeDatos(res, e); }
       }
       
       if (method === "PUT" && id) {
-        const body = await parseBody(req);
         let actualizado;
-        try { actualizado = db.clientes.update(Number(id), body, usuario.id); }
+        try { actualizado = db.clientes.update(Number(id), await parseBody(req), usuario.id); }
         catch (e) { return errorDeDatos(res, e); }
         if (!actualizado) return json(res, 404, { error: "Cliente no encontrado" });
         return json(res, 200, actualizado);
@@ -109,9 +110,9 @@ async function handler(req, res) {
       
       if (method === "DELETE" && id) {
         try {
-          db.clientes.delete(Number(id), usuario.id);
+          if (!db.clientes.delete(Number(id), usuario.id).ok) return json(res, 404, { error: "Cliente no encontrado" });
           return json(res, 200, { message: "Cliente eliminado con éxito", id });
-        } catch (e) { return json(res, 400, { error: e.message }); }
+        } catch (e) { return errorDeDatos(res, e); }
       }
     }
 
@@ -121,15 +122,13 @@ async function handler(req, res) {
       if (method === "GET" && !id) return json(res, 200, db.planes.all(usuario.id));
       
       if (method === "POST" && !id) {
-        const body = await parseBody(req);
-        try { return json(res, 201, db.planes.create(body, usuario.id)); }
+        try { return json(res, 201, db.planes.create(await parseBody(req), usuario.id)); }
         catch (e) { return errorDeDatos(res, e); }
       }
 
       if (method === "PUT" && id) {
-        const body = await parseBody(req);
         let actualizado;
-        try { actualizado = db.planes.update(Number(id), body, usuario.id); }
+        try { actualizado = db.planes.update(Number(id), await parseBody(req), usuario.id); }
         catch (e) { return errorDeDatos(res, e); }
         if (!actualizado) return json(res, 404, { error: "Plan no encontrado" });
         return json(res, 200, actualizado);
@@ -137,9 +136,9 @@ async function handler(req, res) {
 
       if (method === "DELETE" && id) {
         try {
-          db.planes.delete(Number(id), usuario.id);
+          if (!db.planes.delete(Number(id), usuario.id).ok) return json(res, 404, { error: "Plan no encontrado" });
           return json(res, 200, { message: "Plan eliminado correctamente" });
-        } catch (e) { return json(res, 400, { error: e.message }); }
+        } catch (e) { return errorDeDatos(res, e); }
       }
     }
 
@@ -149,9 +148,8 @@ async function handler(req, res) {
       if (method === "GET" && !id) return json(res, 200, db.suscripciones.all(usuario.id));
       
       if (method === "POST" && !id) {
-        const body = await parseBody(req);
         try {
-          const nuevaSub = db.suscripciones.create(body, usuario.id);
+          const nuevaSub = db.suscripciones.create(await parseBody(req), usuario.id);
           return json(res, 201, nuevaSub);
         } catch (dbErr) {
           return errorDeDatos(res, dbErr);
@@ -159,9 +157,8 @@ async function handler(req, res) {
       }
 
       if (method === "PUT" && id) {
-        const body = await parseBody(req);
         try {
-          const actualizada = db.suscripciones.update(Number(id), body, usuario.id);
+          const actualizada = db.suscripciones.update(Number(id), await parseBody(req), usuario.id);
           if (!actualizada) return json(res, 404, { error: "Suscripción no encontrada" });
           return json(res, 200, actualizada);
         } catch (dbErr) {
@@ -171,9 +168,9 @@ async function handler(req, res) {
 
       if (method === "DELETE" && id) {
         try {
-          db.suscripciones.delete(Number(id), usuario.id);
+          if (!db.suscripciones.delete(Number(id), usuario.id).ok) return json(res, 404, { error: "Suscripción no encontrada" });
           return json(res, 200, { message: "Suscripción eliminada con éxito", id });
-        } catch (e) { return json(res, 500, { error: e.message }); }
+        } catch (e) { return errorDeDatos(res, e); }
       }
     }
 
@@ -193,7 +190,8 @@ async function handler(req, res) {
 
     // Ruta para actualizar nombre y tema (Cambiada a POST o PATCH según prefieras)
     if (pathname === "/usuario/config-tema" && (method === "PATCH" || method === "POST")) {
-      const body = await parseBody(req);
+      let body;
+      try { body = await parseBody(req); } catch (e) { return errorDeDatos(res, e); }
       if (body.color_tema && !colorValido(body.color_tema)) {
         return json(res, 400, { error: "El color debe tener el formato #RRGGBB." });
       }
