@@ -20,7 +20,7 @@ export function ToastRegion() {
   return createPortal(
     <div className="toast-region" aria-live="polite" aria-relevant="additions">
       {items.map((t) => (
-        <div key={t.id} className={`toast toast-${t.tipo}`} role={t.tipo === 'error' ? 'alert' : undefined}>
+        <div key={t.id} className={`toast toast-${t.tipo}`}>
           <Icon name={ICONOS[t.tipo]} size={20} />
           <span className="toast-texto">{t.mensaje}</span>
           <button type="button" className="toast-cerrar" onClick={() => tostadas.cerrar(t.id)}>
