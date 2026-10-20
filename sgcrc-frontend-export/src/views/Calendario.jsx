@@ -5,7 +5,6 @@ import ErrorMsg from '../ui/ErrorMsg.jsx'
 import EmptyState from '../ui/EmptyState.jsx'
 import Button from '../ui/Button.jsx'
 import PageHeader from '../ui/PageHeader.jsx'
-import { toast } from '../ui/Toast.jsx'
 import { mensajeError } from '../lib/errores.js'
 import { fmt, fmtFecha } from '../lib/formato.js'
 import { MESES, rejillaMes, agruparCobrosPorDia, fechaLarga } from '../lib/calendario.js'
@@ -16,32 +15,27 @@ const plural = (n) => `${n} ${n === 1 ? 'cobro' : 'cobros'}`
 export default function Calendario() {
   const [subs, setSubs]         = useState([])
   const [clientes, setClientes] = useState([])
-  const [, setCargando]         = useState(true)
   const [error, setError]       = useState('')
-  const [conDatos, setConDatos] = useState(false)
+  const [cargado, setCargado]   = useState(false)
   const [selected, setSelected] = useState(null)
-  const hayDatos = useRef(false)
   const enCurso = useRef(false)
 
   const hoy = new Date()
   const [view, setView] = useState({ month: hoy.getMonth(), year: hoy.getFullYear() })
 
+  // Solo se llama al montar y desde el reintento de la pantalla de error inicial.
   const cargar = async () => {
     if (enCurso.current) return
     enCurso.current = true
-    setCargando(true); setError('')
+    setError('')
     try {
       const [s, c] = await Promise.all([api.getSuscripciones(), api.getClientes()])
       setSubs(s.filter(x => x.activa)); setClientes(c)
-      hayDatos.current = true
-      setConDatos(true)
+      setCargado(true)
     } catch (e) {
-      // Con datos previos se conserva el calendario y se avisa con un toast.
-      if (hayDatos.current) toast.error(mensajeError(e))
-      else setError(mensajeError(e))
+      setError(mensajeError(e))
     } finally {
       enCurso.current = false
-      setCargando(false)
     }
   }
 
@@ -57,14 +51,16 @@ export default function Calendario() {
   const next = () => { setSelected(null); setView(v => v.month === 11 ? { month: 0,  year: v.year + 1 } : { month: v.month + 1, year: v.year }) }
   const irAHoy = () => {
     const h = new Date()
-    setView({ month: h.getMonth(), year: h.getFullYear() })
-    setSelected(h.getDate())
+    const m = h.getMonth(), y = h.getFullYear()
+    setView({ month: m, year: y })
+    // Solo se selecciona hoy si tiene cobros; si no, se navega al mes sin selección.
+    setSelected(agruparCobrosPorDia(subs, clientes, y, m)[h.getDate()] ? h.getDate() : null)
   }
 
   const cabecera = <PageHeader titulo="Calendario de Cobros" />
 
-  if (!conDatos && error) return <div className="pagina">{cabecera}<ErrorMsg msg={error} onRetry={cargar} /></div>
-  if (!conDatos) return <div className="pagina">{cabecera}<Skeleton /></div>
+  if (!cargado && error) return <div className="pagina">{cabecera}<ErrorMsg msg={error} onRetry={cargar} /></div>
+  if (!cargado) return <div className="pagina">{cabecera}<Skeleton /></div>
   if (subs.length === 0) {
     return (
       <div className="pagina">

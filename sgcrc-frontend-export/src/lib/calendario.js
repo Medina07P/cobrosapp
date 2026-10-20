@@ -17,40 +17,60 @@ export const rejillaMes = (anio, mes) => ({ dias: diasDelMes(anio, mes), desfase
 // '15 de octubre de 2026'
 export const fechaLarga = (anio, mes, dia) => `${dia} de ${MESES[mes].toLowerCase()} de ${anio}`
 
-// Proyección de cobros del mes: { [día]: { total, items: [{...suscripción, cl}] } }.
-// Si hay fecha_alta, su día manda y no se muestran cobros anteriores a ella; si no, dia_cobro.
-export const agruparCobrosPorDia = (subs, clientes, anio, mes) => {
-  const dias = diasDelMes(anio, mes)
-  const mapa = {}
+// Reglas de cobro idénticas a backend/cobros.js (tocaCobrarEn). Una prueba de paridad las compara.
+// iso: 'AAAA-MM-DD'. Usa UTC para el día de la semana y los días del mes, sin depender del huso.
+const partes = (iso) => {
+  const [y, m, d] = iso.split('-').map(Number)
+  return {
+    y, m, d,
+    diaSemana: new Date(Date.UTC(y, m - 1, d)).getUTCDay(),
+    diasMes: new Date(Date.UTC(y, m, 0)).getUTCDate(),
+  }
+}
 
-  const registrar = (dia, s) => {
-    const inicio = parseFechaLocal(s.fecha_alta)
-    if (inicio && new Date(anio, mes, dia) < inicio) return
-    const d = Math.min(dia, dias)
-    if (!Number.isFinite(d)) return
-    if (!mapa[d]) mapa[d] = { total: 0, items: [] }
-    const cl = clientes.find(c => c.id === s.cliente_id)
-    mapa[d].total += s.monto
-    mapa[d].items.push({ ...s, cl })
+export const tocaCobrarEn = (sus, iso) => {
+  const alta = sus.fecha_alta ? String(sus.fecha_alta).slice(0, 10) : null
+  if (alta) {
+    if (alta > iso) return false // aún no empezó
+    if (alta === iso) return true // el día de alta se cobra siempre
   }
 
-  for (const s of subs) {
-    const diaReal = s.fecha_alta ? parseInt(s.fecha_alta.split('-')[2], 10) : s.dia_cobro
-    switch (s.frecuencia || 'mensual') {
-      case 'semanal':
-        for (let d = 1; d <= dias; d++) {
-          if (new Date(anio, mes, d).getDay() === (diaReal % 7)) registrar(d, s)
-        }
-        break
-      case 'quincenal':
-        registrar(diaReal, s)
-        if (diaReal + 15 <= dias) registrar(diaReal + 15, s)
-        break
-      case 'anual':
-        if (mes === (s.mes_cobro || 0)) registrar(diaReal, s)
-        break
-      default:
-        registrar(diaReal, s)
+  const { d: diaActual, m: mes, diaSemana, diasMes } = partes(iso)
+  const diaBaseReal = alta ? Number(alta.split('-')[2]) : (sus.dia_cobro || 1)
+  const diaBase = Math.min(diaBaseReal, diasMes)
+
+  switch ((sus.frecuencia || 'mensual').toLowerCase()) {
+    case 'quincenal': {
+      const segunda = diaBase + 15
+      const ajustada = segunda > diasMes ? segunda - diasMes : segunda
+      return diaActual === diaBase || diaActual === ajustada
+    }
+    case 'semanal': {
+      const objetivo = alta ? partes(alta).diaSemana : (sus.dia_cobro || 0) % 7
+      return diaSemana === objetivo
+    }
+    case 'anual': {
+      const mesObjetivo = alta ? Number(alta.split('-')[1]) : (sus.mes_cobro || 0) + 1
+      return diaActual === diaBase && mes === mesObjetivo
+    }
+    default:
+      return diaActual === diaBase
+  }
+}
+
+// Proyección de cobros del mes: { [día]: { total, items: [{...suscripción, cl}] } }.
+// Cada día del mes se decide con tocaCobrarEn (mismas reglas que el cron del backend).
+export const agruparCobrosPorDia = (subs, clientes, anio, mes) => {
+  const dias = diasDelMes(anio, mes)
+  const prefijo = `${anio}-${String(mes + 1).padStart(2, '0')}-`
+  const mapa = {}
+  for (let dia = 1; dia <= dias; dia++) {
+    const iso = prefijo + String(dia).padStart(2, '0')
+    for (const s of subs) {
+      if (!tocaCobrarEn(s, iso)) continue
+      if (!mapa[dia]) mapa[dia] = { total: 0, items: [] }
+      mapa[dia].total += s.monto
+      mapa[dia].items.push({ ...s, cl: clientes.find(c => c.id === s.cliente_id) })
     }
   }
   return mapa
