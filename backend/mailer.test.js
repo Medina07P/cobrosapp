@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { buildHtml } = require('./mailer');
+const { buildHtml, construirRemitente } = require('./mailer');
 
 const base = {
   cliente: { nombre: 'Ana' },
@@ -41,4 +41,18 @@ test('la frecuencia y el nombre del cliente se escapan', () => {
   assert.ok(!html.includes('<i>mensual</i>'));
   assert.ok(html.includes('&lt;i&gt;mensual&lt;/i&gt;'));
   assert.ok(!html.includes('<b>Ana</b>'));
+});
+
+test('construirRemitente neutraliza comillas y saltos de linea del nombre', () => {
+  const r = construirRemitente({ nombre: 'x" <soporte@banco.com>, "y' + String.fromCharCode(13, 10) + 'Bcc: a@b.c' }, 'real@dominio.com');
+  assert.strictEqual(r.address, 'real@dominio.com');
+  assert.ok(!r.name.includes('"') && !r.name.includes(String.fromCharCode(13)) && !r.name.includes(String.fromCharCode(10)));
+  assert.strictEqual(typeof r.name, 'string');
+});
+
+test('construirRemitente usa SGCRC si el nombre falta o queda vacio y trunca a 120', () => {
+  assert.strictEqual(construirRemitente({ nombre: '' }, 'a@b.c').name, 'SGCRC');
+  assert.strictEqual(construirRemitente(null, 'a@b.c').name, 'SGCRC');
+  assert.strictEqual(construirRemitente({ nombre: '"' + String.fromCharCode(10) + '"' }, 'a@b.c').name, 'SGCRC');
+  assert.strictEqual(construirRemitente({ nombre: 'n'.repeat(500) }, 'a@b.c').name.length, 120);
 });

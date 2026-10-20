@@ -89,6 +89,13 @@ async function run() {
     assert.strictEqual(r4.enviados, 0);
     assert.deepStrictEqual(enviados, []);
 
+    // 6. ids repetidos (número y texto) envían un solo correo
+    const propia = suscribir('duplicado', semanal, hace(9));
+    enviados.length = 0;
+    const r5 = await procesarSeleccionados(usuarioId, [propia.id, propia.id, String(propia.id)]);
+    assert.strictEqual(r5.enviados, 1);
+    assert.deepStrictEqual(enviados, ['duplicado']);
+
     console.log('OK integración de cobros vencidos');
   } finally {
     mailer.enviarCobro = enviarOriginal;

@@ -24,7 +24,7 @@ npm run preview  # Preview del build local
 | `ui/Icon.jsx` | Componente de iconos; `npm run icons` regenera `ui/icons.generated.js` |
 | `ui/Logo.jsx` | Logo SGCRC en SVG |
 | `App.jsx` | Shell de la SPA: estado `view`, objeto `VIEWS`, sidebar desktop + tabs mobile |
-| `api.js` | Cliente HTTP con `fetch`, base `/api`, inyecta `Authorization: Bearer <token>`, limpia sesión en 401 |
+| `api.js` | Cliente HTTP con `fetch`, base `/api`, inyecta `Authorization: Bearer <token>`, borra la sesión del localStorage en 401 (sin recargar) |
 | `components.jsx` | Componentes compartidos (tarjetas, tabla, modal, badges) |
 | `views/Login.jsx` | Login y registro (toggle en la misma vista) |
 | `views/Dashboard.jsx` | KPIs + próximos cobros + botón "ejecutar cobros del día" |
@@ -33,7 +33,7 @@ npm run preview  # Preview del build local
 | `views/Suscripciones.jsx` | ABM de suscripciones (vincula cliente + plan) |
 | `views/Historial.jsx` | Listado de envíos con estado y monto |
 | `views/Calendario.jsx` | Vista calendario de próximos cobros |
-| `views/Configuracion.jsx` | Perfil: nombre + color de marca |
+| `views/Configuracion.jsx` | Perfil: nombre + color de marca + WhatsApp |
 
 ## Cómo agregar una vista
 
@@ -76,7 +76,7 @@ Tailwind se carga desde CDN en `index.html`. **No hay `tailwind.config.js` ni Po
 
 - El JWT se guarda en `localStorage` con la clave `sgcrc_session` como objeto `{ token, user }`.
 - `api.js` lee `sgcrc_session.token` para el header `Authorization`.
-- En cualquier respuesta 401, `api.js` elimina `sgcrc_session` y recarga la página.
+- En cualquier respuesta 401, `api.js` elimina `sgcrc_session` del localStorage pero NO recarga la página ni redirige (el `reload` está comentado); `App.jsx` cierra sesión cuando una petición de perfil falla con 401.
 
 ## Gotchas
 

@@ -283,7 +283,7 @@ const suscripciones = {
         }
     },
 
-    // Solo actualiza suscripciones del usuario. Reactivar o cambiar fecha_alta fija cobro_desde = hoy.
+    // Solo actualiza suscripciones del usuario. Reactivar, cambiar fecha_alta o cambiar de plan fija cobro_desde = hoy.
     update(id, campos, usuarioId) {
         const actual = db.prepare('SELECT * FROM suscripciones WHERE id = ? AND usuario_id = ?').get(id, usuarioId);
         if (!actual) return null;
@@ -295,7 +295,8 @@ const suscripciones = {
         const reactiva = nuevos.activa === 1 && actual.activa !== 1;
         const cambiaAlta = nuevos.fecha_alta !== undefined &&
             String(nuevos.fecha_alta).slice(0, 10) !== String(actual.fecha_alta || '').slice(0, 10);
-        if (reactiva || cambiaAlta) nuevos.cobro_desde = cobros.hoyISO();
+        const cambiaPlan = nuevos.plan_id !== undefined && nuevos.plan_id !== actual.plan_id;
+        if (reactiva || cambiaAlta || cambiaPlan) nuevos.cobro_desde = cobros.hoyISO();
 
         ejecutarUpdate('suscripciones', id, nuevos, usuarioId);
         return this.find(id);

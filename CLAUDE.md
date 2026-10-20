@@ -48,7 +48,7 @@ Cada operación de datos filtra por `usuario_id`. El `usuario_id` viene del JWT 
 
 `backend/api.js` despacha con un `switch` implícito (`if/else if`) sobre `pathname + method`. No hay Express ni framework HTTP. Para agregar un endpoint:
 1. Agregar los métodos del recurso en `backend/db.js` (capa repositorio).
-2. Registrar el bloque `if (pathname.startsWith("/recurso"))` en `api.js` después de la verificación JWT (línea ~76).
+2. Registrar el bloque `if (pathname.startsWith("/recurso"))` en `api.js` después de la verificación JWT (línea ~99).
 
 ### Migraciones de base de datos
 
@@ -82,7 +82,7 @@ Ver `backend/.env.example` para referencia (le faltan `JWT_SECRET`, `CORS_ORIGIN
 
 ## Gotchas importantes
 
-- **JWT_SECRET sin setear**: `api.js:7` y `auth.js:5` tienen el fallback hardcodeado `'clave_maestra_super_secreta_123'`. Si `JWT_SECRET` no está en `.env`, tokens de cualquier instancia son válidos. Siempre configurar.
+- **JWT_SECRET sin setear**: `api.js:8` y `auth.js:5` tienen el fallback hardcodeado `'clave_maestra_super_secreta_123'`. Si `JWT_SECRET` no está en `.env`, tokens de cualquier instancia son válidos. Siempre configurar.
 - **CORS abierto**: `api.js` usa `Access-Control-Allow-Origin: *` fijo. La variable `CORS_ORIGIN` del `.env.example` no está implementada en el código actual.
 - **Tailwind por CDN**: el frontend carga Tailwind desde CDN en `index.html`. No hay `tailwind.config.js` ni PostCSS — no agregar configuración local esperando que funcione.
 - **`axios` en `package.json` pero no usado**: el código del frontend usa `fetch` en `src/api.js`. No mezclar los dos.

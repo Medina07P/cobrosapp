@@ -68,8 +68,9 @@ async function procesarSeleccionados(usuarioId, listaIds) {
     const propias = new Map(db.suscripciones.all(usuarioId).map((s) => [s.id, s]));
     const clientes = clientesDe(usuarioId);
 
-    for (const susId of listaIds) {
-      const sus = propias.get(Number(susId));
+    const idsUnicos = [...new Set(listaIds.map(Number))].filter((n) => !Number.isNaN(n));
+    for (const susId of idsUnicos) {
+      const sus = propias.get(susId);
       const cliente = sus && clientes.get(sus.cliente_id);
       if (!sus || !cliente) continue;
 

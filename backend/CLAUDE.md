@@ -25,7 +25,7 @@ node migrar.js     # Migración one-shot desde db.json legado (solo para datos h
 |---|---|
 | `index.js` | Entry point: verifica SMTP, arranca scheduler, arranca API |
 | `api.js` | Router HTTP: un `if/else if` por endpoint, verifica JWT antes de despachar |
-| `auth.js` | Registro y login: bcrypt hash + JWT sign con `expiresIn: '24h'` |
+| `auth.js` | Registro y login: bcrypt hash + JWT sign (HS256) con `expiresIn: '24h'` |
 | `database.js` | Instancia `better-sqlite3`, define DDL de las 5 tablas, aplica migraciones `ALTER TABLE` |
 | `db.js` | Capa repositorio: objetos `clientes`, `planes`, `suscripciones`, `historial`, `usuarios` |
 | `scheduler.js` | Cron diario con `node-cron`, función `procesarCobrosDelDia()`, mutex `procesandoCobros` |
@@ -39,7 +39,7 @@ node migrar.js     # Migración one-shot desde db.json legado (solo para datos h
 ## Cómo agregar un endpoint
 
 1. En `db.js`, agregar el objeto con métodos `all/find/create/update/delete` filtrando por `usuarioId`.
-2. En `api.js`, agregar un bloque `if (pathname.startsWith("/recurso"))` **después** de la verificación JWT (línea ~76). Usar `obtenerUsuario(req)` para obtener `usuario.id`.
+2. En `api.js`, agregar un bloque `if (pathname.startsWith("/recurso"))` **después** de la verificación JWT (línea ~99). Usar `obtenerUsuario(req)` para obtener `usuario.id`.
 3. Patrón de referencia: ver cualquier bloque existente (`/clientes`, `/planes`, `/suscripciones`).
 
 ## Cómo agregar un campo a una tabla
@@ -66,14 +66,14 @@ node migrar.js     # Migración one-shot desde db.json legado (solo para datos h
 - La decisión de qué enviar vive en `cobros.js` (`planificarCobros`), no en `scheduler.js`. `tocaCobrarEn(sus, fecha)` prioriza `fecha_alta` sobre `dia_cobro` del plan.
 - **Cobros vencidos:** el cron envía los cobros de hoy y reintenta los vencidos (día de cobro pasado sin envío `Enviado` en esa fecha o después) durante `COBROS_REINTENTO_DIAS` días (7 por defecto; 0 = solo hoy). Más allá de la ventana el cobro es "perdido": no se envía, solo aparece en `GET /cobros/resumen`.
 - Idempotencia en `/run` (endpoint manual): responde 409 solo cuando no hay nada nuevo que enviar y sí hay cobros de hoy ya enviados; entonces requiere `{ confirmarReenvio: true }`.
-- `suscripciones.cobro_desde` se fija a hoy al crear, al reactivar (`activa` 0→1), al cambiar `fecha_alta` y, para todas las suscripciones del usuario a un plan, cuando cambia realmente su `frecuencia` o `dia_cobro`. Las reglas de `cobros.js` ignoran vencimientos anteriores a `cobro_desde`. La API nunca permite fijarlo. Cambiar el día de `fecha_alta` después de enviar el cobro del periodo puede producir un segundo cobro en el mismo periodo.
+- `suscripciones.cobro_desde` se fija a hoy al crear, al reactivar (`activa` 0→1), al cambiar `fecha_alta`, al cambiar de plan (`plan_id`) y, para todas las suscripciones del usuario a un plan, cuando cambia realmente su `frecuencia` o `dia_cobro`. Las reglas de `cobros.js` ignoran vencimientos anteriores a `cobro_desde`. La API nunca permite fijarlo. Cambiar el día de `fecha_alta` después de enviar el cobro del periodo puede producir un segundo cobro en el mismo periodo.
 - `COBROS_REINTENTO_DIAS=0` no muestra vencidos en `GET /cobros/resumen`: los cobros pasados sin enviar figuran en `perdidos`.
 - El mutex `procesandoCobros` es en memoria: no protege contra múltiples procesos Node.js.
 - Pruebas: `npm run test:unit` (lógica de fechas), `npm run test:integration` (scheduler con usuario temporal en la base de desarrollo y correo simulado), `npm test` (smoke de la API). Ninguna debe ejecutarse contra producción.
 
 ## Gotchas
 
-- `JWT_SECRET` tiene fallback hardcodeado en `api.js:7` y `auth.js:5`. Siempre setear en `.env`.
+- `JWT_SECRET` tiene fallback hardcodeado en `api.js:8` y `auth.js:5`. Siempre setear en `.env`.
 - El smoke test (`npm test`) usa un email con timestamp para no colisionar en re-ejecuciones, pero deja datos de prueba en la DB real. No ejecutar en producción.
 - `database.js` usa siempre `data/sgcrc.db` (ignora `DB_PATH`): en el servidor, las pruebas `npm test` y `npm run test:integration` escribirían en la base de producción. No ejecutarlas allí.
 - El log `"✅ Base de datos refactorizada..."` aparece duplicado en `database.js:108-110` (líneas 108 y 110 son iguales; no afecta comportamiento).
@@ -92,4 +92,6 @@ node migrar.js     # Migración one-shot desde db.json legado (solo para datos h
 - Sin política de contraseña ni validación de email en el registro.
 - `JWT_SECRET` cae a una clave hardcodeada en `api.js`/`auth.js` (`index.js` solo advierte).
 - CORS abierto (`*`).
+- Sin límite de tamaño del cuerpo de la petición.
+- El registro permite enumerar emails (responde "El email ya existe").
 - `procesarCobrosDelDia` registra `Fallido` si el correo salió pero falló la escritura en historial; un reintento puede duplicar el envío.

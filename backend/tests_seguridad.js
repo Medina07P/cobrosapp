@@ -332,6 +332,48 @@ async function run() {
     const rNulo = esperar(await request({ port, method: 'POST', path: '/run-individual', headers: cabeceras, body: 'null' }), 400, 'run-individual con cuerpo null');
     assert.strictEqual(rNulo.error, 'Se requiere un arreglo de IDs');
 
+    // 16. Rutas de auth: cuerpos raros responden (400/401) y nunca cuelgan; timeout del cliente para que una regresión falle
+    const crudoConTimeout = (ruta, crudo) => new Promise((resolve, reject) => {
+      const req = http.request({ hostname: '127.0.0.1', port, method: 'POST', path: ruta, headers: { 'Content-Type': 'application/json' } }, (res) => {
+        let data = '';
+        res.on('data', (c) => { data += c; });
+        res.on('end', () => resolve({ status: res.statusCode, body: data }));
+      });
+      req.setTimeout(3000, () => req.destroy(new Error('timeout')));
+      req.on('error', reject);
+      req.write(crudo);
+      req.end();
+    });
+    for (const ruta of ['/auth/login', '/auth/register']) {
+      for (const crudo of ['null', 'false', '0', '""']) {
+        const r = esperar(await crudoConTimeout(ruta, crudo), 400, `${ruta} con cuerpo ${crudo}`);
+        assert.strictEqual(r.error, 'Cuerpo de la petición inválido.');
+      }
+      assert.strictEqual(esperar(await crudoConTimeout(ruta, '{bad'), 400, `${ruta} JSON malformado`).error, 'JSON inválido');
+    }
+    esperar(await json(port, 'POST', '/auth/login', { email: 123, password: {} }), 401, 'login con tipos inválidos');
+    esperar(await json(port, 'POST', '/auth/login', { email: A.email, password: ['x'] }), 401, 'login con password no string');
+    const regMal = (extra) => json(port, 'POST', '/auth/register', { email: `seg_c_${Date.now()}@test.local`, password: 'test1234', ...extra });
+    correos.push(`seg_c_${Date.now()}@test.local`);
+    assert.strictEqual(esperar(await regMal({ nombre: 5 }), 400, 'registro nombre numérico').error, 'El nombre debe ser un texto de 1 a 120 caracteres.');
+    esperar(await regMal({ nombre: 'x'.repeat(121) }), 400, 'registro nombre largo');
+    esperar(await json(port, 'POST', '/auth/register', { email: 5, password: 'abc' }), 400, 'registro email no string');
+    esperar(await json(port, 'POST', '/auth/register', { email: '  ', password: 'abc' }), 400, 'registro email vacío');
+
+    // 17. Cambiar de plan (propio) fija cobro_desde = hoy; el mismo plan no lo toca
+    const plan2 = esperar(await json(port, 'POST', '/planes', { nombre_plan: 'Plan A2', monto: 2000, dia_cobro: 6, frecuencia: 'mensual' }, A.token), 201, 'segundo plan A');
+    database.prepare("UPDATE suscripciones SET cobro_desde = '2020-01-01' WHERE id = ?").run(subA.id);
+    const planActual = fila('suscripciones', subA.id).plan_id;
+    esperar(await json(port, 'PUT', `/suscripciones/${subA.id}`, { plan_id: planActual }, A.token), 200, 'mismo plan');
+    assert.strictEqual(fila('suscripciones', subA.id).cobro_desde, '2020-01-01', 'mismo plan no toca cobro_desde');
+    const otroPlan = planActual === plan2.id ? datosA.plan.id : plan2.id;
+    esperar(await json(port, 'PUT', `/suscripciones/${subA.id}`, { plan_id: otroPlan }, A.token), 200, 'cambio de plan');
+    assert.strictEqual(fila('suscripciones', subA.id).cobro_desde, hoy, 'cambiar de plan fija cobro_desde = hoy');
+
+    // 18. /run-individual: demasiados ids -> 400 (responde antes de enviar nada)
+    const muchos = esperar(await json(port, 'POST', '/run-individual', { ids: Array.from({ length: 501 }, (_, i) => i + 1) }, A.token), 400, 'run-individual con 501 ids');
+    assert.strictEqual(muchos.error, 'Demasiados IDs');
+
     console.log('OK pruebas de seguridad');
   } finally {
     for (const correo of correos) database.prepare('DELETE FROM usuarios WHERE email = ?').run(correo); // borra todo en cascada

@@ -139,6 +139,12 @@ function buildHtml({ cliente, suscripcion, nombreVendedor = "SGCRC", color: colo
 </html>`;
 }
 
+// Remitente como objeto (nodemailer lo codifica): el nombre nunca puede inyectar direcciones ni cabeceras
+function construirRemitente(usuarioConfig, fromEmail) {
+  const name = String(usuarioConfig?.nombre || "SGCRC").replace(/[\r\n"]/g, " ").trim().slice(0, 120) || "SGCRC";
+  return { name, address: fromEmail };
+}
+
 async function enviarCobro({ cliente, suscripcion, usuarioConfig }) {
   const monto = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(suscripcion.monto);
   const transporter = crearTransporter(usuarioConfig);
@@ -147,12 +153,15 @@ async function enviarCobro({ cliente, suscripcion, usuarioConfig }) {
   // LEEMOS EL COLOR DEL USUARIO (SI NO EXISTE, INDIGO POR DEFECTO)
   const colorMarca = usuarioConfig.color_tema || "#4f46e5";
 
-  const fromEmail = (usuarioConfig && usuarioConfig.config_smtp) 
-    ? JSON.parse(usuarioConfig.config_smtp).user 
-    : (process.env.SMTP_FROM || process.env.SMTP_USER);
+  let fromEmail;
+  try {
+    fromEmail = usuarioConfig?.config_smtp ? JSON.parse(usuarioConfig.config_smtp).user : undefined;
+  } catch (e) { /* config_smtp corrupto: se usa el remitente global */ }
+  const global = process.env.SMTP_FROM || process.env.SMTP_USER || "";
+  fromEmail = fromEmail || (global.match(/<([^<>]+)>/)?.[1] ?? global);
 
   await transporter.sendMail({
-    from: `"${usuarioConfig.nombre}" <${fromEmail}>`,
+    from: construirRemitente(usuarioConfig, fromEmail),
     to: cliente.correo,
     subject: `Recibo de Cobro ${frecuencia} — ${monto}`,
     html: buildHtml({ 
@@ -177,4 +186,4 @@ async function verificarConexion() {
   }
 }
 
-module.exports = { enviarCobro, verificarConexion, buildHtml };
+module.exports = { enviarCobro, verificarConexion, buildHtml, construirRemitente };

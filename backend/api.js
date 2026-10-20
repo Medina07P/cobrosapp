@@ -51,7 +51,7 @@ function obtenerUsuario(req) {
   if (!authHeader) return null;
   const token = authHeader.split(" ")[1];
   try {
-    return jwt.verify(token, SECRET_KEY);
+    return jwt.verify(token, SECRET_KEY, { algorithms: ['HS256'] });
   } catch (err) {
     return null;
   }
@@ -86,11 +86,11 @@ async function handler(req, res) {
   try {
     // ── 1. RUTAS PÚBLICAS ──
     if (pathname === "/auth/register" && method === "POST") {
-      req.body = await parseBody(req);
+      try { req.body = await parseBodyObjeto(req); } catch (e) { return errorDeDatos(res, e); }
       return auth.registrar(req, res);
     }
     if (pathname === "/auth/login" && method === "POST") {
-      req.body = await parseBody(req);
+      try { req.body = await parseBodyObjeto(req); } catch (e) { return errorDeDatos(res, e); }
       return auth.login(req, res);
     }
     if (pathname === "/health") return json(res, 200, { status: "ok" });
@@ -246,7 +246,9 @@ async function handler(req, res) {
       if (!body.ids || !Array.isArray(body.ids)) {
         return json(res, 400, { error: "Se requiere un arreglo de IDs" });
       }
+      if (body.ids.length > 500) return json(res, 400, { error: "Demasiados IDs" });
       const resultado = await procesarSeleccionados(usuario.id, body.ids);
+      if (!resultado.success) return json(res, 409, { error: resultado.message });
       return json(res, 200, { message: "Proceso individual completado", enviados: resultado.enviados });
     }
 
@@ -269,7 +271,7 @@ async function handler(req, res) {
         });
       }
 
-      const resultado = await procesarCobrosDelDia(usuario.id, body.confirmarReenvio || false);
+      const resultado = await procesarCobrosDelDia(usuario.id, body.confirmarReenvio === true);
       if (!resultado.success) return json(res, 409, { error: resultado.message });
 
       let message = `Proceso completado: ${resultado.enviados} enviados`;

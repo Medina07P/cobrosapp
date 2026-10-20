@@ -90,7 +90,7 @@ PUT    /planes/:id           → Editar campos
 DELETE /planes/:id           → Eliminar (falla si hay suscripciones vinculadas)
 ```
 
-Errores comunes: `400` con mensaje en español si un valor no es válido (también JSON malformado o cuerpo que no es un objeto); `404` si el id no existe **o pertenece a otro usuario** (en `PUT` y `DELETE`); cualquier otro fallo responde `500 Error interno del servidor` sin detalles. `cobro_desde` de las suscripciones lo gestiona el servidor y no se puede enviar.
+Errores comunes: `400` con mensaje en español si un valor no es válido (también JSON malformado o cuerpo que no es un objeto); `404` si el id no existe **o pertenece a otro usuario** (en `PUT` y `DELETE`); cualquier otro fallo responde `500 Error interno del servidor` sin detalles. `cobro_desde` de las suscripciones lo gestiona el servidor (se fija a hoy al crear, reactivar, cambiar `fecha_alta` o cambiar de plan) y no se puede enviar.
 
 Valores de `frecuencia`: `mensual` (default), `quincenal`, `semanal`, `anual`.
 
