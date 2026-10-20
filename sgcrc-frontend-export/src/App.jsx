@@ -16,7 +16,7 @@ import Configuracion from './views/Configuracion.jsx'
 const NAV = [
   { id: 'dashboard', label: 'Dashboard', icon: 'squares-four' },
   { id: 'clientes', label: 'Clientes', icon: 'users' },
-  { id: 'planes', label: 'Catálogo de Planes', icon: 'tag' },
+  { id: 'planes', label: 'Planes', icon: 'tag' },
   { id: 'suscripciones', label: 'Suscripciones', icon: 'arrows-clockwise' },
   { id: 'historial', label: 'Historial', icon: 'clock-counter-clockwise' },
   { id: 'calendario', label: 'Calendario', icon: 'calendar-blank' },
