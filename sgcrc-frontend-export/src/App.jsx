@@ -105,7 +105,9 @@ export default function App() {
 
   // 2b. TÍTULO DEL DOCUMENTO Y FOCO POR VISTA (no roba el foco en el primer render ni sin sesión)
   const haySesion = !!session
-  const primeraVez = useRef(true)
+  // Solo la restauración de una sesión existente en la carga inicial omite el foco. Bajo StrictMode
+  // (desarrollo) el efecto corre dos veces: la segunda ejecución ya enfoca el h1; es inofensivo.
+  const primeraVez = useRef(!!session)
   useEffect(() => {
     if (!haySesion) {
       document.title = TITULO_BASE
@@ -117,6 +119,7 @@ export default function App() {
       primeraVez.current = false
       return
     }
+    window.scrollTo(0, 0)
     const raf = requestAnimationFrame(() => {
       const destino = document.querySelector('#contenido h1') || document.getElementById('contenido')
       if (destino) destino.focus({ preventScroll: true })

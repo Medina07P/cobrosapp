@@ -158,9 +158,9 @@ export default function Historial() {
               </table>
             </div>
             <div className="hist-pie">
-              <p ref={pieRef} tabIndex={-1} aria-live="polite">Mostrando {mostrados.length} de {filtrados.length}</p>
+              <p ref={pieRef} tabIndex={-1}>Mostrando {mostrados.length} de {filtrados.length}</p>
               {mostrados.length < filtrados.length && (
-                <Button variante="secundario" tam="sm" onClick={verMas}>Ver más</Button>
+                <Button variante="secundario" onClick={verMas}>Ver más</Button>
               )}
             </div>
           </>

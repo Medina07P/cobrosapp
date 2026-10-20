@@ -128,7 +128,10 @@ export default function Calendario() {
           </div>
         </div>
 
-        <div className="panel cal-detalle" role="region" aria-label="Detalle del día" aria-live="polite">
+        <div className="panel cal-detalle" role="region" aria-label="Detalle del día">
+          <p className="sr-only" aria-live="polite">
+            {selectedData ? `${fechaLarga(view.year, view.month, selected)}: ${selectedData.items.length} ${selectedData.items.length === 1 ? 'cobro' : 'cobros'}, ${fmt(selectedData.total)}` : ''}
+          </p>
           {selectedData ? (
             <>
               <h3 className="cal-detalle-titulo">{fechaLarga(view.year, view.month, selected)}</h3>

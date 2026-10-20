@@ -167,7 +167,7 @@ export default function Dashboard() {
                 <div className="flex items-center space-x-4">
                   {/* INICIAL DEL CLIENTE CON COLOR DINÁMICO */}
                   <div 
-                    style={{ color: 'var(--color-primario)', borderColor: 'var(--color-primario-glow)' }}
+                    style={{ color: 'var(--color-primario-texto)', borderColor: 'var(--color-primario-glow)' }}
                     className="h-10 w-10 rounded-full bg-white flex items-center justify-center font-bold shadow-sm border uppercase"
                   >
                     {s.cliente?.nombre?.charAt(0)}
@@ -183,7 +183,7 @@ export default function Dashboard() {
                   <p className="font-bold text-slate-800">{fmt(s.monto)}</p>
                   {/* TEXTO DE DÍAS DINÁMICO */}
                   <p 
-                    style={s.dias !== 0 ? { color: 'var(--color-primario)' } : {}}
+                    style={s.dias !== 0 ? { color: 'var(--color-primario-texto)' } : {}}
                     className={`text-sm font-bold inline-flex items-center gap-1 ${s.dias === 0 ? 'text-rose-700' : ''}`}
                   >
                     {s.dias === 0 ? <><Icon name="bell" size={14} />TOCA COBRAR HOY</> : `en ${s.dias} días`}
