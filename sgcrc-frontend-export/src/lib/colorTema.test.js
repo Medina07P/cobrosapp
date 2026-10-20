@@ -101,3 +101,11 @@ test('los tokens de tokens.css cumplen WCAG AA (4.5:1) en sus pares de uso', () 
     assert.ok(r >= 3, `--line-control sobre --${sup}: ${r.toFixed(2)}:1 (< 3)`)
   }
 })
+
+test('textoSobre con entrada inválida devuelve blanco y ratioContraste no lanza', () => {
+  for (const malo of ['', 'rojo', '#GGGGGG', '#12', null, undefined, 42]) {
+    assert.equal(textoSobre(malo), '#FFFFFF')
+    assert.equal(ratioContraste(malo, '#FFFFFF'), 1)
+    assert.equal(ratioContraste('#000000', malo), 1)
+  }
+})

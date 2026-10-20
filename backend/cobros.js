@@ -1,3 +1,5 @@
+// NOTA: este módulo debe seguir sin dependencias de base de datos: el frontend lo carga
+// (sgcrc-frontend-export/src/lib/calendario.test.js) en una prueba de paridad.
 // cobros.js — Reglas de fechas de cobro (puras: sin base de datos ni reloj implícito).
 // Todas las fechas son strings 'YYYY-MM-DD' en la zona horaria de la aplicación
 // (America/Bogota por defecto), así el resultado no depende de la zona del servidor.

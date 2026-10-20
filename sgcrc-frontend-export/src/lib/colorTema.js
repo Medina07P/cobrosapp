@@ -27,14 +27,18 @@ function luminancia({ r, g, b }) {
 }
 
 export function ratioContraste(a, b) {
-  const la = luminancia(parseHex(a))
-  const lb = luminancia(parseHex(b))
+  const ca = parseHex(a)
+  const cb = parseHex(b)
+  if (!ca || !cb) return 1 // entrada inválida: sin contraste, nunca lanza
+  const la = luminancia(ca)
+  const lb = luminancia(cb)
   const [alto, bajo] = la >= lb ? [la, lb] : [lb, la]
   return (alto + 0.05) / (bajo + 0.05)
 }
 
 // Texto legible sobre un fondo de marca: el que dé más contraste
 export function textoSobre(hex) {
+  if (!parseHex(hex)) return BLANCO // como backend/perfil.js
   return ratioContraste(hex, BLANCO) >= ratioContraste(hex, TINTA) ? BLANCO : TINTA
 }
 
