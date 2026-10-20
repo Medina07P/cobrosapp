@@ -104,6 +104,11 @@ export default function App() {
   }
 
   const estadoTexto = backendOk === null ? 'Comprobando servidor…' : backendOk ? 'Servidor conectado' : 'Sin conexión con el servidor'
+  const estadoServidor = (
+    <span className="estado-server" data-ok={backendOk === null ? undefined : String(backendOk)} role="status">
+      <i aria-hidden="true" />{estadoTexto}
+    </span>
+  )
   const nombreEmpresa = session.user?.nombre || 'Mi negocio'
 
   const items = () => NAV.map((n) => (
@@ -124,20 +129,19 @@ export default function App() {
       <a className="saltar" href="#contenido">Saltar al contenido</a>
 
       <aside className="lateral">
-        <div className="marca"><Logo size={30} /><span>SGCRC</span></div>
+        <div className="marca"><Logo size={30} decorativo /><span>SGCRC</span></div>
         <p className="empresa">Empresa<strong>{nombreEmpresa}</strong></p>
         <nav className="nav" aria-label="Principal">{items()}</nav>
         <div className="lateral-pie">
-          <span className="estado-server" data-ok={backendOk === null ? undefined : String(backendOk)} role="status">
-            <i aria-hidden="true" />{estadoTexto}
-          </span>
+          {estadoServidor}
           <Button variante="secundario" icono="sign-out" onClick={handleLogout}>Salir</Button>
         </div>
       </aside>
 
       <main id="contenido" className="contenido" tabIndex={-1}>
         <div className="barra-movil">
-          <div className="marca"><Logo size={26} /><span>SGCRC</span></div>
+          <div className="marca"><Logo size={26} decorativo /><span>SGCRC</span></div>
+          {estadoServidor}
           <Button variante="secundario" tam="sm" icono="sign-out" onClick={handleLogout}>Salir</Button>
         </div>
         <nav className="nav-movil" aria-label="Principal">{items()}</nav>

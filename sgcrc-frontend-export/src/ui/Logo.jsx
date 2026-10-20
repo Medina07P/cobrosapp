@@ -1,6 +1,6 @@
 // Marca de SGCRC: un recibo con dos flechas circulares (cobro recurrente).
 // Hereda el color del texto (currentColor), así sigue el color de marca del cliente.
-export default function Logo({ size = 28, className, style }) {
+export default function Logo({ size = 28, className, style, decorativo = false }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -12,8 +12,7 @@ export default function Logo({ size = 28, className, style }) {
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
-      role="img"
-      aria-label="SGCRC"
+      {...(decorativo ? { 'aria-hidden': 'true' } : { role: 'img', 'aria-label': 'SGCRC' })}
       className={className}
       style={{ flexShrink: 0, ...style }}
     >

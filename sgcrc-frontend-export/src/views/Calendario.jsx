@@ -107,7 +107,9 @@ export default function Calendario() {
 
   return (
     <div>
-      <PageHeader titulo="Calendario de Cobros" />
+      <div style={{ marginBottom: '1.5rem' }}>
+        <PageHeader titulo="Calendario de Cobros" />
+      </div>
 
       <div style={{ display:'grid',gridTemplateColumns:'1fr auto',gap:'1.5rem',alignItems:'start' }}>
         <div style={{ ...panel,padding:'1.5rem' }}>
