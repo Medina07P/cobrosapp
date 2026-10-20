@@ -6,6 +6,7 @@ import '@fontsource/ibm-plex-sans/500.css'
 import '@fontsource/ibm-plex-sans/600.css'
 import './styles/tokens.css'
 import './styles/base.css'
+import './styles/ui.css'
 import App from './App.jsx'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
