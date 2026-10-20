@@ -8,9 +8,11 @@ import './styles/tokens.css'
 import './styles/base.css'
 import './styles/ui.css'
 import App from './App.jsx'
+import { ToastRegion } from './ui/Toast.jsx'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <App />
+    <ToastRegion />
   </React.StrictMode>
 )
