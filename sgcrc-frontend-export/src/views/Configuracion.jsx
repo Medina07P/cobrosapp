@@ -24,7 +24,7 @@ export default function Configuracion() {
       // Actualizamos la variable de CSS en tiempo real para previsualizar
       aplicarColorTema(document.documentElement, usuario.color_tema);
     } catch (e) {
-      setStatus({ ok: false, texto: 'Error al guardar' });
+      setStatus({ ok: false, texto: e.response?.data?.error || e.data?.error || 'Error al guardar' });
     }
   };
 
@@ -56,6 +56,20 @@ export default function Configuracion() {
               <p className="text-xs text-slate-400">Este color se usará en los botones de tus correos y en la interfaz.</p>
             </div>
           </div>
+        </div>
+
+        <div>
+          <label htmlFor="whatsapp" className="block text-xs font-bold text-slate-600 uppercase mb-2">WhatsApp para reportar pagos</label>
+          <input
+            id="whatsapp"
+            type="tel"
+            inputMode="numeric"
+            placeholder="573001234567"
+            className="w-full border rounded-xl px-4 py-3 focus:border-brand outline-none"
+            value={usuario.whatsapp || ''}
+            onChange={e => setUsuario({...usuario, whatsapp: e.target.value})}
+          />
+          <p className="text-xs text-slate-600 mt-2">Con código de país, sin signos. Si lo dejas vacío, tus correos no incluirán el botón de WhatsApp.</p>
         </div>
 
         {status && (

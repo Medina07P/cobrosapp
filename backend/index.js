@@ -12,6 +12,9 @@ async function main() {
   console.log("═══════════════════════════════════════════");
   console.log("  SGCRC — Sistema de Gestión de Cobros     ");
   console.log("═══════════════════════════════════════════");
+  if (!process.env.JWT_SECRET) {
+    console.warn("⚠️  JWT_SECRET no está definido: se usa una clave por defecto del código. Define JWT_SECRET en .env.");
+  }
 
   // 1. Verificar conexión SMTP
   const smtpOk = await verificarConexion();

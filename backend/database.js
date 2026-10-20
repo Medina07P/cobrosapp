@@ -100,6 +100,8 @@ try { db.prepare("ALTER TABLE suscripciones ADD COLUMN cobro_desde TEXT").run();
  * --- BLOQUE DE MIGRACIÓN SEGURO ---
  */
 try { db.prepare("ALTER TABLE usuarios ADD COLUMN color_tema TEXT DEFAULT '#4f46e5'").run(); } catch(e) {}
+// WhatsApp del vendedor para el botón "Reportar pago" de los correos (solo dígitos, con código de país)
+try { db.prepare("ALTER TABLE usuarios ADD COLUMN whatsapp TEXT").run(); } catch(e) {}
 // ... los otros try/catch que ya tenías
 /**
  * --- BLOQUE DE MIGRACIÓN SEGURO ---

@@ -7,7 +7,7 @@
     "start": "node index.js",
     "dev": "node --watch index.js",
     "test": "node tests_api_smoke.js",
-    "test:unit": "node --test cobros.test.js",
+    "test:unit": "node --test cobros.test.js perfil.test.js mailer.test.js",
     "test:integration": "node tests_cobros_integration.js",
     "test:security": "node tests_seguridad.js"
   },

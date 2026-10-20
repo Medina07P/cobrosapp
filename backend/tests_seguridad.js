@@ -189,6 +189,19 @@ async function run() {
     esperar(await json(port, 'PUT', p, { dia_cobro: 12 }, A.token), 200, 'plan: dia_cobro');
     assert.strictEqual(cobroDesde(), hoy, 'cambiar dia_cobro fija cobro_desde = hoy');
 
+    // 12. Perfil: color y WhatsApp se validan; el WhatsApp se normaliza y se puede borrar
+    esperar(await json(port, 'PATCH', '/usuario/config-tema', { color_tema: 'rojo' }, A.token), 400, 'color inválido');
+    esperar(await json(port, 'PATCH', '/usuario/config-tema', { color_tema: '#1F6B4F', whatsapp: 'abc' }, A.token), 400, 'whatsapp inválido');
+    assert.notStrictEqual(database.prepare('SELECT color_tema FROM usuarios WHERE id = ?').get(A.id).color_tema, 'rojo');
+    esperar(await json(port, 'PATCH', '/usuario/config-tema', { color_tema: '#1F6B4F', whatsapp: '+57 300 123 4567' }, A.token), 200, 'perfil válido');
+    assert.strictEqual(esperar(await json(port, 'GET', '/usuario/perfil', undefined, A.token), 200, 'perfil').whatsapp, '573001234567');
+    esperar(await json(port, 'PATCH', '/usuario/config-tema', { whatsapp: '' }, A.token), 200, 'borrar whatsapp');
+    assert.strictEqual(esperar(await json(port, 'GET', '/usuario/perfil', undefined, A.token), 200, 'perfil').whatsapp, null);
+    // Guardar sin tocar el WhatsApp (el frontend reenvía todo el perfil) no lo borra
+    esperar(await json(port, 'PATCH', '/usuario/config-tema', { whatsapp: '573001234567' }, B.token), 200, 'B guarda whatsapp');
+    esperar(await json(port, 'PATCH', '/usuario/config-tema', { nombre: 'B renombrado' }, B.token), 200, 'B cambia nombre');
+    assert.strictEqual(esperar(await json(port, 'GET', '/usuario/perfil', undefined, B.token), 200, 'perfil B').whatsapp, '573001234567');
+
     console.log('OK pruebas de seguridad');
   } finally {
     for (const correo of correos) database.prepare('DELETE FROM usuarios WHERE email = ?').run(correo); // borra todo en cascada

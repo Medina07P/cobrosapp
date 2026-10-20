@@ -44,7 +44,7 @@ const auth = {
             const stmt = db.prepare('INSERT INTO usuarios (email, password, nombre, color_tema) VALUES (?, ?, ?, ?)');
             
             // Usamos el color corporativo por defecto
-            const info = stmt.run(email, hashedPassword, nombre || 'Café Valdore Admin', '#4f46e5');
+            const info = stmt.run(email, hashedPassword, nombre || 'Mi negocio', '#4f46e5');
             
             return enviarJSON(res, 201, { 
                 id: info.lastInsertRowid, 

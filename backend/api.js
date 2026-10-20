@@ -2,6 +2,7 @@ const http = require("http");
 const db = require("./db");
 const auth = require("./auth");
 const jwt = require('jsonwebtoken');
+const { colorValido, normalizarWhatsapp } = require("./perfil");
 const { procesarCobrosDelDia, estaProcesandoCobros, procesarSeleccionados, previsualizarCobros, resumenCobros } = require("./scheduler");
 
 const SECRET_KEY = process.env.JWT_SECRET || 'clave_maestra_super_secreta_123';
@@ -193,7 +194,14 @@ async function handler(req, res) {
     // Ruta para actualizar nombre y tema (Cambiada a POST o PATCH según prefieras)
     if (pathname === "/usuario/config-tema" && (method === "PATCH" || method === "POST")) {
       const body = await parseBody(req);
-      
+      if (body.color_tema && !colorValido(body.color_tema)) {
+        return json(res, 400, { error: "El color debe tener el formato #RRGGBB." });
+      }
+      const whatsapp = body.whatsapp === undefined ? undefined : normalizarWhatsapp(body.whatsapp);
+      if (body.whatsapp !== undefined && whatsapp === undefined) {
+        return json(res, 400, { error: "El WhatsApp debe tener entre 8 y 15 dígitos, con código de país (ej. 573001234567)." });
+      }
+
       try {
         // Si viene color_tema, lo actualizamos
         if (body.color_tema) {
@@ -203,10 +211,13 @@ async function handler(req, res) {
         if (body.nombre && db.usuarios.updateNombre) {
           db.usuarios.updateNombre(usuario.id, body.nombre);
         }
+        if (whatsapp !== undefined) {
+          db.usuarios.updateWhatsapp(usuario.id, whatsapp);
+        }
         
         return json(res, 200, { success: true, message: "Configuración actualizada" });
       } catch (e) {
-        return json(res, 500, { error: "Error al actualizar configuración: " + e.message });
+        return errorDeDatos(res, e);
       }
     }
 
@@ -268,7 +279,7 @@ async function handler(req, res) {
 
 function iniciarAPI(puerto) {
   const server = http.createServer(handler);
-  server.listen(puerto, () => console.log(`🚀 API de Café Valdore lista localhost:${puerto}`));
+  server.listen(puerto, () => console.log(`🚀 API de SGCRC lista localhost:${puerto}`));
   return server;
 }
 
