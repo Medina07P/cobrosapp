@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, setApiKey } from './api.js'
-import { aplicarColorTema } from './lib/colorTema.js'
+import { aplicarColorTema, COLOR_POR_DEFECTO } from './lib/colorTema.js'
 import Icon from './ui/Icon.jsx'
 import Logo from './ui/Logo.jsx'
 import Button from './ui/Button.jsx'
@@ -91,6 +91,7 @@ export default function App() {
     setSession(null)
     setBackendOk(null)
     setView('dashboard')
+    aplicarColorTema(document.documentElement, COLOR_POR_DEFECTO)
   }
 
   if (!session) {

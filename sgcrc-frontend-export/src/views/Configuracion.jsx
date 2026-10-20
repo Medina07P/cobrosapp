@@ -3,7 +3,7 @@ import { api } from '../api.js'
 import PageHeader from '../ui/PageHeader.jsx'
 import Field from '../ui/Field.jsx'
 import Button from '../ui/Button.jsx'
-import Badge from '../ui/Badge.jsx'
+import Icon from '../ui/Icon.jsx'
 import ErrorMsg from '../ui/ErrorMsg.jsx'
 import Skeleton from '../ui/Skeleton.jsx'
 import { toast } from '../ui/Toast.jsx'
@@ -111,7 +111,7 @@ export default function Configuracion() {
               onChange={cambiar('nombre')}
               error={errores.nombre}
             />
-            <div className="field">
+            <div className="field" style={{ minWidth: 0 }}>
               <label className="field-label" htmlFor="cfg-color">Color de tu marca</label>
               <div className="color-fila">
                 <input
@@ -127,11 +127,15 @@ export default function Configuracion() {
               <p id="cfg-color-ayuda" className="field-ayuda">Se usa en los botones de tus correos y en esta aplicación.</p>
               <div aria-live="polite">
                 {ratio >= 4.5 ? (
-                  <Badge tono="ok" icono="check-circle">Contraste suficiente en tus correos ({texto}:1)</Badge>
+                  <p className="contraste contraste-ok">
+                    <Icon name="check-circle" size={14} />
+                    <span>Contraste suficiente en tus correos ({texto}:1)</span>
+                  </p>
                 ) : (
-                  <Badge tono="warn" icono="warning">
-                    Contraste bajo en tus correos ({texto}:1): el botón lleva texto blanco y el monto usa este color sobre fondo blanco. Prueba un tono más oscuro.
-                  </Badge>
+                  <p className="contraste contraste-warn">
+                    <Icon name="warning" size={14} />
+                    <span>Contraste bajo en tus correos ({texto}:1): el botón lleva texto blanco y el monto usa este color sobre fondo blanco. Prueba un tono más oscuro.</span>
+                  </p>
                 )}
               </div>
             </div>
