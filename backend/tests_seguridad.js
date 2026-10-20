@@ -284,6 +284,50 @@ async function run() {
     esperar(await json(port, 'PUT', p, { frecuencia: 'mensual', monto: 1 }, A.token), 200, 'plan con frecuencia heredada');
     assert.strictEqual(cobroDesde(), '2020-01-01', 'Mensual heredado = mensual: cobro_desde intacto');
 
+    // 14. Perfil: color heredado, escritura atómica, cuerpo no-objeto, sin secretos, whatsapp null
+    const colorDb = (u) => database.prepare('SELECT color_tema FROM usuarios WHERE id = ?').get(u.id).color_tema;
+    const usuarioDb = (u) => database.prepare('SELECT nombre, whatsapp FROM usuarios WHERE id = ?').get(u.id);
+    const CT = '/usuario/config-tema';
+    // 14a. Un color heredado inválido que coincide con el guardado no bloquea el formulario
+    database.prepare("UPDATE usuarios SET color_tema = 'azul' WHERE id = ?").run(A.id);
+    esperar(await json(port, 'PATCH', CT, { color_tema: 'azul', nombre: 'Nuevo nombre' }, A.token), 200, 'color heredado igual al guardado');
+    assert.strictEqual(usuarioDb(A).nombre, 'Nuevo nombre', 'el nombre se actualiza');
+    assert.strictEqual(colorDb(A), 'azul', 'el color heredado se conserva');
+    assert.strictEqual(esperar(await json(port, 'PATCH', CT, { color_tema: 'verde' }, A.token), 400, 'otro color inválido').error, 'El color debe tener el formato #RRGGBB.');
+    assert.strictEqual(colorDb(A), 'azul');
+
+    // 14b. Atomicidad: nombre inválido no deja el color a medias
+    database.prepare("UPDATE usuarios SET color_tema = '#112233' WHERE id = ?").run(A.id);
+    for (const nombreMalo of [{ x: 1 }, 5, ['a'], 'x'.repeat(121), '   ']) {
+      const r = esperar(await json(port, 'PATCH', CT, { color_tema: '#445566', nombre: nombreMalo }, A.token), 400, `nombre inválido ${JSON.stringify(nombreMalo).slice(0, 20)}`);
+      assert.strictEqual(r.error, 'El nombre debe ser un texto de 1 a 120 caracteres.');
+      assert.strictEqual(colorDb(A), '#112233', 'el color no cambia si el nombre es inválido');
+    }
+    esperar(await json(port, 'PATCH', CT, { color_tema: '#445566', nombre: '' }, A.token), 200, 'nombre vacío se ignora');
+    assert.strictEqual(colorDb(A), '#445566');
+    assert.strictEqual(usuarioDb(A).nombre, 'Nuevo nombre', 'nombre vacío no borra el nombre');
+
+    // 14c. Cuerpo no-objeto -> 400 (nunca 500)
+    for (const crudo of ['null', '[]', '5', '"texto"']) {
+      for (const [metodo, ruta] of [['PATCH', CT], ['POST', '/clientes'], ['POST', '/planes'], ['POST', '/suscripciones'], ['PUT', c], ['PUT', p], ['PUT', s]]) {
+        const r = esperar(await request({ port, method: metodo, path: ruta, headers: cabeceras, body: crudo }), 400, `cuerpo ${crudo} en ${metodo} ${ruta}`);
+        assert.strictEqual(r.error, 'Cuerpo de la petición inválido.');
+      }
+    }
+
+    // 14d. El perfil no expone secretos
+    database.prepare("UPDATE usuarios SET config_smtp = ? WHERE id = ?").run(JSON.stringify({ user: 'u@x.y', pass: 'secreto' }), A.id);
+    const perfilA = esperar(await json(port, 'GET', '/usuario/perfil', undefined, A.token), 200, 'perfil A');
+    assert.ok(!('config_smtp' in perfilA) && !('password' in perfilA), 'sin config_smtp ni password');
+    assert.ok('whatsapp' in perfilA, 'incluye whatsapp');
+    assert.deepStrictEqual(Object.keys(perfilA).sort(), ['color_tema', 'email', 'id', 'nombre', 'whatsapp']);
+    assert.ok(!JSON.stringify(perfilA).includes('secreto'));
+
+    // 14e. whatsapp null -> NULL
+    esperar(await json(port, 'PATCH', CT, { whatsapp: '573001234567' }, A.token), 200, 'whatsapp válido');
+    esperar(await json(port, 'PATCH', CT, { whatsapp: null }, A.token), 200, 'whatsapp null');
+    assert.strictEqual(usuarioDb(A).whatsapp, null, 'whatsapp null se guarda como NULL');
+
     console.log('OK pruebas de seguridad');
   } finally {
     for (const correo of correos) database.prepare('DELETE FROM usuarios WHERE email = ?').run(correo); // borra todo en cascada

@@ -37,6 +37,15 @@ async function parseBody(req) {
   });
 }
 
+// Igual que parseBody, pero exige un objeto (rechaza null, arreglos y primitivos con 400)
+async function parseBodyObjeto(req) {
+  const body = await parseBody(req);
+  if (body === null || typeof body !== "object" || Array.isArray(body)) {
+    throw new Error("VALIDATION_ERROR: Cuerpo de la petición inválido.");
+  }
+  return body;
+}
+
 function obtenerUsuario(req) {
   const authHeader = req.headers["authorization"];
   if (!authHeader) return null;
@@ -96,13 +105,13 @@ async function handler(req, res) {
       if (method === "GET" && !id) return json(res, 200, db.clientes.all(usuario.id));
       
       if (method === "POST" && !id) {
-        try { return json(res, 201, db.clientes.create(await parseBody(req), usuario.id)); }
+        try { return json(res, 201, db.clientes.create(await parseBodyObjeto(req), usuario.id)); }
         catch (e) { return errorDeDatos(res, e); }
       }
       
       if (method === "PUT" && id) {
         let actualizado;
-        try { actualizado = db.clientes.update(Number(id), await parseBody(req), usuario.id); }
+        try { actualizado = db.clientes.update(Number(id), await parseBodyObjeto(req), usuario.id); }
         catch (e) { return errorDeDatos(res, e); }
         if (!actualizado) return json(res, 404, { error: "Cliente no encontrado" });
         return json(res, 200, actualizado);
@@ -122,13 +131,13 @@ async function handler(req, res) {
       if (method === "GET" && !id) return json(res, 200, db.planes.all(usuario.id));
       
       if (method === "POST" && !id) {
-        try { return json(res, 201, db.planes.create(await parseBody(req), usuario.id)); }
+        try { return json(res, 201, db.planes.create(await parseBodyObjeto(req), usuario.id)); }
         catch (e) { return errorDeDatos(res, e); }
       }
 
       if (method === "PUT" && id) {
         let actualizado;
-        try { actualizado = db.planes.update(Number(id), await parseBody(req), usuario.id); }
+        try { actualizado = db.planes.update(Number(id), await parseBodyObjeto(req), usuario.id); }
         catch (e) { return errorDeDatos(res, e); }
         if (!actualizado) return json(res, 404, { error: "Plan no encontrado" });
         return json(res, 200, actualizado);
@@ -149,7 +158,7 @@ async function handler(req, res) {
       
       if (method === "POST" && !id) {
         try {
-          const nuevaSub = db.suscripciones.create(await parseBody(req), usuario.id);
+          const nuevaSub = db.suscripciones.create(await parseBodyObjeto(req), usuario.id);
           return json(res, 201, nuevaSub);
         } catch (dbErr) {
           return errorDeDatos(res, dbErr);
@@ -158,7 +167,7 @@ async function handler(req, res) {
 
       if (method === "PUT" && id) {
         try {
-          const actualizada = db.suscripciones.update(Number(id), await parseBody(req), usuario.id);
+          const actualizada = db.suscripciones.update(Number(id), await parseBodyObjeto(req), usuario.id);
           if (!actualizada) return json(res, 404, { error: "Suscripción no encontrada" });
           return json(res, 200, actualizada);
         } catch (dbErr) {
@@ -180,9 +189,10 @@ async function handler(req, res) {
     if (pathname === "/usuario/perfil" && method === "GET") {
       try {
         const datos = db.usuarios.findById(usuario.id);
-        // Quitamos el password por seguridad antes de enviar
-        if (datos) delete datos.password;
-        return json(res, 200, datos);
+        if (!datos) return json(res, 404, { error: "Usuario no encontrado" });
+        // Lista blanca: nunca se expone config_smtp ni password
+        const { id, email, nombre, color_tema, whatsapp } = datos;
+        return json(res, 200, { id, email, nombre, color_tema, whatsapp });
       } catch (e) {
         return json(res, 500, { error: "Error al obtener perfil" });
       }
@@ -191,28 +201,34 @@ async function handler(req, res) {
     // Ruta para actualizar nombre y tema (Cambiada a POST o PATCH según prefieras)
     if (pathname === "/usuario/config-tema" && (method === "PATCH" || method === "POST")) {
       let body;
-      try { body = await parseBody(req); } catch (e) { return errorDeDatos(res, e); }
-      if (body.color_tema && !colorValido(body.color_tema)) {
-        return json(res, 400, { error: "El color debe tener el formato #RRGGBB." });
-      }
-      const whatsapp = body.whatsapp === undefined ? undefined : normalizarWhatsapp(body.whatsapp);
-      if (body.whatsapp !== undefined && whatsapp === undefined) {
-        return json(res, 400, { error: "El WhatsApp debe tener entre 8 y 15 dígitos, con código de país (ej. 573001234567)." });
-      }
-
+      try { body = await parseBodyObjeto(req); } catch (e) { return errorDeDatos(res, e); }
+      const cambios = {};
       try {
-        // Si viene color_tema, lo actualizamos
+        // Un color heredado inválido que coincide con el guardado se ignora (el frontend reenvía el perfil completo)
         if (body.color_tema) {
-          db.usuarios.updateTema(usuario.id, body.color_tema);
+          if (colorValido(body.color_tema)) {
+            cambios.color_tema = body.color_tema;
+          } else {
+            const actual = db.usuarios.findById(usuario.id);
+            if (!actual || body.color_tema !== actual.color_tema) {
+              return json(res, 400, { error: "El color debe tener el formato #RRGGBB." });
+            }
+          }
         }
-        // Si viene nombre, también lo actualizamos (Asegúrate de tener db.usuarios.updateNombre)
-        if (body.nombre && db.usuarios.updateNombre) {
-          db.usuarios.updateNombre(usuario.id, body.nombre);
+        if (body.nombre) {
+          const nombre = typeof body.nombre === "string" ? body.nombre.trim() : "";
+          if (!nombre || nombre.length > 120) {
+            return json(res, 400, { error: "El nombre debe ser un texto de 1 a 120 caracteres." });
+          }
+          cambios.nombre = nombre;
         }
-        if (whatsapp !== undefined) {
-          db.usuarios.updateWhatsapp(usuario.id, whatsapp);
+        const whatsapp = body.whatsapp === undefined ? undefined : normalizarWhatsapp(body.whatsapp);
+        if (body.whatsapp !== undefined && whatsapp === undefined) {
+          return json(res, 400, { error: "El WhatsApp debe tener entre 8 y 15 dígitos, con código de país (ej. 573001234567)." });
         }
-        
+        if (whatsapp !== undefined) cambios.whatsapp = whatsapp;
+
+        db.usuarios.actualizarPerfil(usuario.id, cambios);
         return json(res, 200, { success: true, message: "Configuración actualizada" });
       } catch (e) {
         return errorDeDatos(res, e);

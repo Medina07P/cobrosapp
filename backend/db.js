@@ -326,7 +326,7 @@ const historial = {
 const usuarios = {
     // Cambiamos el nombre a findById para coincidir con lo que pide server.js
     findById(id) {
-        return db.prepare('SELECT id, email, nombre, color_tema, config_smtp, whatsapp FROM usuarios WHERE id = ?').get(id);
+        return db.prepare('SELECT id, email, nombre, color_tema, whatsapp FROM usuarios WHERE id = ?').get(id);
     },
     
     // Mantenemos find por si otras partes del código lo usan
@@ -345,6 +345,17 @@ const usuarios = {
         const stmt = db.prepare('UPDATE usuarios SET nombre = ? WHERE id = ?');
         stmt.run(nombre, id);
         return { id, nombre };
+    },
+
+    // Escribe solo las claves presentes (color_tema, nombre, whatsapp) en una única transacción
+    actualizarPerfil(id, { color_tema, nombre, whatsapp } = {}) {
+        const escribir = db.transaction(() => {
+            if (color_tema !== undefined) this.updateTema(id, color_tema);
+            if (nombre !== undefined) this.updateNombre(id, nombre);
+            if (whatsapp !== undefined) this.updateWhatsapp(id, whatsapp);
+        });
+        escribir();
+        return { id };
     },
 
     updateWhatsapp(id, numero) {
