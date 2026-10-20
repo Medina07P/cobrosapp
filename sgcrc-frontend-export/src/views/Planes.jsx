@@ -126,7 +126,7 @@ export default function Planes() {
   }
 
   const eliminar = async () => {
-    if (!aEliminar) return
+    if (!aEliminar || eliminando) return
     setEliminando(true)
     try {
       await api.deletePlan(aEliminar.id)

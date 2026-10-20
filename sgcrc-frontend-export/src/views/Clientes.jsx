@@ -132,7 +132,7 @@ export default function Clientes() {
   }
 
   const eliminar = async () => {
-    if (!aEliminar) return
+    if (!aEliminar || eliminando) return
     setEliminando(true)
     try {
       await api.deleteCliente(aEliminar.id)

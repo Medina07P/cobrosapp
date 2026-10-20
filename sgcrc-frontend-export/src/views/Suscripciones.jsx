@@ -130,7 +130,7 @@ export default function Suscripciones() {
       plan_id: planes.some((p) => p.id === s.plan_id) ? String(s.plan_id) : '',
       activa: !!s.activa,
       descripcion: s.descripcion || '',
-      fecha_alta: (s.fecha_alta || hoy).slice(0, 10),
+      fecha_alta: s.fecha_alta ? s.fecha_alta.slice(0, 10) : '',
     })
     setErrores({})
     requestAnimationFrame(() => {
@@ -144,6 +144,9 @@ export default function Suscripciones() {
     e.preventDefault()
     if (guardando) return
     const v = validarSuscripcion(form)
+    // Una suscripción antigua sin fecha puede seguir sin ella (cobra por el día del plan).
+    const sinFecha = !!editando && !editando.fecha_alta && form.fecha_alta === ''
+    if (sinFecha) delete v.fecha_alta
     if (Object.keys(v).length > 0) {
       setErrores(v)
       requestAnimationFrame(() => enfocarPrimerInvalido(formRef.current))
@@ -156,7 +159,7 @@ export default function Suscripciones() {
         plan_id: Number(form.plan_id),
         activa: !!form.activa,
         descripcion: form.descripcion.trim(),
-        fecha_alta: form.fecha_alta,
+        fecha_alta: sinFecha ? null : form.fecha_alta,
       }
       if (editando) {
         await api.updateSuscripcion(editando.id, datos)
@@ -176,14 +179,17 @@ export default function Suscripciones() {
   }
 
   const eliminar = async () => {
-    if (!aEliminar) return
+    if (!aEliminar || eliminando) return
     setEliminando(true)
     try {
       await api.deleteSuscripcion(aEliminar.id)
       toast.exito('Suscripción eliminada.')
       if (editando && editando.id === aEliminar.id) limpiarForm()
       await cargar()
-      requestAnimationFrame(enfocarCliente)
+      requestAnimationFrame(() => {
+        const el = document.getElementById('sub-buscar') || document.getElementById('sub-cliente')
+        el?.focus()
+      })
     } catch (err) {
       toast.error(err.message)
     } finally {
@@ -237,7 +243,8 @@ export default function Suscripciones() {
             label="Fecha de inicio"
             id="sub-fecha"
             type="date"
-            ayuda="Define el día en que se repite el cobro."
+            requerido
+            ayuda="Define el día en que se repite el cobro. Si la cambias, el cobro se calcula desde la nueva fecha."
             value={form.fecha_alta}
             onChange={cambiar('fecha_alta')}
             error={errores.fecha_alta}
@@ -337,7 +344,7 @@ export default function Suscripciones() {
                         {s.tipo}
                         <span className="celda-nota">{capitalizar(s.frecuencia)}</span>
                       </td>
-                      <td data-label="Inicio">{fmtFecha(s.fecha_alta)}</td>
+                      <td data-label="Inicio">{fmtFecha(s.fecha_alta) || '—'}</td>
                       <td data-label="Monto" className="num">{fmt(s.monto)}</td>
                       <td data-label="Estado"><EstadoBadge estado={s.activa ? 'Activa' : 'Inactiva'} /></td>
                       <td data-label="Acciones" className="acciones">
