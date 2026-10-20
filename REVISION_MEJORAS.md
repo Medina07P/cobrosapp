@@ -10,7 +10,7 @@
 
 Todas las rutas administrativas (`/clientes`, `/planes`, `/suscripciones`, `/historial`, `/run`, etc.) están protegidas con JWT. El flujo completo (`POST /auth/register`, `POST /auth/login`) emite tokens con `expiresIn: '24h'`. Implementado en `auth.js` y verificado en `api.js:obtenerUsuario()`.
 
-**Pendiente menor:** El `JWT_SECRET` tiene un fallback hardcodeado (`'clave_maestra_super_secreta_123'`) en `api.js:7` y `auth.js:5`. Siempre definir `JWT_SECRET` en `.env` en producción.
+**Resuelto:** `JWT_SECRET` es obligatorio. Ya no existe una clave por defecto en el código (`backend/config.js`): el servidor no arranca sin ella.
 
 ---
 

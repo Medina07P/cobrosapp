@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "helvetica",
+        "createdAt": "2026-10-20T03:01:18.255Z",
+        "reason": "Assistant classified false positive: HTML email body must use email-safe system fonts (Helvetica/Arial); web fonts do not load in mail clients. Pre-existing code, not confirmed by the user."
+      }
+    ]
+  }
+}
