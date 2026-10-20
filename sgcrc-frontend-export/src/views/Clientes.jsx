@@ -1,20 +1,45 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api.js'
+import PageHeader from '../ui/PageHeader.jsx'
+import Field from '../ui/Field.jsx'
+import Button from '../ui/Button.jsx'
+import ConfirmDialog from '../ui/ConfirmDialog.jsx'
+import EmptyState from '../ui/EmptyState.jsx'
+import ErrorMsg from '../ui/ErrorMsg.jsx'
+import Skeleton from '../ui/Skeleton.jsx'
+import { toast } from '../ui/Toast.jsx'
+import { validarCliente } from '../lib/validaciones.js'
+import { enfocarPrimerInvalido } from '../lib/formularios.js'
+
+const FORM_VACIO = { nombre: '', correo: '' }
+
+const enfocarNombre = () => document.getElementById('cliente-nombre')?.focus()
 
 export default function Clientes() {
   const [clientes, setClientes] = useState([])
   const [subs, setSubs] = useState([])
-  const [error, setError] = useState('')
-  const [form, setForm] = useState({ nombre: '', correo: '' })
-  const [editing, setEditing] = useState(null)
+  const [cargando, setCargando] = useState(true)
+  const [errorCarga, setErrorCarga] = useState('')
+  const [form, setForm] = useState(FORM_VACIO)
+  const [errores, setErrores] = useState({})
+  const [editando, setEditando] = useState(null)
+  const [guardando, setGuardando] = useState(false)
+  const [busqueda, setBusqueda] = useState('')
+  const [aEliminar, setAEliminar] = useState(null)
+  const [eliminando, setEliminando] = useState(false)
+  const formRef = useRef(null)
 
   const cargar = async () => {
-    setError('')
+    setErrorCarga('')
     try {
       const [c, s] = await Promise.all([api.getClientes(), api.getSuscripciones()])
       setClientes(c)
       setSubs(s)
-    } catch (e) { setError(e.message) }
+    } catch (e) {
+      setErrorCarga(e.message)
+    } finally {
+      setCargando(false)
+    }
   }
 
   useEffect(() => { cargar() }, [])
@@ -25,70 +50,203 @@ export default function Clientes() {
     return map
   }, [subs])
 
-  // En Clientes.jsx
-const guardar = async () => {
-  try {
-    // Si no tienes un sistema de login con IDs dinámicos, 
-    // podrías estar forzando el ID 1 que creamos con el seed.js
-    const datosConUsuario = { ...form, usuario_id: 1 }; 
+  const filtrados = useMemo(() => {
+    const q = busqueda.trim().toLowerCase()
+    if (!q) return clientes
+    return clientes.filter((c) =>
+      (c.nombre || '').toLowerCase().includes(q) || (c.correo || '').toLowerCase().includes(q))
+  }, [clientes, busqueda])
 
-    if (editing) await api.updateCliente(editing.id, datosConUsuario);
-    else await api.createCliente(datosConUsuario);
-    
-    setForm({ nombre: '', correo: '' });
-    setEditing(null);
-    await cargar();
-  } catch (e) { setError(e.message) }
-}
+  const cambiar = (campo) => (e) => {
+    const valor = e.target.value
+    setForm((p) => ({ ...p, [campo]: valor }))
+    setErrores((p) => (p[campo] ? { ...p, [campo]: undefined } : p))
+  }
+
+  const limpiarForm = () => {
+    setForm(FORM_VACIO)
+    setErrores({})
+    setEditando(null)
+  }
+
+  const cancelar = () => {
+    limpiarForm()
+    requestAnimationFrame(enfocarNombre)
+  }
+
+  const editar = (c) => {
+    setEditando(c)
+    setForm({ nombre: c.nombre, correo: c.correo })
+    setErrores({})
+    requestAnimationFrame(() => {
+      const el = document.getElementById('cliente-nombre')
+      el?.focus()
+      el?.scrollIntoView({ block: 'nearest' })
+    })
+  }
+
+  const guardar = async (e) => {
+    e.preventDefault()
+    if (guardando) return
+    const v = validarCliente(form)
+    if (Object.keys(v).length > 0) {
+      setErrores(v)
+      requestAnimationFrame(() => enfocarPrimerInvalido(formRef.current))
+      return
+    }
+    setGuardando(true)
+    try {
+      const datos = { nombre: form.nombre.trim(), correo: form.correo.trim() }
+      if (editando) {
+        await api.updateCliente(editando.id, datos)
+        toast.exito('Cliente actualizado.')
+      } else {
+        await api.createCliente(datos)
+        toast.exito('Cliente creado.')
+      }
+      limpiarForm()
+      await cargar()
+      requestAnimationFrame(enfocarNombre)
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  const eliminar = async () => {
+    if (!aEliminar) return
+    setEliminando(true)
+    try {
+      await api.deleteCliente(aEliminar.id)
+      toast.exito('Cliente eliminado.')
+      if (editando && editando.id === aEliminar.id) limpiarForm()
+      await cargar()
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setEliminando(false)
+      setAEliminar(null)
+    }
+  }
+
+  let lista
+  if (cargando) {
+    lista = <Skeleton />
+  } else if (errorCarga) {
+    lista = <ErrorMsg msg={errorCarga} onRetry={cargar} />
+  } else if (clientes.length === 0) {
+    lista = (
+      <EmptyState
+        icono="users"
+        nivel={2}
+        titulo="Aún no tienes clientes"
+        accion={<Button icono="plus" onClick={enfocarNombre}>Agregar cliente</Button>}
+      >
+        Agrega el primero con el formulario de arriba.
+      </EmptyState>
+    )
+  } else {
+    lista = (
+      <>
+        <div className="herramientas">
+          <Field
+            label="Buscar"
+            type="search"
+            id="cliente-buscar"
+            placeholder="Nombre o correo"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+          />
+        </div>
+        {filtrados.length === 0 ? (
+          <EmptyState icono="magnifying-glass" nivel={2} titulo="Sin resultados">
+            {`Ningún cliente coincide con «${busqueda}».`}
+          </EmptyState>
+        ) : (
+          <div className="tabla-wrap" tabIndex={0} role="region" aria-label="Lista de clientes">
+            <table className="tabla">
+              <caption className="sr-only">Lista de clientes</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Nombre</th>
+                  <th scope="col">Correo</th>
+                  <th scope="col" className="num">Suscripciones activas</th>
+                  <th scope="col" className="acciones">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtrados.map((c) => (
+                  <tr key={c.id}>
+                    <td data-label="Nombre">{c.nombre}</td>
+                    <td data-label="Correo">{c.correo}</td>
+                    <td data-label="Suscripciones activas" className="num">{porCliente[c.id] || 0}</td>
+                    <td data-label="Acciones" className="acciones">
+                      <Button variante="secundario" tam="sm" icono="pencil-simple" aria-label={`Editar a ${c.nombre}`} onClick={() => editar(c)}>Editar</Button>
+                      <Button variante="peligro" tam="sm" icono="trash" aria-label={`Eliminar a ${c.nombre}`} onClick={() => setAEliminar(c)}>Eliminar</Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </>
+    )
+  }
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-2xl font-bold">Clientes</h2>
-      {error && <div className="bg-red-50 text-red-700 px-3 py-2 rounded-lg">{error}</div>}
+    <div className="pagina">
+      <PageHeader titulo="Clientes" descripcion="Las personas o negocios a los que les cobras." />
 
-      <div className="bg-white rounded-xl shadow-sm p-4 grid md:grid-cols-3 gap-2">
-        <input className="border rounded-lg px-3 py-2" placeholder="Nombre" value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} />
-        <input className="border rounded-lg px-3 py-2" placeholder="Correo" value={form.correo} onChange={(e) => setForm((p) => ({ ...p, correo: e.target.value }))} />
-        <button className="bg-indigo-600 text-white rounded-lg px-3 py-2" onClick={guardar}>{editing ? 'Actualizar' : 'Crear'} cliente</button>
-      </div>
+      <section className="panel">
+        <h2 className="panel-titulo">{editando ? `Editar a ${editando.nombre}` : 'Nuevo cliente'}</h2>
+        <form ref={formRef} noValidate onSubmit={guardar}>
+          <div className="form-grid">
+            <Field
+              label="Nombre"
+              id="cliente-nombre"
+              requerido
+              autoComplete="off"
+              maxLength={120}
+              value={form.nombre}
+              onChange={cambiar('nombre')}
+              error={errores.nombre}
+            />
+            <Field
+              label="Correo"
+              id="cliente-correo"
+              type="email"
+              inputMode="email"
+              requerido
+              autoComplete="off"
+              value={form.correo}
+              onChange={cambiar('correo')}
+              error={errores.correo}
+            />
+          </div>
+          <div className="form-acciones">
+            <Button type="submit" cargando={guardando} icono={editando ? 'check' : 'plus'}>
+              {editando ? 'Guardar cambios' : 'Crear cliente'}
+            </Button>
+            {editando && <Button variante="secundario" onClick={cancelar}>Cancelar</Button>}
+          </div>
+        </form>
+      </section>
 
-      <div className="bg-white rounded-xl shadow-sm overflow-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-500">
-            <tr>
-              <th className="text-left p-3">Nombre</th><th className="text-left p-3">Correo</th><th className="text-left p-3">Subs activas</th><th className="text-right p-3">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {clientes.map((c) => (
-              <tr key={c.id} className="border-t">
-                <td className="p-3 font-medium">{c.nombre}</td>
-                <td className="p-3">{c.correo}</td>
-                <td className="p-3">{porCliente[c.id] || 0}</td>
-                <td className="p-3 text-right space-x-2">
-                  <button className="px-2 py-1 rounded bg-slate-100" onClick={() => { setEditing(c); setForm({ nombre: c.nombre, correo: c.correo }) }}>Editar</button>
-                  <button 
-                    className="px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 transition-colors" 
-                    onClick={async () => { 
-                      if (window.confirm(`¿Estás seguro de eliminar a ${c.nombre}?`)) {
-                        try {
-                          setError(''); // Limpiamos errores previos
-                          await api.deleteCliente(c.id); 
-                          await cargar(); // Solo recarga si la eliminación fue exitosa
-                        } catch (e) {
-                          // Aquí capturamos el error 400 que configuramos en el backend
-                          setError(e.message); 
-                        }
-                      }
-                    }}
->
-  Eliminar
-</button>              </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {lista}
+
+      <ConfirmDialog
+        abierto={aEliminar !== null}
+        titulo="Eliminar cliente"
+        peligro
+        textoConfirmar="Eliminar"
+        cargando={eliminando}
+        onConfirmar={eliminar}
+        onCancelar={() => setAEliminar(null)}
+      >
+        {aEliminar ? `¿Eliminar a ${aEliminar.nombre}? Esta acción no se puede deshacer.` : ''}
+      </ConfirmDialog>
     </div>
   )
 }
