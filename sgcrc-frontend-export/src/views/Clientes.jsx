@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api.js'
 import PageHeader from '../ui/PageHeader.jsx'
+import { mensajeError } from '../lib/errores.js'
 import Field from '../ui/Field.jsx'
 import Button from '../ui/Button.jsx'
 import ConfirmDialog from '../ui/ConfirmDialog.jsx'
@@ -41,8 +42,8 @@ export default function Clientes() {
       hayDatos.current = true
     } catch (e) {
       // Tras una operación se conserva la lista y se avisa con un toast.
-      if (hayDatos.current) toast.error(e.message)
-      else setErrorCarga(e.message)
+      if (hayDatos.current) toast.error(mensajeError(e))
+      else setErrorCarga(mensajeError(e))
     } finally {
       setCargando(false)
     }
@@ -125,7 +126,7 @@ export default function Clientes() {
       await cargar()
       requestAnimationFrame(enfocarNombre)
     } catch (err) {
-      toast.error(err.message)
+      toast.error(mensajeError(err))
     } finally {
       setGuardando(false)
     }
@@ -144,7 +145,7 @@ export default function Clientes() {
         el?.focus()
       })
     } catch (err) {
-      toast.error(err.message)
+      toast.error(mensajeError(err))
     } finally {
       setEliminando(false)
       setAEliminar(null)

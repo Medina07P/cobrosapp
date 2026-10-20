@@ -5,6 +5,10 @@ import ConfirmDialog from '../ui/ConfirmDialog.jsx'
 import { toast } from '../ui/Toast.jsx'
 import Button from '../ui/Button.jsx'
 import PageHeader from '../ui/PageHeader.jsx'
+import ErrorMsg from '../ui/ErrorMsg.jsx'
+import Skeleton from '../ui/Skeleton.jsx'
+import { esHoyLocal } from '../lib/formato.js'
+import { mensajeError } from '../lib/errores.js'
 
 // Formateador de moneda colombiana
 const fmt = (n) => new Intl.NumberFormat('es-CO', { 
@@ -55,7 +59,7 @@ export default function Dashboard() {
       ])
       setData({ clientes, suscripciones, historial })
     } catch (e) {
-      setError(e.message)
+      setError(mensajeError(e))
     }
   }
 
@@ -74,7 +78,7 @@ export default function Dashboard() {
         setReenvio(errorData?.mensaje || 'Ya se procesaron cobros hoy.')
       } else {
         setReenvio(null)
-        toast.error(errorData?.error || err.message)
+        toast.error(errorData?.error || mensajeError(err))
       }
     } finally {
       setLoadingProceso(false)
@@ -89,13 +93,13 @@ export default function Dashboard() {
     if (!data) return null
     const { clientes, suscripciones, historial } = data
     const activas = suscripciones.filter((s) => s.activa)
-    const hoyStr = new Date().toISOString().split('T')[0];
+    const ahora = new Date()
 
     return {
       clientes: clientes.length,
       activas: activas.length,
       ingresos: activas.reduce((a, s) => a + s.monto, 0),
-      enviados: historial.filter((h) => h.estado === 'Enviado' && h.fecha?.includes(hoyStr)).length,
+      enviados: historial.filter((h) => h.estado === 'Enviado' && esHoyLocal(h.fecha, ahora)).length,
       fallidos: historial.filter((h) => h.estado === 'Fallido').length,
       proximos: activas.map((s) => ({ 
         ...s, 
@@ -108,20 +112,15 @@ export default function Dashboard() {
     }
   }, [data])
 
-  if (!data && !error) return <div className="p-6 text-center text-slate-500 font-medium">Cargando estadísticas...</div>
-  
-  if (error) return (
-    <div className="p-6 text-red-600 bg-red-50 rounded-xl m-4 border border-red-100">
-      <p className="font-bold">Error de conexión:</p>
-      <p className="mb-4">{error}</p>
-      <button onClick={cargar} className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-shadow">
-        Reintentar
-      </button>
-    </div>
+  if (!data) return (
+    <>
+      <PageHeader titulo="Dashboard" />
+      {error ? <ErrorMsg msg={error} onRetry={cargar} /> : <Skeleton />}
+    </>
   )
 
   return (
-    <div className="space-y-6 p-4 animate-in fade-in duration-500">
+    <div className="space-y-6">
       {/* Header Section */}
       <PageHeader
         titulo="Dashboard"
@@ -132,6 +131,8 @@ export default function Dashboard() {
           </Button>
         }
       />
+
+      {error && <ErrorMsg msg={error} onRetry={cargar} />}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -145,7 +146,6 @@ export default function Dashboard() {
           <div key={item.label} className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-2">
               <Icon name={item.icon} size={28} className={item.color} />
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-50 ${item.color}`}>INFO</span>
             </div>
             <p className="text-sm text-slate-500 font-medium">{item.label}</p>
             <p className="text-xl font-bold text-slate-800">{item.value}</p>
@@ -174,7 +174,7 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <p className="font-bold text-slate-800">{s.cliente?.nombre}</p>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                    <p className="text-sm font-bold uppercase tracking-widest" style={{ color: 'var(--ink-2)' }}>
                       Inició: {s.fecha_alta || 'Sin fecha'}
                     </p>
                   </div>
@@ -184,7 +184,7 @@ export default function Dashboard() {
                   {/* TEXTO DE DÍAS DINÁMICO */}
                   <p 
                     style={s.dias !== 0 ? { color: 'var(--color-primario)' } : {}}
-                    className={`text-xs font-bold inline-flex items-center gap-1 ${s.dias === 0 ? 'text-rose-600' : ''}`}
+                    className={`text-sm font-bold inline-flex items-center gap-1 ${s.dias === 0 ? 'text-rose-700' : ''}`}
                   >
                     {s.dias === 0 ? <><Icon name="bell" size={14} />TOCA COBRAR HOY</> : `en ${s.dias} días`}
                   </p>

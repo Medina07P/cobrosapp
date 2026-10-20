@@ -3,6 +3,7 @@ import { api } from '../api.js'
 import { EstadoBadge } from '../ui/Badge.jsx'
 import Skeleton from '../ui/Skeleton.jsx'
 import ErrorMsg from '../ui/ErrorMsg.jsx'
+import { mensajeError } from '../lib/errores.js'
 import Button from '../ui/Button.jsx'
 import PageHeader from '../ui/PageHeader.jsx'
 import { fmt } from '../lib/formato.js'
@@ -23,7 +24,7 @@ export default function Historial() {
     try {
       const [h, c, s] = await Promise.all([api.getHistorial(), api.getClientes(), api.getSuscripciones()])
       setHistorial(h); setClientes(c); setSubs(s)
-    } catch (e) { setError(e.message) }
+    } catch (e) { setError(mensajeError(e)) }
     finally { setLoading(false) }
   }
 

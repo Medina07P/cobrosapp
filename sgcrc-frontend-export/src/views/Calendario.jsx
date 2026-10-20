@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { api } from '../api.js'
 import Skeleton from '../ui/Skeleton.jsx'
 import ErrorMsg from '../ui/ErrorMsg.jsx'
+import { mensajeError } from '../lib/errores.js'
 import { fmt } from '../lib/formato.js'
 import Icon from '../ui/Icon.jsx'
 import PageHeader from '../ui/PageHeader.jsx'
@@ -27,7 +28,7 @@ export default function Calendario() {
     try {
       const [s, c] = await Promise.all([api.getSuscripciones(), api.getClientes()])
       setSubs(s.filter(x => x.activa)); setClientes(c)
-    } catch (e) { setError(e.message) }
+    } catch (e) { setError(mensajeError(e)) }
     finally { setLoading(false) }
   }
 

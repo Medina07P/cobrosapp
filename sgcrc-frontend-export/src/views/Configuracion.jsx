@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
 import PageHeader from '../ui/PageHeader.jsx'
+import { mensajeError } from '../lib/errores.js'
 import Field from '../ui/Field.jsx'
 import Button from '../ui/Button.jsx'
 import Icon from '../ui/Icon.jsx'
@@ -40,7 +41,7 @@ export default function Configuracion({ onGuardado }) {
       })
       setErrorCarga('')
     } catch (e) {
-      setErrorCarga(e.message || 'No se pudo cargar la configuración.')
+      setErrorCarga(mensajeError(e))
     } finally {
       setCargando(false)
     }
@@ -83,7 +84,7 @@ export default function Configuracion({ onGuardado }) {
       toast.exito('Configuración guardada.')
       onGuardado?.(payload)
     } catch (err) {
-      toast.error(err.response?.data?.error || err.message || 'No se pudo guardar.')
+      toast.error(err.response?.data?.error || mensajeError(err))
     } finally {
       setGuardando(false)
     }

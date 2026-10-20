@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import Field from '../ui/Field.jsx'
 import Button from '../ui/Button.jsx'
 import ErrorMsg from '../ui/ErrorMsg.jsx'
+import { mensajeError } from '../lib/errores.js'
 import Logo from '../ui/Logo.jsx'
 import { toast } from '../ui/Toast.jsx'
 import { enfocarPrimerInvalido } from '../lib/formularios.js'
@@ -75,9 +76,7 @@ export default function Login({ onLogin }) {
         onLogin(data)
       }
     } catch (err) {
-      setError(err instanceof TypeError
-        ? 'No se pudo conectar con el servidor. ¿Está encendido el backend?'
-        : err.message)
+      setError(mensajeError(err))
     } finally {
       setLoading(false)
     }
