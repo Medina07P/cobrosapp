@@ -45,7 +45,11 @@
 .estado-server[data-ok="true"] i { background: var(--ok); }
 .estado-server[data-ok="false"] i { background: var(--bad); }
 
+.principal { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.principal > .barra-movil, .principal > .nav-movil { margin-left: 1rem; margin-right: 1rem; }
+.principal > .barra-movil { margin-top: 1rem; }
 .contenido { flex: 1; min-width: 0; padding: 1rem; }
+.contenido h1:focus { outline: none; }
 .contenido:focus { outline: none; }
 @media (min-width: 768px) { .contenido { padding: 2rem 2.5rem; } }
 

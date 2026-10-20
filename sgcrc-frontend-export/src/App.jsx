@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api, setApiKey } from './api.js'
 import { aplicarColorTema, COLOR_POR_DEFECTO } from './lib/colorTema.js'
 import Icon from './ui/Icon.jsx'
@@ -22,6 +22,8 @@ const NAV = [
   { id: 'calendario', label: 'Calendario', icon: 'calendar-blank' },
   { id: 'configuracion', label: 'Configuración', icon: 'gear' },
 ]
+
+const TITULO_BASE = 'SGCRC — Cobros Recurrentes'
 
 export default function App() {
   const [view, setView] = useState('dashboard')
@@ -101,6 +103,27 @@ export default function App() {
     })
   }
 
+  // 2b. TÍTULO DEL DOCUMENTO Y FOCO POR VISTA (no roba el foco en el primer render ni sin sesión)
+  const haySesion = !!session
+  const primeraVez = useRef(true)
+  useEffect(() => {
+    if (!haySesion) {
+      document.title = TITULO_BASE
+      return
+    }
+    const etiqueta = NAV.find((n) => n.id === view)?.label
+    document.title = etiqueta ? `${etiqueta} · SGCRC` : TITULO_BASE
+    if (primeraVez.current) {
+      primeraVez.current = false
+      return
+    }
+    const raf = requestAnimationFrame(() => {
+      const destino = document.querySelector('#contenido h1') || document.getElementById('contenido')
+      if (destino) destino.focus({ preventScroll: true })
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [view, haySesion])
+
   // 3. REGISTRO DE VISTAS (sin memoizar: así onGuardado nunca queda obsoleto)
   const VIEWS = {
     dashboard: <Dashboard />,
@@ -124,7 +147,7 @@ export default function App() {
 
   const estadoTexto = backendOk === null ? 'Comprobando servidor…' : backendOk ? 'Servidor conectado' : 'Sin conexión con el servidor'
   const estadoServidor = (
-    <span className="estado-server" data-ok={backendOk === null ? undefined : String(backendOk)} role="status">
+    <span className="estado-server" data-ok={backendOk === null ? undefined : String(backendOk)} role={backendOk === false ? 'status' : undefined}>
       <i aria-hidden="true" />{estadoTexto}
     </span>
   )
@@ -157,15 +180,17 @@ export default function App() {
         </div>
       </aside>
 
-      <main id="contenido" className="contenido" tabIndex={-1}>
+      <div className="principal">
         <div className="barra-movil">
           <div className="marca"><Logo size={26} decorativo /><span>SGCRC</span></div>
           {estadoServidor}
           <Button variante="secundario" tam="sm" icono="sign-out" onClick={handleLogout}>Salir</Button>
         </div>
         <nav className="nav-movil" aria-label="Principal">{items()}</nav>
-        {VIEWS[view]}
-      </main>
+        <main id="contenido" className="contenido" tabIndex={-1}>
+          {VIEWS[view]}
+        </main>
+      </div>
     </div>
   )
 }
