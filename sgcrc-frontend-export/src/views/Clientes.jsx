@@ -267,7 +267,7 @@ export default function Clientes() {
         onConfirmar={eliminar}
         onCancelar={() => setAEliminar(null)}
       >
-        {`¿Eliminar a ${nombreEliminar}? Esta acción no se puede deshacer.`}
+        {`¿Eliminar a ${nombreEliminar}? Esta acción no se puede deshacer. Si tiene suscripciones (incluso inactivas) no se puede eliminar: elimínalas primero.`}
       </ConfirmDialog>
     </div>
   )

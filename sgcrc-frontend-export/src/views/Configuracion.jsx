@@ -10,7 +10,8 @@ import Skeleton from '../ui/Skeleton.jsx'
 import { toast } from '../ui/Toast.jsx'
 import { validarPerfil } from '../lib/validaciones.js'
 import { enfocarPrimerInvalido } from '../lib/formularios.js'
-import { aplicarColorTema, COLOR_POR_DEFECTO, parseHex, ratioContraste } from '../lib/colorTema.js'
+import { aplicarColorTema, COLOR_POR_DEFECTO, parseHex } from '../lib/colorTema.js'
+import { estadoContrasteCorreo } from '../lib/contrasteCorreo.js'
 
 // Hexadecimal de 6 dígitos válido para mostrar y calcular; si el guardado es inválido, el color por defecto.
 function colorValido(hex) {
@@ -97,7 +98,7 @@ export default function Configuracion({ onGuardado }) {
     contenido = <ErrorMsg msg={errorCarga} onRetry={reintentar} />
   } else {
     const color = colorValido(perfil.color_tema)
-    const ratio = ratioContraste(color, '#FFFFFF')
+    const { ratio, suficiente, colorMonto } = estadoContrasteCorreo(color)
     const texto = fmtRatio(ratio)
     contenido = (
       <section className="panel">
@@ -127,19 +128,18 @@ export default function Configuracion({ onGuardado }) {
                 <span className="tabular">{color}</span>
               </div>
               <p id="cfg-color-ayuda" className="field-ayuda">Se usa en los botones de tus correos y en esta aplicación.</p>
-              <div aria-live="polite">
-                {ratio >= 4.5 ? (
-                  <p className="contraste contraste-ok">
-                    <Icon name="check-circle" size={14} />
-                    <span>Contraste suficiente en tus correos ({texto}:1)</span>
-                  </p>
-                ) : (
-                  <p className="contraste contraste-warn">
-                    <Icon name="warning" size={14} />
-                    <span>Contraste bajo en tus correos ({texto}:1): el botón lleva texto blanco y el monto usa este color sobre fondo blanco. Prueba un tono más oscuro.</span>
-                  </p>
-                )}
-              </div>
+              {suficiente ? (
+                <p className="contraste contraste-ok">
+                  <Icon name="check-circle" size={14} />
+                  <span>Contraste suficiente en tus correos ({texto}:1)</span>
+                </p>
+              ) : (
+                <p className="contraste contraste-warn">
+                  <Icon name="warning" size={14} />
+                  <span>Contraste bajo en tus correos ({texto}:1): el texto del botón se leerá mal. Prueba un tono más oscuro o más claro.</span>
+                </p>
+              )}
+              <p className="sr-only" aria-live="polite">{suficiente ? 'Contraste suficiente' : 'Contraste bajo'}</p>
             </div>
             <Field
               label="WhatsApp para reportar pagos"
@@ -157,7 +157,7 @@ export default function Configuracion({ onGuardado }) {
           <div ref={previaRef} className="vista-previa">
             <p className="vista-previa-rotulo">Así se verá en tus correos</p>
             <span className="vista-previa-boton" aria-hidden="true">Reportar pago por WhatsApp</span>
-            <span className="vista-previa-monto tabular" aria-hidden="true">$ 50.000</span>
+            <span className="vista-previa-monto tabular" style={{ color: colorMonto }} aria-hidden="true">$ 50.000</span>
           </div>
           <div className="form-acciones">
             <Button type="submit" cargando={guardando} icono="check">Guardar cambios</Button>

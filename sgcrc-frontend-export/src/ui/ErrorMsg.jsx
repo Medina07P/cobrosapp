@@ -8,7 +8,7 @@ export default function ErrorMsg({ msg, onRetry }) {
         <Icon name="warning" size={18} />
         {msg}
       </span>
-      {onRetry && <Button variante="peligro" tam="sm" onClick={onRetry}>Reintentar</Button>}
+      {onRetry && <Button variante="peligro" onClick={onRetry}>Reintentar</Button>}
     </div>
   )
 }

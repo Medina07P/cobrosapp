@@ -243,7 +243,7 @@ export default function Planes() {
               type="number"
               min={1}
               max={31}
-              ayuda="Día del mes en que se genera el cobro."
+              ayuda="Solo se usa en suscripciones sin fecha de inicio; en las demás el cobro cae el día de su fecha de inicio."
               value={form.dia_cobro}
               onChange={cambiar('dia_cobro')}
               error={errores.dia_cobro}
