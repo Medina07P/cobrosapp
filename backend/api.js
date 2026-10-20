@@ -89,7 +89,9 @@ async function handler(req, res) {
       
       if (method === "PUT" && id) {
         const body = await parseBody(req);
-        return json(res, 200, db.clientes.update(Number(id), body));
+        const actualizado = db.clientes.update(Number(id), body, usuario.id);
+        if (!actualizado) return json(res, 404, { error: "Cliente no encontrado" });
+        return json(res, 200, actualizado);
       }
       
       if (method === "DELETE" && id) {
@@ -112,7 +114,9 @@ async function handler(req, res) {
 
       if (method === "PUT" && id) {
         const body = await parseBody(req);
-        return json(res, 200, db.planes.update(Number(id), body));
+        const actualizado = db.planes.update(Number(id), body, usuario.id);
+        if (!actualizado) return json(res, 404, { error: "Plan no encontrado" });
+        return json(res, 200, actualizado);
       }
 
       if (method === "DELETE" && id) {
@@ -141,7 +145,14 @@ async function handler(req, res) {
 
       if (method === "PUT" && id) {
         const body = await parseBody(req);
-        return json(res, 200, db.suscripciones.update(Number(id), body));
+        try {
+          const actualizada = db.suscripciones.update(Number(id), body, usuario.id);
+          if (!actualizada) return json(res, 404, { error: "Suscripción no encontrada" });
+          return json(res, 200, actualizada);
+        } catch (dbErr) {
+          const status = dbErr.message.includes("VALIDATION_ERROR") ? 400 : 500;
+          return json(res, status, { error: dbErr.message.replace("VALIDATION_ERROR: ", "") });
+        }
       }
 
       if (method === "DELETE" && id) {

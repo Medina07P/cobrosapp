@@ -8,7 +8,8 @@
     "dev": "node --watch index.js",
     "test": "node tests_api_smoke.js",
     "test:unit": "node --test cobros.test.js",
-    "test:integration": "node tests_cobros_integration.js"
+    "test:integration": "node tests_cobros_integration.js",
+    "test:security": "node tests_seguridad.js"
   },
   "keywords": [],
   "author": "",

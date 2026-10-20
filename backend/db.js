@@ -1,10 +1,48 @@
 const db = require('./database');
+const cobros = require('./cobros');
 
 // --- HELPER PARA FORMATEAR RESULTADOS ---
 const fixBool = (obj) => {
     if (!obj) return null;
     return { ...obj, activa: obj.activa === 1 };
 };
+
+// Columnas que la API puede actualizar. Los nombres de columna nunca vienen del cliente.
+const COLUMNAS = {
+    clientes: ['nombre', 'correo'],
+    planes: ['nombre_plan', 'monto', 'frecuencia', 'dia_cobro', 'descripcion'],
+    suscripciones: ['cliente_id', 'plan_id', 'activa', 'descripcion', 'fecha_alta'],
+};
+
+// Se queda solo con las columnas permitidas de la tabla
+function filtrar(tabla, campos) {
+    return Object.fromEntries(
+        Object.entries(campos || {}).filter(([k, v]) => COLUMNAS[tabla].includes(k) && v !== undefined)
+    );
+}
+
+function existePropia(tabla, id, usuarioId) {
+    return !!db.prepare(`SELECT 1 FROM ${tabla} WHERE id = ? AND usuario_id = ?`).get(id, usuarioId);
+}
+
+// UPDATE de una fila del usuario. Las claves ya fueron filtradas por filtrar() o son internas.
+function ejecutarUpdate(tabla, id, campos, usuarioId) {
+    const claves = Object.keys(campos);
+    if (claves.length === 0) return;
+    const setClause = claves.map(k => `${k} = ?`).join(', ');
+    db.prepare(`UPDATE ${tabla} SET ${setClause} WHERE id = ? AND usuario_id = ?`)
+        .run(...Object.values(campos), id, usuarioId);
+}
+
+// El cliente y el plan de una suscripción deben ser del usuario
+function validarPropiedad({ cliente_id, plan_id }, usuarioId) {
+    if (cliente_id !== undefined && !existePropia('clientes', cliente_id, usuarioId)) {
+        throw new Error("VALIDATION_ERROR: El cliente seleccionado no existe.");
+    }
+    if (plan_id !== undefined && !existePropia('planes', plan_id, usuarioId)) {
+        throw new Error("VALIDATION_ERROR: El plan seleccionado no existe.");
+    }
+}
 
 // 1. OBJETO: Planes
 const planes = {
@@ -24,15 +62,9 @@ const planes = {
         const info = stmt.run(usuarioId, nombre_plan, parseFloat(monto), frecuencia || 'mensual', Number(dia_cobro) || 1, descripcion || '');
         return { id: info.lastInsertRowid, nombre_plan, monto, frecuencia };
     },
-    // ... (resto de funciones de planes igual)
-    update(id, campos) {
-        const { id: _id, usuario_id, ...validos } = campos;
-        const keys = Object.keys(validos);
-        const values = Object.values(validos);
-        if (keys.length === 0) return this.find(id);
-        const setClause = keys.map(key => `${key} = ?`).join(', ');
-        const stmt = db.prepare(`UPDATE planes SET ${setClause} WHERE id = ?`);
-        stmt.run(...values, id);
+    update(id, campos, usuarioId) {
+        if (!existePropia('planes', id, usuarioId)) return null;
+        ejecutarUpdate('planes', id, filtrar('planes', campos), usuarioId);
         return this.find(id);
     },
     delete(id, usuarioId) {
@@ -59,14 +91,9 @@ const clientes = {
         const info = stmt.run(nombre, correo, usuarioId);
         return { id: info.lastInsertRowid, nombre, correo };
     },
-    update(id, campos) {
-        const { id: _id, usuario_id, ...validos } = campos;
-        const keys = Object.keys(validos);
-        const values = Object.values(validos);
-        if (keys.length === 0) return this.find(id);
-        const setClause = keys.map(key => `${key} = ?`).join(', ');
-        const stmt = db.prepare(`UPDATE clientes SET ${setClause} WHERE id = ?`);
-        stmt.run(...values, id);
+    update(id, campos, usuarioId) {
+        if (!existePropia('clientes', id, usuarioId)) return null;
+        ejecutarUpdate('clientes', id, filtrar('clientes', campos), usuarioId);
         return this.find(id);
     },
     delete(id, usuarioId) {
@@ -114,16 +141,19 @@ const suscripciones = {
     // 2. CREATE actualizado: Ahora recibe y guarda 'fecha_alta'
     create({ cliente_id, plan_id, descripcion, fecha_alta }, usuarioId = 1) {
         if (!cliente_id || !plan_id) throw new Error("VALIDATION_ERROR: Cliente y Plan son obligatorios.");
+        validarPropiedad({ cliente_id: Number(cliente_id), plan_id: Number(plan_id) }, usuarioId);
 
         try {
-            // Si no envías fecha, usa la fecha actual (YYYY-MM-DD)
-            const fechaFinal = fecha_alta || new Date().toISOString().split('T')[0];
+            // Si no envías fecha, usa la fecha de hoy (YYYY-MM-DD, zona de la aplicación)
+            const hoy = cobros.hoyISO();
+            const fechaFinal = fecha_alta || hoy;
 
+            // cobro_desde = hoy: una fecha_alta pasada no genera cobros "vencidos" anteriores al registro
             const stmt = db.prepare(`
-                INSERT INTO suscripciones (cliente_id, plan_id, usuario_id, activa, descripcion, fecha_alta) 
-                VALUES (?, ?, ?, 1, ?, ?)
+                INSERT INTO suscripciones (cliente_id, plan_id, usuario_id, activa, descripcion, fecha_alta, cobro_desde)
+                VALUES (?, ?, ?, 1, ?, ?, ?)
             `);
-            const info = stmt.run(cliente_id, plan_id, usuarioId, descripcion || '', fechaFinal);
+            const info = stmt.run(cliente_id, plan_id, usuarioId, descripcion || '', fechaFinal, hoy);
             return this.find(info.lastInsertRowid);
         } catch (err) {
             if (err.message.includes("FOREIGN KEY")) {
@@ -133,21 +163,24 @@ const suscripciones = {
         }
     },
 
-    // 3. UPDATE actualizado: Permite cambiar la fecha o descripción dinámicamente
-    update(id, campos) {
-        if (campos.activa !== undefined) campos.activa = campos.activa ? 1 : 0;
-        if (campos.plan_id !== undefined) campos.plan_id = Number(campos.plan_id);
+    // Solo actualiza suscripciones del usuario. Reactivar o cambiar fecha_alta fija cobro_desde = hoy.
+    update(id, campos, usuarioId) {
+        const actual = db.prepare('SELECT * FROM suscripciones WHERE id = ? AND usuario_id = ?').get(id, usuarioId);
+        if (!actual) return null;
 
-        // Extraemos campos calculados para que no intenten guardarse en la tabla 'suscripciones'
-        const { id: _id, usuario_id, tipo, monto, dia_cobro, frecuencia, ...validos } = campos;
-        const keys = Object.keys(validos);
-        const values = Object.values(validos);
-        
-        if (keys.length > 0) {
-            const setClause = keys.map(key => `${key} = ?`).join(', ');
-            const stmt = db.prepare(`UPDATE suscripciones SET ${setClause} WHERE id = ?`);
-            stmt.run(...values, id);
-        }
+        const nuevos = filtrar('suscripciones', campos);
+        if (nuevos.activa !== undefined) nuevos.activa = nuevos.activa ? 1 : 0;
+        if (nuevos.plan_id !== undefined) nuevos.plan_id = Number(nuevos.plan_id);
+        if (nuevos.cliente_id !== undefined) nuevos.cliente_id = Number(nuevos.cliente_id);
+
+        validarPropiedad(nuevos, usuarioId);
+
+        const reactiva = nuevos.activa === 1 && actual.activa !== 1;
+        const cambiaAlta = nuevos.fecha_alta !== undefined &&
+            String(nuevos.fecha_alta).slice(0, 10) !== String(actual.fecha_alta || '').slice(0, 10);
+        if (reactiva || cambiaAlta) nuevos.cobro_desde = cobros.hoyISO();
+
+        ejecutarUpdate('suscripciones', id, nuevos, usuarioId);
         return this.find(id);
     },
 
