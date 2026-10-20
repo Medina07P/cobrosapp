@@ -5,6 +5,7 @@
   --surface: #FFFFFF;
   --surface-alt: #FBF9F4;
   --line: #E3DED2;
+  --line-control: #7F847C;
   --ink: #1F2421;
   --ink-2: #5C625C;
 
@@ -23,4 +24,5 @@
   --color-primario: #1F6B4F;
   --color-primario-glow: rgba(31, 107, 79, 0.2);
   --color-primario-contraste: #FFFFFF;
+  --color-primario-texto: #1F6B4F;
 }

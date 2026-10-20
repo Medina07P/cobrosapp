@@ -35,11 +35,41 @@ export function textoSobre(hex) {
   return ratioContraste(hex, BLANCO) >= ratioContraste(hex, TINTA) ? BLANCO : TINTA
 }
 
+// Color de marca usable como texto sobre blanco: el mismo si contrasta >= 4.5, si no la tinta
+// (mismo contrato que colorLegibleSobreBlanco de backend/perfil.js)
+export function colorLegibleSobreBlanco(hex) {
+  if (!parseHex(hex)) return TINTA
+  return ratioContraste(hex, BLANCO) >= 4.5 ? hex : TINTA
+}
+
+const aHex = ({ r, g, b }) =>
+  '#' + [r, g, b].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('').toUpperCase()
+
+// Variante del color de marca apta como texto sobre blanco: lo mezcla con la tinta
+// en pasos del 10 % hasta alcanzar 4.5:1, así conserva el matiz.
+export function colorTextoMarca(hex) {
+  const base = parseHex(hex)
+  if (!base) return COLOR_POR_DEFECTO
+  if (ratioContraste(hex, BLANCO) >= 4.5) return hex
+  const tinta = parseHex(TINTA)
+  for (let paso = 1; paso <= 10; paso++) {
+    const t = paso / 10
+    const mezcla = aHex({
+      r: base.r * (1 - t) + tinta.r * t,
+      g: base.g * (1 - t) + tinta.g * t,
+      b: base.b * (1 - t) + tinta.b * t,
+    })
+    if (ratioContraste(mezcla, BLANCO) >= 4.5) return mezcla
+  }
+  return TINTA
+}
+
 export function aplicarColorTema(root, hex) {
   const color = parseHex(hex) ? hex : COLOR_POR_DEFECTO
   const { r, g, b } = parseHex(color)
   root.style.setProperty('--color-primario', color)
   root.style.setProperty('--color-primario-glow', `rgba(${r}, ${g}, ${b}, 0.2)`)
   root.style.setProperty('--color-primario-contraste', textoSobre(color))
+  root.style.setProperty('--color-primario-texto', colorTextoMarca(color))
   return color
 }

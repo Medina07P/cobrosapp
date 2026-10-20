@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import {
   COLOR_POR_DEFECTO, TINTA, parseHex, ratioContraste, textoSobre, aplicarColorTema,
+  colorLegibleSobreBlanco, colorTextoMarca,
 } from './colorTema.js'
 
 test('parseHex acepta 6 y 3 dígitos y rechaza basura', () => {
@@ -18,6 +19,34 @@ test('textoSobre elige blanco sobre oscuros y tinta sobre claros', () => {
   assert.equal(textoSobre('#4f46e5'), '#FFFFFF')
   assert.equal(textoSobre('#FFD400'), TINTA)
   assert.equal(textoSobre('#ffffff'), TINTA)
+})
+
+test('colorLegibleSobreBlanco coincide con el backend', () => {
+  assert.equal(colorLegibleSobreBlanco('#FFD400'), TINTA)
+  assert.equal(colorLegibleSobreBlanco('#1F6B4F'), '#1F6B4F')
+  assert.equal(colorLegibleSobreBlanco('#4f46e5'), '#4f46e5')
+  assert.equal(colorLegibleSobreBlanco('#FFFFFF'), TINTA)
+  assert.equal(colorLegibleSobreBlanco('rojo'), TINTA)
+  assert.equal(colorLegibleSobreBlanco(undefined), TINTA)
+})
+
+test('colorTextoMarca oscurece hacia la tinta hasta 4.5:1 conservando matiz', () => {
+  const amarillo = colorTextoMarca('#FFD400')
+  assert.ok(ratioContraste(amarillo, '#FFFFFF') >= 4.5, amarillo)
+  const { r, b } = parseHex(amarillo)
+  assert.ok(r > b, 'conserva el matiz amarillo')
+  assert.equal(colorTextoMarca('#1F6B4F'), '#1F6B4F')
+  assert.equal(colorTextoMarca('rojo'), COLOR_POR_DEFECTO)
+  assert.ok(ratioContraste(colorTextoMarca('#FFFFFF'), '#FFFFFF') >= 4.5)
+})
+
+test('aplicarColorTema fija --color-primario-texto', () => {
+  const m = {}
+  const root = { style: { setProperty: (k, v) => { m[k] = v } } }
+  aplicarColorTema(root, '#FFD400')
+  assert.equal(m['--color-primario-texto'], colorTextoMarca('#FFD400'))
+  aplicarColorTema(root, '#1F6B4F')
+  assert.equal(m['--color-primario-texto'], '#1F6B4F')
 })
 
 test('aplicarColorTema fija las tres variables', () => {
@@ -54,4 +83,8 @@ test('los tokens de tokens.css cumplen WCAG AA (4.5:1) en sus pares de uso', () 
     assert.ok(r >= 4.5, `--${a} sobre --${b}: ${r.toFixed(2)}:1 (< 4.5)`)
   }
   assert.ok(ratioContraste('#FFFFFF', t['color-primario']) >= 4.5, 'blanco sobre el acento por defecto')
+  for (const sup of ['surface', 'surface-alt', 'surface-page']) {
+    const r = ratioContraste(t['line-control'], t[sup])
+    assert.ok(r >= 3, `--line-control sobre --${sup}: ${r.toFixed(2)}:1 (< 3)`)
+  }
 })

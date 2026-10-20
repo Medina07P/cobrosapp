@@ -14,16 +14,21 @@ h1, h2, h3 {
 
 .tabular { font-variant-numeric: tabular-nums; }
 
-/* Foco visible en todo elemento interactivo. !important porque varias vistas
-   aplican outline-none (Tailwind) o outline:none inline sin reemplazo. */
+/* Foco visible en todo elemento interactivo, independiente del color de marca:
+   anillo de tinta con halo de superficie para verse sobre fondos oscuros o de marca.
+   !important porque varias vistas aplican outline-none (Tailwind) o outline:none
+   inline sin reemplazo (se conserva solo por eso). */
 :focus-visible {
-  outline: 2px solid var(--color-primario) !important;
+  outline: 2px solid var(--ink) !important;
   outline-offset: 2px !important;
+  box-shadow: 0 0 0 5px var(--surface);
 }
+
+::placeholder { color: var(--ink-2); opacity: 1; }
 
 /* Utilidades de color de marca usadas por las vistas */
 .bg-brand { background-color: var(--color-primario) !important; }
-.text-brand { color: var(--color-primario) !important; }
+.text-brand { color: var(--color-primario-texto) !important; }
 .border-brand { border-color: var(--color-primario) !important; }
 .hover-brand:hover {
   filter: brightness(1.1);
