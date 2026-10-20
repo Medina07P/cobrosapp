@@ -12,6 +12,9 @@ Node.js HTTP nativo + SQLite + nodemailer + node-cron. Sin framework HTTP (no Ex
 npm run dev    # Desarrollo: node --watch index.js, puerto 3000
 npm start      # Producción: node index.js
 npm test       # Smoke test con JWT (ver tests_api_smoke.js)
+npm run test:unit        # cobros + perfil + mailer (sin base de datos)
+npm run test:security    # aislamiento entre usuarios, inyección, validación, cobro_desde, perfil
+npm run test:integration # scheduler con usuario temporal y correo simulado
 node check_db.js   # Inspeccionar tablas y datos en la consola
 node migrar.js     # Migración one-shot desde db.json legado (solo para datos históricos)
 ```
@@ -27,6 +30,7 @@ node migrar.js     # Migración one-shot desde db.json legado (solo para datos h
 | `db.js` | Capa repositorio: objetos `clientes`, `planes`, `suscripciones`, `historial`, `usuarios` |
 | `scheduler.js` | Cron diario con `node-cron`, función `procesarCobrosDelDia()`, mutex `procesandoCobros` |
 | `cobros.js` | Reglas puras de fechas de cobro: `tocaCobrarEn`, detección de vencidos y `planificarCobros` (tests: `npm run test:unit`) |
+| `perfil.js` | Validadores puros del perfil: color `#RRGGBB` y WhatsApp (solo dígitos, 8–15, con código de país). Tests: `npm run test:unit` |
 | `mailer.js` | Construye HTML del correo (con `escapeHtml`), envía vía SMTP por usuario o global |
 | `migrar.js` | Script one-shot para migrar datos desde `data/db.json` (formato anterior) a SQLite |
 | `check_db.js` | CLI para inspeccionar tablas y ver muestras de datos |
@@ -46,6 +50,7 @@ node migrar.js     # Migración one-shot desde db.json legado (solo para datos h
    try { db.prepare("ALTER TABLE tabla ADD COLUMN nuevo_campo TIPO").run(); } catch(e) {}
    ```
    Esto permite que instancias existentes se actualicen sin error.
+3. Si el campo se puede editar desde la API, agregarlo a `COLUMNAS` en `db.js` (lista blanca por tabla) y a los validadores de `create`/`update` de esa tabla; sin eso `update` lo ignora o la validación lo rechaza.
 
 ## Configuración SMTP
 
@@ -53,13 +58,15 @@ node migrar.js     # Migración one-shot desde db.json legado (solo para datos h
 - **Por usuario**: campo `usuarios.config_smtp` en DB (JSON string). `mailer.js` lo parsea y lo usa si existe; si no, cae al global.
 - Para Gmail: crear una "Contraseña de aplicación" (no la contraseña de la cuenta) con 2FA activo.
 
+- **WhatsApp**: el botón de WhatsApp de los correos usa `usuarios.whatsapp` (solo dígitos, 8–15, con código de país). Se edita en Configuración vía `PATCH /usuario/config-tema`; sin número, el correo no lleva botón.
+
 ## Notas del scheduler
 
 - Hora por defecto: 08:00 America/Bogota. Configurable con `CRON_HORA` y `CRON_MIN` en `.env`.
 - La decisión de qué enviar vive en `cobros.js` (`planificarCobros`), no en `scheduler.js`. `tocaCobrarEn(sus, fecha)` prioriza `fecha_alta` sobre `dia_cobro` del plan.
 - **Cobros vencidos:** el cron envía los cobros de hoy y reintenta los vencidos (día de cobro pasado sin envío `Enviado` en esa fecha o después) durante `COBROS_REINTENTO_DIAS` días (7 por defecto; 0 = solo hoy). Más allá de la ventana el cobro es "perdido": no se envía, solo aparece en `GET /cobros/resumen`.
 - Idempotencia en `/run` (endpoint manual): responde 409 solo cuando no hay nada nuevo que enviar y sí hay cobros de hoy ya enviados; entonces requiere `{ confirmarReenvio: true }`.
-- Reactivar una suscripción (`activa=1`) o registrar/editar `fecha_alta` con una fecha pasada puede generar al día siguiente un cobro 'vencido' (si el último día de cobro cae dentro de la ventana de reintento). Cambiar el día de `fecha_alta` después de enviar el cobro del periodo puede producir un segundo cobro en el mismo periodo.
+- `suscripciones.cobro_desde` se fija a hoy al crear, al reactivar (`activa` 0→1), al cambiar `fecha_alta` y, para todas las suscripciones del usuario a un plan, cuando cambia realmente su `frecuencia` o `dia_cobro`. Las reglas de `cobros.js` ignoran vencimientos anteriores a `cobro_desde`. La API nunca permite fijarlo. Cambiar el día de `fecha_alta` después de enviar el cobro del periodo puede producir un segundo cobro en el mismo periodo.
 - `COBROS_REINTENTO_DIAS=0` no muestra vencidos en `GET /cobros/resumen`: los cobros pasados sin enviar figuran en `perdidos`.
 - El mutex `procesandoCobros` es en memoria: no protege contra múltiples procesos Node.js.
 - Pruebas: `npm run test:unit` (lógica de fechas), `npm run test:integration` (scheduler con usuario temporal en la base de desarrollo y correo simulado), `npm test` (smoke de la API). Ninguna debe ejecutarse contra producción.
@@ -68,6 +75,21 @@ node migrar.js     # Migración one-shot desde db.json legado (solo para datos h
 
 - `JWT_SECRET` tiene fallback hardcodeado en `api.js:7` y `auth.js:5`. Siempre setear en `.env`.
 - El smoke test (`npm test`) usa un email con timestamp para no colisionar en re-ejecuciones, pero deja datos de prueba en la DB real. No ejecutar en producción.
-- `PUT /suscripciones/:id` no verifica que la suscripción pertenezca al usuario (`db.suscripciones.update` filtra solo por id). Pendiente de corregir; con el reintento de vencidos un cambio ajeno de `fecha_alta` o `activa` puede disparar un correo desde la cuenta de la víctima.
 - `database.js` usa siempre `data/sgcrc.db` (ignora `DB_PATH`): en el servidor, las pruebas `npm test` y `npm run test:integration` escribirían en la base de producción. No ejecutarlas allí.
 - El log `"✅ Base de datos refactorizada..."` aparece duplicado en `database.js:108-110` (líneas 108 y 110 son iguales; no afecta comportamiento).
+
+## Seguridad multi-tenant
+
+- Todo `update`/`delete` de clientes, planes y suscripciones filtra por `usuario_id`; un id ajeno responde 404.
+- `db.js` valida de forma estricta `create`/`update` (error `VALIDATION_ERROR` → 400 con mensaje en español). `suscripciones` verifica que `cliente_id` y `plan_id` sean del usuario.
+- Los nombres de columna de un UPDATE salen de la lista blanca `COLUMNAS`, nunca del cuerpo de la petición.
+- Errores: validación → 400; cualquier otro → 500 genérico `Error interno del servidor` (el detalle solo va al log). JSON malformado o cuerpo que no es objeto → 400.
+- `GET /usuario/perfil` devuelve solo `id, email, nombre, color_tema, whatsapp` (nunca password ni `config_smtp`). `PATCH /usuario/config-tema` (`nombre`, `color_tema` `#RRGGBB`, `whatsapp`) se valida y escribe en una transacción.
+- Pruebas: `npm run test:security` (usuarios temporales en la base de desarrollo; nunca en producción).
+
+## Problemas conocidos
+
+- Sin política de contraseña ni validación de email en el registro.
+- `JWT_SECRET` cae a una clave hardcodeada en `api.js`/`auth.js` (`index.js` solo advierte).
+- CORS abierto (`*`).
+- `procesarCobrosDelDia` registra `Fallido` si el correo salió pero falló la escritura en historial; un reintento puede duplicar el envío.

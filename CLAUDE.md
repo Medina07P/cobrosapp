@@ -42,7 +42,7 @@ No hay linter configurado (sin ESLint/Prettier). No hay framework de tests forma
 
 ### Multi-tenant
 
-Cada operación de datos filtra por `usuario_id`. El `usuario_id` viene del JWT que `api.js:obtenerUsuario()` verifica con `jwt.verify`. **Toda ruta nueva debe respetar este patrón**: obtener `usuario.id` del JWT verificado y pasarlo a la capa repositorio.
+Cada operación de datos filtra por `usuario_id`. El `usuario_id` viene del JWT que `api.js:obtenerUsuario()` verifica con `jwt.verify`. **Toda ruta nueva debe respetar este patrón**: obtener `usuario.id` del JWT verificado y pasarlo a la capa repositorio. Todo `update`/`delete` también filtra por `usuario_id` (un id de otro usuario responde 404) y las columnas editables deben estar en la lista blanca `COLUMNAS` de `backend/db.js`.
 
 ### Router HTTP imperativo
 

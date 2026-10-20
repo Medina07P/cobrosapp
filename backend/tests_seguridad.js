@@ -328,6 +328,10 @@ async function run() {
     esperar(await json(port, 'PATCH', CT, { whatsapp: null }, A.token), 200, 'whatsapp null');
     assert.strictEqual(usuarioDb(A).whatsapp, null, 'whatsapp null se guarda como NULL');
 
+    // 15. Cuerpo `null` en /run-individual -> 400 (responde antes de enviar nada; /run no se prueba: puede enviar correo)
+    const rNulo = esperar(await request({ port, method: 'POST', path: '/run-individual', headers: cabeceras, body: 'null' }), 400, 'run-individual con cuerpo null');
+    assert.strictEqual(rNulo.error, 'Se requiere un arreglo de IDs');
+
     console.log('OK pruebas de seguridad');
   } finally {
     for (const correo of correos) database.prepare('DELETE FROM usuarios WHERE email = ?').run(correo); // borra todo en cascada

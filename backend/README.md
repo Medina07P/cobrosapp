@@ -90,6 +90,8 @@ PUT    /planes/:id           → Editar campos
 DELETE /planes/:id           → Eliminar (falla si hay suscripciones vinculadas)
 ```
 
+Errores comunes: `400` con mensaje en español si un valor no es válido (también JSON malformado o cuerpo que no es un objeto); `404` si el id no existe **o pertenece a otro usuario** (en `PUT` y `DELETE`); cualquier otro fallo responde `500 Error interno del servidor` sin detalles. `cobro_desde` de las suscripciones lo gestiona el servidor y no se puede enviar.
+
 Valores de `frecuencia`: `mensual` (default), `quincenal`, `semanal`, `anual`.
 
 ### Suscripciones
@@ -108,8 +110,11 @@ GET    /historial            → Listar todos los envíos del usuario (orden des
 ### Perfil de usuario
 ```
 GET    /usuario/perfil                    → Datos del usuario (sin password)
-POST   /usuario/config-tema               → { nombre?, color_tema? }
+PATCH  /usuario/config-tema               → { nombre?, color_tema?, whatsapp? }  (POST también se acepta)
 ```
+
+`GET /usuario/perfil` devuelve solo `id, email, nombre, color_tema, whatsapp` (nunca password ni `config_smtp`).  
+`color_tema` debe ser `#RRGGBB`. `whatsapp` son solo dígitos (8–15, con código de país, p. ej. `573001234567`); vacío o `null` lo borra y los correos salen sin botón de WhatsApp. Los datos se validan y se guardan en una sola transacción.
 
 ### Cobros
 ```
@@ -180,3 +185,16 @@ SQLite en `backend/data/sgcrc.db` (modo WAL, foreign keys ON).
 
 Tablas: `usuarios`, `clientes`, `planes`, `suscripciones`, `historial`.  
 Migraciones defensivas en `database.js` mediante bloques `ALTER TABLE … try/catch`.
+
+---
+
+## Pruebas
+
+```bash
+npm run test:unit         # cobros + perfil + mailer (sin base de datos)
+npm run test:security     # aislamiento entre usuarios, inyección, validación, cobro_desde, perfil
+npm run test:integration  # scheduler con correo simulado
+npm test                  # smoke de la API
+```
+
+**Advertencia:** `test:security`, `test:integration` y `npm test` crean usuarios temporales en la base de desarrollo `data/sgcrc.db` (`database.js` ignora `DB_PATH`). No ejecutarlos nunca en el servidor de producción.

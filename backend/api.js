@@ -242,7 +242,7 @@ async function handler(req, res) {
 
     // ── 7. PROCESOS DE COBRO ──
     if (pathname === "/run-individual" && method === "POST") {
-      const body = await parseBody(req).catch(() => ({}));
+      const body = (await parseBody(req).catch(() => ({}))) || {};
       if (!body.ids || !Array.isArray(body.ids)) {
         return json(res, 400, { error: "Se requiere un arreglo de IDs" });
       }
@@ -257,7 +257,7 @@ async function handler(req, res) {
     if (pathname === "/run" && method === "POST") {
       if (estaProcesandoCobros()) return json(res, 409, { error: "El proceso ya está en ejecución" });
 
-      const body = await parseBody(req).catch(() => ({}));
+      const body = (await parseBody(req).catch(() => ({}))) || {};
 
       // Solo se pide confirmación cuando no hay nada nuevo que enviar y sí hay cobros de hoy ya enviados
       const plan = previsualizarCobros(usuario.id, false);
