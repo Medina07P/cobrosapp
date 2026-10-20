@@ -52,7 +52,25 @@ export default function Dialog({ abierto, titulo, onCerrar, cerrable = true, pie
       }
     }
     document.addEventListener('keydown', alTeclear)
+
+    // Chrome dispara focusout (relatedTarget null) de forma asíncrona cuando el botón enfocado pasa
+    // a disabled; el diálogo es modal, así que el foco que sale se devuelve (tras un tick).
+    let activo = true
+    let temporizador = null
+    const alPerderFoco = (e) => {
+      if (pila[pila.length - 1] !== ficha) return
+      if (e.relatedTarget && el.contains(e.relatedTarget)) return
+      clearTimeout(temporizador)
+      temporizador = setTimeout(() => {
+        if (!activo || pila[pila.length - 1] !== ficha) return
+        if (!el.contains(document.activeElement)) el.focus()
+      }, 0)
+    }
+    el.addEventListener('focusout', alPerderFoco)
     return () => {
+      activo = false
+      clearTimeout(temporizador)
+      el.removeEventListener('focusout', alPerderFoco)
       document.removeEventListener('keydown', alTeclear)
       const i = pila.indexOf(ficha)
       if (i !== -1) pila.splice(i, 1)
@@ -62,19 +80,12 @@ export default function Dialog({ abierto, titulo, onCerrar, cerrable = true, pie
     }
   }, [abierto])
 
-  // Tras cada render: si el foco se perdió (p. ej. los botones pasaron a disabled), volver al diálogo.
-  // Solo el diálogo de arriba reclama el foco. Chrome mueve el foco a body de forma asíncrona al
-  // deshabilitar el elemento enfocado, por eso además de la comprobación inmediata hay una diferida.
+  // Tras cada render: si el foco ya quedó fuera del diálogo, volver a él (solo el de arriba).
+  // La pérdida asíncrona de foco al deshabilitar botones la cubre el focusout del efecto principal.
   useEffect(() => {
-    if (!abierto) return undefined
-    const recuperarFoco = () => {
-      if (!raiz.current) return
-      if (pila[pila.length - 1] !== fichaRef.current) return
-      if (!raiz.current.contains(document.activeElement)) raiz.current.focus()
-    }
-    recuperarFoco()
-    const cuadro = requestAnimationFrame(recuperarFoco)
-    return () => cancelAnimationFrame(cuadro)
+    if (!abierto || !raiz.current) return
+    if (pila[pila.length - 1] !== fichaRef.current) return
+    if (!raiz.current.contains(document.activeElement)) raiz.current.focus()
   })
 
   if (!abierto) return null
