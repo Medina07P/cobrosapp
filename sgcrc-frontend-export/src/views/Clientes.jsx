@@ -27,6 +27,7 @@ export default function Clientes() {
   const [busqueda, setBusqueda] = useState('')
   const [aEliminar, setAEliminar] = useState(null)
   const [eliminando, setEliminando] = useState(false)
+  const [nombreEliminar, setNombreEliminar] = useState('')
   const formRef = useRef(null)
 
   const cargar = async () => {
@@ -40,6 +41,17 @@ export default function Clientes() {
     } finally {
       setCargando(false)
     }
+  }
+
+  const reintentar = () => {
+    setCargando(true)
+    setErrorCarga('')
+    cargar()
+  }
+
+  const pedirEliminar = (c) => {
+    setNombreEliminar(c.nombre)
+    setAEliminar(c)
   }
 
   useEffect(() => { cargar() }, [])
@@ -122,6 +134,10 @@ export default function Clientes() {
       toast.exito('Cliente eliminado.')
       if (editando && editando.id === aEliminar.id) limpiarForm()
       await cargar()
+      requestAnimationFrame(() => {
+        const el = document.getElementById('cliente-buscar') || document.getElementById('cliente-nombre')
+        el?.focus()
+      })
     } catch (err) {
       toast.error(err.message)
     } finally {
@@ -134,7 +150,7 @@ export default function Clientes() {
   if (cargando) {
     lista = <Skeleton />
   } else if (errorCarga) {
-    lista = <ErrorMsg msg={errorCarga} onRetry={cargar} />
+    lista = <ErrorMsg msg={errorCarga} onRetry={reintentar} />
   } else if (clientes.length === 0) {
     lista = (
       <EmptyState
@@ -161,7 +177,7 @@ export default function Clientes() {
         </div>
         {filtrados.length === 0 ? (
           <EmptyState icono="magnifying-glass" nivel={2} titulo="Sin resultados">
-            {`Ningún cliente coincide con «${busqueda}».`}
+            {`Ningún cliente coincide con «${busqueda.trim()}».`}
           </EmptyState>
         ) : (
           <div className="tabla-wrap" tabIndex={0} role="region" aria-label="Lista de clientes">
@@ -182,8 +198,8 @@ export default function Clientes() {
                     <td data-label="Correo">{c.correo}</td>
                     <td data-label="Suscripciones activas" className="num">{porCliente[c.id] || 0}</td>
                     <td data-label="Acciones" className="acciones">
-                      <Button variante="secundario" tam="sm" icono="pencil-simple" aria-label={`Editar a ${c.nombre}`} onClick={() => editar(c)}>Editar</Button>
-                      <Button variante="peligro" tam="sm" icono="trash" aria-label={`Eliminar a ${c.nombre}`} onClick={() => setAEliminar(c)}>Eliminar</Button>
+                      <Button variante="secundario" tam="sm" icono="pencil-simple" aria-label={`Editar a ${c.nombre}`} disabled={guardando} onClick={() => editar(c)}>Editar</Button>
+                      <Button variante="peligro" tam="sm" icono="trash" aria-label={`Eliminar a ${c.nombre}`} onClick={() => pedirEliminar(c)}>Eliminar</Button>
                     </td>
                   </tr>
                 ))}
@@ -229,7 +245,7 @@ export default function Clientes() {
             <Button type="submit" cargando={guardando} icono={editando ? 'check' : 'plus'}>
               {editando ? 'Guardar cambios' : 'Crear cliente'}
             </Button>
-            {editando && <Button variante="secundario" onClick={cancelar}>Cancelar</Button>}
+            {editando && <Button variante="secundario" disabled={guardando} onClick={cancelar}>Cancelar</Button>}
           </div>
         </form>
       </section>
@@ -245,7 +261,7 @@ export default function Clientes() {
         onConfirmar={eliminar}
         onCancelar={() => setAEliminar(null)}
       >
-        {aEliminar ? `¿Eliminar a ${aEliminar.nombre}? Esta acción no se puede deshacer.` : ''}
+        {`¿Eliminar a ${nombreEliminar}? Esta acción no se puede deshacer.`}
       </ConfirmDialog>
     </div>
   )
