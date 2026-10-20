@@ -95,3 +95,14 @@ test('pausar cancela los temporizadores y reanudar los reprograma sin cerrar nad
   t.reanudar()
   assert.equal(f.tareas.size, 2)
 })
+
+test('mostrar mientras está en pausa agrega el aviso sin programar su cierre; reanudar lo programa', () => {
+  const f = falsos()
+  const t = crearTostadas({ programar: f.programar, cancelar: f.cancelar })
+  t.pausar()
+  t.mostrar('x')
+  assert.equal(f.tareas.size, 0)
+  assert.deepEqual(t.getSnapshot().map((x) => x.mensaje), ['x'])
+  t.reanudar()
+  assert.equal(f.tareas.size, 1)
+})

@@ -37,7 +37,8 @@ export function validarSuscripcion({ cliente_id, plan_id, fecha_alta }) {
 export function validarPerfil({ nombre, whatsapp }) {
   const e = {}
   if (vacio(nombre)) e.nombre = 'Escribe el nombre de tu negocio.'
-  const w = (whatsapp ?? '').trim()
+  else if (nombre.trim().length > 120) e.nombre = 'El nombre no puede superar 120 caracteres.'
+  const w = String(whatsapp ?? '').trim()
   if (w !== '' && !/^\d{8,15}$/.test(w)) e.whatsapp = 'Escribe solo dígitos, con código de país (8 a 15).'
   return e
 }
