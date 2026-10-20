@@ -63,6 +63,7 @@ export default function Dashboard() {
     try {
       const res = await api.runCobros({ confirmarReenvio })
       setReenvio(null)
+      setLoadingProceso(false)
       toast.exito(res.message || 'Proceso completado exitosamente')
       await cargar()
     } catch (err) {

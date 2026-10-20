@@ -63,11 +63,18 @@ export default function Dialog({ abierto, titulo, onCerrar, cerrable = true, pie
   }, [abierto])
 
   // Tras cada render: si el foco se perdió (p. ej. los botones pasaron a disabled), volver al diálogo.
-  // Solo el diálogo de arriba reclama el foco.
+  // Solo el diálogo de arriba reclama el foco. Chrome mueve el foco a body de forma asíncrona al
+  // deshabilitar el elemento enfocado, por eso además de la comprobación inmediata hay una diferida.
   useEffect(() => {
-    if (!abierto || !raiz.current) return
-    if (pila[pila.length - 1] !== fichaRef.current) return
-    if (!raiz.current.contains(document.activeElement)) raiz.current.focus()
+    if (!abierto) return undefined
+    const recuperarFoco = () => {
+      if (!raiz.current) return
+      if (pila[pila.length - 1] !== fichaRef.current) return
+      if (!raiz.current.contains(document.activeElement)) raiz.current.focus()
+    }
+    recuperarFoco()
+    const cuadro = requestAnimationFrame(recuperarFoco)
+    return () => cancelAnimationFrame(cuadro)
   })
 
   if (!abierto) return null
