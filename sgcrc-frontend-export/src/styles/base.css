@@ -1,3 +1,17 @@
+/* Reset mínimo (sustituye al preflight del CDN de Tailwind, ya retirado). */
+*, ::before, ::after { box-sizing: border-box; border-width: 0; border-style: solid; border-color: currentColor; }
+html { line-height: 1.5; -webkit-text-size-adjust: 100%; }
+h1, h2, h3, h4, h5, h6 { font-size: inherit; font-weight: inherit; margin: 0; }
+p, figure, blockquote, dl, dd, pre { margin: 0; }
+ul, ol, menu { list-style: none; margin: 0; padding: 0; }
+a { color: inherit; text-decoration: inherit; }
+button, input, select, textarea { font: inherit; color: inherit; margin: 0; padding: 0; line-height: inherit; }
+button, [role="button"] { cursor: pointer; background: transparent; }
+button:disabled { cursor: default; }
+table { border-collapse: collapse; border-color: inherit; text-indent: 0; }
+img, svg, video, canvas { display: block; max-width: 100%; }
+[hidden] { display: none; }
+
 body {
   margin: 0;
   background: var(--surface-page);
@@ -16,8 +30,7 @@ h1, h2, h3 {
 
 /* Foco visible en todo elemento interactivo, independiente del color de marca:
    anillo de tinta con halo de superficie para verse sobre fondos oscuros o de marca.
-   !important porque varias vistas aplican outline-none (Tailwind) o outline:none
-   inline sin reemplazo (se conserva solo por eso). */
+   !important porque algún estilo propio puede quitar el outline sin reemplazo. */
 :focus-visible {
   outline: 2px solid var(--ink) !important;
   outline-offset: 2px !important;
