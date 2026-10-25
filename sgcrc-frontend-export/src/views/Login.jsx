@@ -53,11 +53,17 @@ export default function Login({ onLogin }) {
     const payload = isRegister ? { email: emailLimpio, password, nombre: nombre.trim() } : { email: emailLimpio, password }
 
     try {
-      const res = await fetch(`${API_URL}${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
+      let res
+      try {
+        res = await fetch(`${API_URL}${endpoint}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+      } catch (e) {
+        e.esRed = true // mensajeError solo traduce como fallo de red lo que viene marcado
+        throw e
+      }
       const text = await res.text()
       let data = {}
       if (text) {

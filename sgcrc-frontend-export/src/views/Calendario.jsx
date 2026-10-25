@@ -133,16 +133,16 @@ export default function Calendario() {
             {diasConCobros.length === 0 ? (
               <p className="cal-detalle-vacio">Este mes no tiene cobros</p>
             ) : diasConCobros.map((dia) => {
-              const datos = cobrosPorDia[dia]
+              const delDia = cobrosPorDia[dia]
               const esHoy = dia === hoy.getDate() && view.month === hoy.getMonth() && view.year === hoy.getFullYear()
               return (
                 <article key={dia} className={`cal-agenda-dia${esHoy ? ' cal-agenda-hoy' : ''}`} aria-current={esHoy ? 'date' : undefined}>
                   <h3 className="cal-agenda-titulo">
                     {etiquetaAgenda(view.year, view.month, dia)}{esHoy && ' (hoy)'}
                     <span className="sr-only">, total </span>
-                    <span className="cal-agenda-total">{fmt(datos.total)}</span>
+                    <span className="cal-agenda-total">{fmt(delDia.total)}</span>
                   </h3>
-                  {datos.items.map((s, idx) => (
+                  {delDia.items.map((s, idx) => (
                     <div key={`${s.id}-${idx}`} className="cal-item">
                       <div className="cal-item-cab">
                         <div className="cal-item-nombre">{s.cl?.nombre || 'Cliente eliminado'}</div>

@@ -128,7 +128,7 @@ export default function Dashboard() {
       />
       {sinAccion && <p id="dash-sin-pendientes" className="dash-aviso">No hay cobros pendientes de enviar hoy.</p>}
 
-      {error && <ErrorMsg msg={error} onRetry={cargar} cargando={cargando} />}
+      {error && <ErrorMsg msg={error} onRetry={reintentar} cargando={cargando} />}
 
       <section aria-labelledby="dash-hoy">
         <h2 id="dash-hoy" className="panel-titulo" tabIndex={-1}>Hoy</h2>

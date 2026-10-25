@@ -22,14 +22,14 @@ npm run preview  # Preview del build local
 | `styles/` | `tokens.css` (variables CSS), `base.css` (estilos base), `ui.css` (clases de los componentes base y de estructura de vistas) y `shell.css` (shell: sidebar clara, barra superior y barra inferior móviles, y `.acceso*` del login) |
 | `lib/colorTema.js` | `aplicarColorTema`, `parseHex`, `ratioContraste`, `textoSobre`, `COLOR_POR_DEFECTO`, `TINTA`, más `colorLegibleSobreBlanco` (color de marca si contrasta >= 4.5 con blanco, si no `TINTA`; mismo contrato que `backend/perfil.js`) y `colorTextoMarca` (variante del color mezclada con la tinta hasta contrastar >= 4.5 sobre blanco, `--surface-page` y `--surface-alt`; alimenta `--color-primario-texto`). Tests: `npm test` |
 | `lib/contrasteCorreo.js` | `estadoContrasteCorreo(hex)`: `{ ratio, suficiente, textoBoton, colorMonto }` con la regla real del correo (contraste del texto del botón; el monto cae a tinta si el color no contrasta con blanco) |
-| `lib/errores.js` | `mensajeError(e)`: texto en español para cualquier error capturado (red/`TypeError`, `SyntaxError` por respuesta no JSON, `Error NNN` sin cuerpo JSON como lo construye `api.js`; el resto conserva el mensaje del backend) |
+| `lib/errores.js` | `mensajeError(e)`: texto en español para cualquier error capturado (red: errores marcados `esRed` por `api.js`/Login; respuesta no JSON marcada `respuestaInvalida`; un `TypeError`/`SyntaxError` sin marca es un bug y da el texto genérico; `Error NNN` sin cuerpo JSON como lo construye `api.js`; el resto conserva el mensaje del backend) |
 | `lib/historial.js` | Lógica pura del Historial: `enriquecerHistorial`, `indexarPorId`, `limitarFilas` (`LIMITE_FILAS` = 100), `fechaHistorial`, `textoRegistros` |
-| `lib/calendario.js` | Lógica pura del Calendario: fechas locales, rejilla del mes, `agruparCobrosPorDia` y `tocaCobrarEn`, réplica exacta de `backend/cobros.js` (una prueba de paridad en `calendario.test.js` las compara) |
+| `lib/calendario.js` | Lógica pura del Calendario: fechas locales, rejilla del mes, `agruparCobrosPorDia`, `indexarEnvios`/`estadoEnvio` (estado real de envío por día de Bogotá) y `tocaCobrarEn`, réplica exacta de `backend/cobros.js` (una prueba de paridad en `calendario.test.js` las compara) |
 | `lib/dashboard.js` | Lógica pura del Dashboard: `aISOLocal`, `sumarDiasISO`, `proximosCobros(subs, clientes, desdeISO, { max, ventana })` (una fila por suscripción activa, primera fecha de cobro en la ventana de 60 días según `tocaCobrarEn`) y `textoDias` (`Hoy`, `Mañana`, `En N días`). Tests: `npm test` |
 | `lib/navegacion.js` | `NAV` (los 7 destinos), `IDS_BARRA_MOVIL`, `particionarNav` (`{ barra, mas }`) y `vistaEnMas`: reparto de destinos entre la barra inferior y "Más" en móvil. Tests: `npm test` |
 | `lib/validaciones.js` | `validarCliente`, `validarPlan`, `validarSuscripcion`, `validarPerfil`: espejo de las reglas del backend; devuelven un objeto `{campo: mensaje}` (vacío si es válido) |
 | `lib/formularios.js` | `enfocarPrimerInvalido(contenedor)` (y `primerInvalido`): enfoca el primer campo con error |
-| `lib/formato.js` | `fmt` (moneda COP), `fmtFecha` (`AAAA-MM-DD` a `DD/MM/AAAA`, sin desfase de zona horaria) `diaEnZona(isoUtc, zona?)` (día `AAAA-MM-DD` en America/Bogota) y `esDelDia(isoUtc, diaISO, zona?)` |
+| `lib/formato.js` | `fmt` (moneda COP), `fmtFecha` (`AAAA-MM-DD` a `DD/MM/AAAA`, sin desfase de zona horaria), `diaEnZona(isoUtc, zona?)` (día `AAAA-MM-DD` en America/Bogota) y `esDelDia(isoUtc, diaISO, zona?)` |
 | `lib/carga.js`, `lib/useCarga.js` | `reducirCarga` (puro, con pruebas) y el hook `useCarga(cargador, { avisoConDatos })` → `{ datos, cargando, error, hayDatos, cargar, reintentar, setDatos }`; patrón de carga único de las vistas |
 | `lib/toastStore.js`, `lib/focoDialog.js` | Almacén de toasts y trampa de foco (con pruebas, `npm test`) |
 | `ui/Icon.jsx` | Componente de iconos; `npm run icons` regenera `ui/icons.generated.js` |
@@ -132,9 +132,9 @@ createMiRecurso: (data) => req('POST', '/mi-recurso', data),
 - Nunca llamar a `setProperty('--color-primario', ...)` directamente. No hardcodear colores de marca.
 - En `ui/*`, el shell y las vistas migradas se usan las clases de `ui.css`/`shell.css` y variables CSS, sin Tailwind. El Dashboard ya sigue el mismo patrón.
 
-## Tailwind por CDN
+## Tailwind
 
-Tailwind sigue cargándose desde CDN en `index.html`, pero ninguna vista lo usa ya (pendiente retirarlo). **No hay `tailwind.config.js` ni PostCSS instalado.** No agregar esos archivos esperando que funcionen — el build de Vite los ignorará ya que Tailwind no está en las dependencias. No usar Tailwind en código nuevo.
+Tailwind ya no se usa ni se carga (no hay `tailwind.config.js` ni PostCSS). No usarlo en código nuevo: el reset base está al inicio de `src/styles/base.css`.
 
 ## Sesión / Auth
 

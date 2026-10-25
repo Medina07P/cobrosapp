@@ -152,7 +152,7 @@ async function enviarCobro({ cliente, suscripcion, usuarioConfig }) {
   const transporter = crearTransporter(usuarioConfig);
   const frecuencia = (suscripcion.frecuencia || "Mensual");
   
-  // LEEMOS EL COLOR DEL USUARIO (SI NO EXISTE, INDIGO POR DEFECTO)
+  // LEEMOS EL COLOR DEL USUARIO (SI NO EXISTE, VERDE DE MARCA POR DEFECTO)
   const colorMarca = usuarioConfig.color_tema || COLOR_POR_DEFECTO;
 
   let fromEmail;

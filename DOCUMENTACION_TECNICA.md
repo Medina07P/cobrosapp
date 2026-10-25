@@ -25,7 +25,7 @@ Usuario remoto → HTTPS → Cloudflare → Túnel → Servidor local Ubuntu
 | Scheduler | `node-cron` (timezone America/Bogota) |
 | Gestor de procesos | PM2 (modo fork, instancia única) |
 | Frontend | React 18 + Vite |
-| Estilos | Tailwind CSS (CDN) |
+| Estilos | CSS propio (`src/styles/`, tokens y reset) |
 
 ## 4. Modelo de Datos (SQLite)
 
