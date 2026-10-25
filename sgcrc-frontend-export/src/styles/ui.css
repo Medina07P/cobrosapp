@@ -287,9 +287,7 @@ button.cal-celda { cursor: pointer; border-color: var(--line-control); }
 .cal-celda-sel .cal-num, .cal-celda-sel .cal-importe, .cal-celda-sel .cal-cuenta { color: var(--surface); }
 
 /* ---------- Dashboard ---------- */
-.hoy-franja, .negocio { display: grid; gap: 0.75rem; margin: 0; }
-.hoy-franja { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
-.negocio { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
+.hoy-franja, .negocio { display: grid; gap: 0.75rem; margin: 0; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
 .cifra { margin: 0; padding: 0.9rem 1.1rem; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
 .cifra-rotulo { margin: 0; font-size: 0.875rem; font-weight: 600; color: var(--ink-2); }
 .cifra-valor {

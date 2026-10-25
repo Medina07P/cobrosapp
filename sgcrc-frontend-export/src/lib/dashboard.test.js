@@ -57,3 +57,18 @@ test('proximosCobros: cliente inexistente y suscripción que aún no empieza', (
   assert.equal(r[0].fecha, '2026-12-03')
   assert.equal(r[0].cliente, 'Cliente eliminado')
 })
+
+test('proximosCobros: alta el día 31 cae en el último día de un mes corto', () => {
+  const r = proximosCobros([mensual(30, 1, 31)], clientes, '2026-11-25')
+  assert.equal(r.length, 1)
+  assert.equal(r[0].fecha, '2026-11-30')
+  assert.equal(r[0].dias, 5)
+})
+
+test('proximosCobros: quincenal toma el día base y el día base + 15', () => {
+  const q = mensual(31, 1, 10, { frecuencia: 'quincenal' })
+  const r = proximosCobros([q], clientes, '2026-10-11')
+  assert.equal(r.length, 1)
+  assert.equal(r[0].fecha, '2026-10-25')
+  assert.equal(r[0].dias, 14)
+})

@@ -56,12 +56,20 @@ export default function Dashboard() {
       setLoadingProceso(false)
       toast.exito(res.message || 'Proceso completado exitosamente')
       await cargar()
+      // El diálogo devuelve el foco al botón, que tras la recarga puede quedar deshabilitado: lo movemos al contenido.
+      requestAnimationFrame(() => {
+        if (!montado.current) return
+        const destino = document.getElementById('dash-hoy') || document.getElementById('contenido')
+        destino?.focus()
+      })
     } catch (err) {
       const errorStatus = err.response?.status || err.status
       const errorData = err.response?.data || err.data
+      if (!montado.current) return
       if (errorStatus === 409 && errorData?.requiereConfirmacion) {
         setResumenAbierto(false)
         setReenvio(errorData?.mensaje || 'Ya se procesaron cobros hoy.')
+        cargar() // los datos mostrados estaban obsoletos
       } else {
         setReenvio(null)
         setResumenAbierto(false)
@@ -97,7 +105,7 @@ export default function Dashboard() {
       perdidos,
       ventanaDias: resumen?.ventanaDias,
       pendientes: [...paraHoy, ...vencidos],
-      proximos: proximosCobros(suscripciones, clientes, aISOLocal(ahora)),
+      proximos: proximosCobros(suscripciones, clientes, resumen?.hoy || aISOLocal(ahora)),
     }
   }, [data])
 
@@ -109,6 +117,8 @@ export default function Dashboard() {
   )
 
   const hayPendientes = stats.pendientes.length > 0
+  const puedeReenviar = !hayPendientes && stats.enviados > 0
+  const sinAccion = !hayPendientes && !puedeReenviar
   const mes = new Date().toLocaleDateString('es-CO', { month: 'long', year: 'numeric' })
 
   return (
@@ -119,20 +129,22 @@ export default function Dashboard() {
         acciones={
           <Button
             variante="secundario" icono="paper-plane-tilt"
-            disabled={!hayPendientes} onClick={() => setResumenAbierto(true)}
+            disabled={sinAccion} cargando={loadingProceso && puedeReenviar}
+            aria-describedby={sinAccion ? 'dash-sin-pendientes' : undefined}
+            onClick={() => (hayPendientes ? setResumenAbierto(true) : handleForzarCobros(false))}
           >
-            Revisar y enviar cobros de hoy
+            {puedeReenviar ? 'Reenviar cobros de hoy' : 'Revisar y enviar cobros de hoy'}
           </Button>
         }
       />
-      {!hayPendientes && <p className="dash-aviso">No hay cobros pendientes de enviar hoy.</p>}
+      {sinAccion && <p id="dash-sin-pendientes" className="dash-aviso">No hay cobros pendientes de enviar hoy.</p>}
 
       {error && <ErrorMsg msg={error} onRetry={cargar} />}
 
       <section aria-labelledby="dash-hoy">
-        <h2 id="dash-hoy" className="panel-titulo">Hoy</h2>
+        <h2 id="dash-hoy" className="panel-titulo" tabIndex={-1}>Hoy</h2>
         <dl className="hoy-franja">
-          <Cifra rotulo="A cobrar hoy" valor={stats.paraHoy.length} sub={fmt(suma(stats.paraHoy))} />
+          <Cifra rotulo="Pendientes hoy" valor={stats.paraHoy.length} sub={fmt(suma(stats.paraHoy))} />
           <Cifra rotulo="Vencidos" valor={stats.vencidos.length} mal={stats.vencidos.length > 0} />
           <Cifra rotulo="Enviados hoy" valor={stats.enviados} />
           <Cifra rotulo="Fallidos" valor={stats.fallidos} />
