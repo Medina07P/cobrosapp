@@ -11,6 +11,7 @@ import EmptyState from '../ui/EmptyState.jsx'
 import { fmt, fmtFecha, esHoyLocal } from '../lib/formato.js'
 import { mensajeError } from '../lib/errores.js'
 import { aISOLocal, proximosCobros, textoDias } from '../lib/dashboard.js'
+import { useCarga } from '../lib/useCarga.js'
 
 const suma = (items) => items.reduce((a, i) => a + (Number(i.monto) || 0), 0)
 
@@ -25,27 +26,20 @@ function Cifra({ rotulo, valor, sub, mal = false }) {
 }
 
 export default function Dashboard() {
-  const [data, setData] = useState(null)
-  const [error, setError] = useState('')
+  const { datos: data, cargando, error, cargar, reintentar } = useCarga(async () => {
+    const [clientes, suscripciones, historial, resumen] = await Promise.all([
+      api.getClientes(), api.getSuscripciones(), api.getHistorial(), api.getResumenCobros(),
+    ])
+    return { clientes, suscripciones, historial, resumen }
+  }, { avisoConDatos: 'error' })
   const [loadingProceso, setLoadingProceso] = useState(false)
   const [reenvio, setReenvio] = useState(null)
   const [resumenAbierto, setResumenAbierto] = useState(false)
   const montado = useRef(true)
-
-  const cargar = async () => {
-    setError('')
-    try {
-      const [clientes, suscripciones, historial, resumen] = await Promise.all([
-        api.getClientes(),
-        api.getSuscripciones(),
-        api.getHistorial(),
-        api.getResumenCobros(),
-      ])
-      if (montado.current) setData({ clientes, suscripciones, historial, resumen })
-    } catch (e) {
-      if (montado.current) setError(mensajeError(e))
-    }
-  }
+  useEffect(() => {
+    montado.current = true
+    return () => { montado.current = false }
+  }, [])
 
   const handleForzarCobros = async (confirmarReenvio = false) => {
     setLoadingProceso(true)
@@ -80,12 +74,6 @@ export default function Dashboard() {
     }
   }
 
-  useEffect(() => {
-    montado.current = true
-    cargar()
-    return () => { montado.current = false }
-  }, [])
-
   const stats = useMemo(() => {
     if (!data) return null
     const { clientes, suscripciones, historial, resumen } = data
@@ -112,7 +100,7 @@ export default function Dashboard() {
   if (!data) return (
     <div className="pagina">
       <PageHeader titulo="Dashboard" />
-      {error ? <ErrorMsg msg={error} onRetry={cargar} /> : <Skeleton />}
+      {error ? <ErrorMsg msg={error} onRetry={reintentar} cargando={cargando} /> : <Skeleton />}
     </div>
   )
 
@@ -139,7 +127,7 @@ export default function Dashboard() {
       />
       {sinAccion && <p id="dash-sin-pendientes" className="dash-aviso">No hay cobros pendientes de enviar hoy.</p>}
 
-      {error && <ErrorMsg msg={error} onRetry={cargar} />}
+      {error && <ErrorMsg msg={error} onRetry={cargar} cargando={cargando} />}
 
       <section aria-labelledby="dash-hoy">
         <h2 id="dash-hoy" className="panel-titulo" tabIndex={-1}>Hoy</h2>

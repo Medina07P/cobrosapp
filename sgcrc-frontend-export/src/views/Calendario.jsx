@@ -1,45 +1,30 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useMemo } from 'react'
 import { api } from '../api.js'
 import Skeleton from '../ui/Skeleton.jsx'
 import ErrorMsg from '../ui/ErrorMsg.jsx'
 import EmptyState from '../ui/EmptyState.jsx'
 import Button from '../ui/Button.jsx'
 import PageHeader from '../ui/PageHeader.jsx'
-import { mensajeError } from '../lib/errores.js'
 import { fmt, fmtFecha } from '../lib/formato.js'
 import { MESES, rejillaMes, agruparCobrosPorDia, fechaLarga, etiquetaAgenda } from '../lib/calendario.js'
+import { useCarga } from '../lib/useCarga.js'
+
+const VACIO = []
 
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 const plural = (n) => `${n} ${n === 1 ? 'cobro' : 'cobros'}`
 
 export default function Calendario() {
-  const [subs, setSubs]         = useState([])
-  const [clientes, setClientes] = useState([])
-  const [error, setError]       = useState('')
-  const [cargado, setCargado]   = useState(false)
+  const { datos, hayDatos: cargado, cargando, error, reintentar } = useCarga(async () => {
+    const [subs, clientes] = await Promise.all([api.getSuscripciones(), api.getClientes()])
+    return { subs: subs.filter((x) => x.activa), clientes }
+  })
+  const subs = datos?.subs ?? VACIO
+  const clientes = datos?.clientes ?? VACIO
   const [selected, setSelected] = useState(null)
-  const enCurso = useRef(false)
 
   const hoy = new Date()
   const [view, setView] = useState({ month: hoy.getMonth(), year: hoy.getFullYear() })
-
-  // Solo se llama al montar y desde el reintento de la pantalla de error inicial.
-  const cargar = async () => {
-    if (enCurso.current) return
-    enCurso.current = true
-    setError('')
-    try {
-      const [s, c] = await Promise.all([api.getSuscripciones(), api.getClientes()])
-      setSubs(s.filter(x => x.activa)); setClientes(c)
-      setCargado(true)
-    } catch (e) {
-      setError(mensajeError(e))
-    } finally {
-      enCurso.current = false
-    }
-  }
-
-  useEffect(() => { cargar() }, [])
 
   const { dias: daysInMonth, desfase } = rejillaMes(view.year, view.month)
   const cobrosPorDia = useMemo(
@@ -63,7 +48,7 @@ export default function Calendario() {
 
   const cabecera = <PageHeader titulo="Calendario de Cobros" />
 
-  if (!cargado && error) return <div className="pagina">{cabecera}<ErrorMsg msg={error} onRetry={cargar} /></div>
+  if (!cargado && error) return <div className="pagina">{cabecera}<ErrorMsg msg={error} onRetry={reintentar} cargando={cargando} /></div>
   if (!cargado) return <div className="pagina">{cabecera}<Skeleton /></div>
   if (subs.length === 0) {
     return (
