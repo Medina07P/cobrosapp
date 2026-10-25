@@ -12,6 +12,7 @@ import { validarPerfil } from '../lib/validaciones.js'
 import { enfocarPrimerInvalido } from '../lib/formularios.js'
 import { aplicarColorTema, COLOR_POR_DEFECTO, parseHex } from '../lib/colorTema.js'
 import { estadoContrasteCorreo } from '../lib/contrasteCorreo.js'
+import { useCarga } from '../lib/useCarga.js'
 
 // Hexadecimal de 6 dígitos válido para mostrar y calcular; si el guardado es inválido, el color por defecto.
 function colorValido(hex) {
@@ -24,37 +25,18 @@ function colorValido(hex) {
 const fmtRatio = (n) => n.toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
 
 export default function Configuracion({ onGuardado }) {
-  const [perfil, setPerfil] = useState(null)
-  const [cargando, setCargando] = useState(true)
-  const [errorCarga, setErrorCarga] = useState('')
+  const { datos: perfil, setDatos: setPerfil, cargando, hayDatos, error: errorCarga, reintentar } = useCarga(async () => {
+    const data = await api.getPerfil()
+    return {
+      nombre: data?.nombre ?? '',
+      color_tema: data?.color_tema ?? COLOR_POR_DEFECTO,
+      whatsapp: data?.whatsapp ?? '',
+    }
+  })
   const [errores, setErrores] = useState({})
   const [guardando, setGuardando] = useState(false)
   const formRef = useRef(null)
   const previaRef = useRef(null)
-
-  const cargar = async () => {
-    try {
-      const data = await api.getPerfil()
-      setPerfil({
-        nombre: data?.nombre ?? '',
-        color_tema: data?.color_tema ?? COLOR_POR_DEFECTO,
-        whatsapp: data?.whatsapp ?? '',
-      })
-      setErrorCarga('')
-    } catch (e) {
-      setErrorCarga(mensajeError(e))
-    } finally {
-      setCargando(false)
-    }
-  }
-
-  const reintentar = () => {
-    setCargando(true)
-    setErrorCarga('')
-    cargar()
-  }
-
-  useEffect(() => { cargar() }, [])
 
   // La vista previa se acota a su elemento: la app entera solo cambia al guardar.
   const colorTema = perfil?.color_tema
@@ -92,10 +74,10 @@ export default function Configuracion({ onGuardado }) {
   }
 
   let contenido
-  if (cargando) {
+  if (!hayDatos && errorCarga) {
+    contenido = <ErrorMsg msg={errorCarga} onRetry={reintentar} cargando={cargando} />
+  } else if (!hayDatos) {
     contenido = <Skeleton />
-  } else if (errorCarga || !perfil) {
-    contenido = <ErrorMsg msg={errorCarga} onRetry={reintentar} />
   } else {
     const color = colorValido(perfil.color_tema)
     const { ratio, suficiente, colorMonto } = estadoContrasteCorreo(color)

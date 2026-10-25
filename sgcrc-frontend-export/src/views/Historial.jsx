@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { api } from '../api.js'
 import { EstadoBadge } from '../ui/Badge.jsx'
 import Skeleton from '../ui/Skeleton.jsx'
@@ -6,11 +6,11 @@ import ErrorMsg from '../ui/ErrorMsg.jsx'
 import EmptyState from '../ui/EmptyState.jsx'
 import Button from '../ui/Button.jsx'
 import PageHeader from '../ui/PageHeader.jsx'
-import { toast } from '../ui/Toast.jsx'
-import { mensajeError } from '../lib/errores.js'
 import { fmt } from '../lib/formato.js'
 import { enriquecerHistorial, limitarFilas, fechaHistorial, textoRegistros, LIMITE_FILAS } from '../lib/historial.js'
+import { useCarga } from '../lib/useCarga.js'
 
+const VACIO = []
 const FILTROS = ['todos', 'Enviado', 'Fallido']
 
 const SinDato = () => (
@@ -21,45 +21,16 @@ const SinDato = () => (
 )
 
 export default function Historial() {
-  const [historial, setHistorial] = useState([])
-  const [clientes, setClientes]   = useState([])
-  const [subs, setSubs]           = useState([])
-  const [cargando, setCargando]   = useState(true)
-  const [error, setError]         = useState('')
+  const { datos, cargando, hayDatos: conDatos, error, cargar, reintentar } = useCarga(async () => {
+    const [historial, clientes, subs] = await Promise.all([api.getHistorial(), api.getClientes(), api.getSuscripciones()])
+    return { historial, clientes, subs }
+  })
+  const historial = datos?.historial ?? VACIO
+  const clientes = datos?.clientes ?? VACIO
+  const subs = datos?.subs ?? VACIO
   const [filtro, setFiltro]       = useState('todos')
   const [visibles, setVisibles]   = useState(LIMITE_FILAS)
-  const [conDatos, setConDatos]   = useState(false)
-  const hayDatos = useRef(false)
-  const enCurso = useRef(false)
-  const montado = useRef(true)
   const pieRef = useRef(null)
-
-  const cargar = async () => {
-    if (enCurso.current) return
-    enCurso.current = true
-    setCargando(true); setError('')
-    try {
-      const [h, c, s] = await Promise.all([api.getHistorial(), api.getClientes(), api.getSuscripciones()])
-      if (!montado.current) return
-      setHistorial(h); setClientes(c); setSubs(s)
-      hayDatos.current = true
-      setConDatos(true)
-    } catch (e) {
-      if (!montado.current) return
-      // Con datos previos se conservan y se avisa con un toast; sin datos solo se muestra el error.
-      if (hayDatos.current) toast.error(mensajeError(e))
-      else setError(mensajeError(e))
-    } finally {
-      enCurso.current = false
-      if (montado.current) setCargando(false)
-    }
-  }
-
-  useEffect(() => {
-    montado.current = true
-    cargar()
-    return () => { montado.current = false }
-  }, [])
 
   const enriquecido = useMemo(() => enriquecerHistorial(historial, subs, clientes), [historial, subs, clientes])
   const filtrados = useMemo(
@@ -85,7 +56,7 @@ export default function Historial() {
 
   let cuerpo
   if (!conDatos && error) {
-    cuerpo = <ErrorMsg msg={error} onRetry={cargar} />
+    cuerpo = <ErrorMsg msg={error} onRetry={reintentar} cargando={cargando} />
   } else if (!conDatos) {
     cuerpo = <Skeleton />
   } else {
