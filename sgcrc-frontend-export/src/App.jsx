@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api, setApiKey } from './api.js'
 import { aplicarColorTema, COLOR_POR_DEFECTO } from './lib/colorTema.js'
+import { NAV } from './lib/navegacion.js'
 import Icon from './ui/Icon.jsx'
 import Logo from './ui/Logo.jsx'
 import Button from './ui/Button.jsx'
@@ -12,16 +13,6 @@ import Historial from './views/Historial.jsx'
 import Calendario from './views/Calendario.jsx'
 import Planes from './views/Planes.jsx'
 import Configuracion from './views/Configuracion.jsx'
-
-const NAV = [
-  { id: 'dashboard', label: 'Dashboard', icon: 'squares-four' },
-  { id: 'clientes', label: 'Clientes', icon: 'users' },
-  { id: 'planes', label: 'Planes', icon: 'tag' },
-  { id: 'suscripciones', label: 'Suscripciones', icon: 'arrows-clockwise' },
-  { id: 'historial', label: 'Historial', icon: 'clock-counter-clockwise' },
-  { id: 'calendario', label: 'Calendario', icon: 'calendar-blank' },
-  { id: 'configuracion', label: 'Configuración', icon: 'gear' },
-]
 
 const TITULO_BASE = 'SGCRC — Cobros Recurrentes'
 
