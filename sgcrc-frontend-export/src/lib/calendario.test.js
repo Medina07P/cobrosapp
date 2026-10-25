@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
-import { parseFechaLocal, diasDelMes, rejillaMes, agruparCobrosPorDia, fechaLarga, tocaCobrarEn } from './calendario.js'
+import { parseFechaLocal, diasDelMes, rejillaMes, agruparCobrosPorDia, fechaLarga, tocaCobrarEn, diaSemanaCorto, etiquetaAgenda } from './calendario.js'
 
 test('parseFechaLocal interpreta AAAA-MM-DD como fecha local, no UTC', () => {
   const d = parseFechaLocal('2026-10-05')
@@ -127,4 +127,15 @@ test('PARIDAD: tocaCobrarEn del frontend es idéntica a la del backend', (t) => 
   }
   assert.ok(comparaciones > 500000)
   assert.deepEqual(difs, [])
+})
+
+test('diaSemanaCorto: usa el día local de la semana', () => {
+  assert.equal(diaSemanaCorto(2026, 9, 5), 'Lun')   // 5 de octubre de 2026
+  assert.equal(diaSemanaCorto(2026, 9, 4), 'Dom')
+  assert.equal(diaSemanaCorto(2026, 1, 28), 'Sáb')  // 28 de febrero de 2026
+})
+
+test('etiquetaAgenda: día corto, número y mes en minúscula, sin año', () => {
+  assert.equal(etiquetaAgenda(2026, 9, 5), 'Lun 5 de octubre')
+  assert.equal(etiquetaAgenda(2026, 11, 31), 'Jue 31 de diciembre')
 })

@@ -7,7 +7,7 @@ import Button from '../ui/Button.jsx'
 import PageHeader from '../ui/PageHeader.jsx'
 import { mensajeError } from '../lib/errores.js'
 import { fmt, fmtFecha } from '../lib/formato.js'
-import { MESES, rejillaMes, agruparCobrosPorDia, fechaLarga } from '../lib/calendario.js'
+import { MESES, rejillaMes, agruparCobrosPorDia, fechaLarga, etiquetaAgenda } from '../lib/calendario.js'
 
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 const plural = (n) => `${n} ${n === 1 ? 'cobro' : 'cobros'}`
@@ -45,6 +45,10 @@ export default function Calendario() {
   const cobrosPorDia = useMemo(
     () => agruparCobrosPorDia(subs, clientes, view.year, view.month),
     [subs, clientes, view.month, view.year]
+  )
+  const diasConCobros = useMemo(
+    () => Object.keys(cobrosPorDia).map(Number).sort((a, b) => a - b),
+    [cobrosPorDia]
   )
 
   const prev = () => { setSelected(null); setView(v => v.month === 0  ? { month: 11, year: v.year - 1 } : { month: v.month - 1, year: v.year }) }
@@ -126,6 +130,33 @@ export default function Calendario() {
               )
             })}
           </div>
+
+          <section className="cal-agenda" aria-label="Agenda del mes">
+            {diasConCobros.length === 0 ? (
+              <p className="cal-detalle-vacio">Este mes no tiene cobros</p>
+            ) : diasConCobros.map((dia) => {
+              const datos = cobrosPorDia[dia]
+              const esHoy = dia === hoy.getDate() && view.month === hoy.getMonth() && view.year === hoy.getFullYear()
+              return (
+                <article key={dia} className={`cal-agenda-dia${esHoy ? ' cal-agenda-hoy' : ''}`} aria-current={esHoy ? 'date' : undefined}>
+                  <h3 className="cal-agenda-titulo">
+                    {etiquetaAgenda(view.year, view.month, dia)}{esHoy && ' (hoy)'}
+                    <span className="cal-agenda-total">{fmt(datos.total)}</span>
+                  </h3>
+                  {datos.items.map((s, idx) => (
+                    <div key={`${s.id}-${idx}`} className="cal-item">
+                      <div className="cal-item-cab">
+                        <div className="cal-item-nombre">{s.cl?.nombre || 'Cliente eliminado'}</div>
+                        <span className="cal-chip">{s.frecuencia || 'mensual'}</span>
+                      </div>
+                      <div className="cal-item-tipo">{s.tipo}</div>
+                      <div className="cal-item-monto">{fmt(s.monto)}</div>
+                    </div>
+                  ))}
+                </article>
+              )
+            })}
+          </section>
         </div>
 
         <div className="panel cal-detalle" role="region" aria-label="Detalle del día">

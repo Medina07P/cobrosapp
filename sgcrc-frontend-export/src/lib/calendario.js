@@ -17,6 +17,14 @@ export const rejillaMes = (anio, mes) => ({ dias: diasDelMes(anio, mes), desfase
 // '15 de octubre de 2026'
 export const fechaLarga = (anio, mes, dia) => `${dia} de ${MESES[mes].toLowerCase()} de ${anio}`
 
+const DIAS_CORTOS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+
+export const diaSemanaCorto = (anio, mes, dia) => DIAS_CORTOS[new Date(anio, mes, dia).getDay()]
+
+// 'Lun 5 de octubre'
+export const etiquetaAgenda = (anio, mes, dia) =>
+  `${diaSemanaCorto(anio, mes, dia)} ${dia} de ${MESES[mes].toLowerCase()}`
+
 // Reglas de cobro idénticas a backend/cobros.js (tocaCobrarEn). Una prueba de paridad las compara.
 // iso: 'AAAA-MM-DD'. Usa UTC para el día de la semana y los días del mes, sin depender del huso.
 const partes = (iso) => {

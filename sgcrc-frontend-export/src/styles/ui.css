@@ -271,10 +271,16 @@ button.cal-celda { cursor: pointer; border-color: var(--line-control); }
 .cal-item-tipo { color: var(--ink-2); font-size: 0.875rem; }
 .cal-item-monto { color: var(--ink); font-variant-numeric: tabular-nums; }
 .cal-item-fecha { color: var(--ink-2); font-size: 0.8125rem; }
-@media (max-width: 40rem) {
+.cal-agenda { display: none; }
+@media (max-width: 47.9375rem) {
   .cal-panel { padding: 1rem; }
-  .cal-celda { padding: 0.3rem; min-height: 48px; }
-  .cal-importe, .cal-cuenta-txt { display: none; }
+  .cal-agenda { display: grid; gap: 0.75rem; }
+  .cal-semana, .cal-rejilla, .cal-detalle { display: none; }
+  .cal-layout { grid-template-columns: minmax(0, 1fr); }
+  .cal-agenda-dia { padding: 0.75rem 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+  .cal-agenda-hoy { border: 2px solid var(--ink); padding: calc(0.75rem - 1px) calc(1rem - 1px); }
+  .cal-agenda-titulo { display: flex; justify-content: space-between; gap: 0.75rem; margin: 0 0 0.25rem; font-size: 1rem; font-family: var(--font-ui); }
+  .cal-agenda-total { font-variant-numeric: tabular-nums; font-weight: 700; }
 }
 
 /* Selección: relleno sólido (distinto del borde de "hoy") con texto invertido */
