@@ -6,9 +6,8 @@ import EmptyState from '../ui/EmptyState.jsx'
 import Button from '../ui/Button.jsx'
 import PageHeader from '../ui/PageHeader.jsx'
 import { EstadoBadge } from '../ui/Badge.jsx'
-import { fmt, fmtFecha } from '../lib/formato.js'
+import { fmt, fmtFecha, diaEnZona } from '../lib/formato.js'
 import { MESES, rejillaMes, agruparCobrosPorDia, fechaLarga, etiquetaAgenda, indexarEnvios, estadoEnvio } from '../lib/calendario.js'
-import { aISOLocal } from '../lib/dashboard.js'
 import { useCarga } from '../lib/useCarga.js'
 
 const VACIO = []
@@ -35,7 +34,7 @@ export default function Calendario() {
   const [selected, setSelected] = useState(null)
 
   const hoy = new Date()
-  const hoyISO = aISOLocal(hoy)
+  const hoyISO = diaEnZona(hoy.toISOString())
   const [view, setView] = useState({ month: hoy.getMonth(), year: hoy.getFullYear() })
   const envios = useMemo(() => indexarEnvios(datos?.historial), [datos])
   const isoDia = (dia) => `${view.year}-${String(view.month + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`
