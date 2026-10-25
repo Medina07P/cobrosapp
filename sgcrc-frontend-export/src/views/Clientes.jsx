@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { api } from '../api.js'
 import PageHeader from '../ui/PageHeader.jsx'
 import { mensajeError } from '../lib/errores.js'
@@ -11,16 +11,20 @@ import Skeleton from '../ui/Skeleton.jsx'
 import { toast } from '../ui/Toast.jsx'
 import { validarCliente } from '../lib/validaciones.js'
 import { enfocarPrimerInvalido } from '../lib/formularios.js'
+import { useCarga } from '../lib/useCarga.js'
 
+const VACIO = []
 const FORM_VACIO = { nombre: '', correo: '' }
 
 const enfocarNombre = () => document.getElementById('cliente-nombre')?.focus()
 
 export default function Clientes() {
-  const [clientes, setClientes] = useState([])
-  const [subs, setSubs] = useState([])
-  const [cargando, setCargando] = useState(true)
-  const [errorCarga, setErrorCarga] = useState('')
+  const { datos, cargando, hayDatos, error: errorCarga, cargar, reintentar } = useCarga(async () => {
+    const [clientes, subs] = await Promise.all([api.getClientes(), api.getSuscripciones()])
+    return { clientes, subs }
+  })
+  const clientes = datos?.clientes ?? VACIO
+  const subs = datos?.subs ?? VACIO
   const [form, setForm] = useState(FORM_VACIO)
   const [errores, setErrores] = useState({})
   const [editando, setEditando] = useState(null)
@@ -31,36 +35,10 @@ export default function Clientes() {
   const [nombreEliminar, setNombreEliminar] = useState('')
   const formRef = useRef(null)
 
-  const hayDatos = useRef(false)
-
-  const cargar = async () => {
-    setErrorCarga('')
-    try {
-      const [c, s] = await Promise.all([api.getClientes(), api.getSuscripciones()])
-      setClientes(c)
-      setSubs(s)
-      hayDatos.current = true
-    } catch (e) {
-      // Tras una operación se conserva la lista y se avisa con un toast.
-      if (hayDatos.current) toast.error(mensajeError(e))
-      else setErrorCarga(mensajeError(e))
-    } finally {
-      setCargando(false)
-    }
-  }
-
-  const reintentar = () => {
-    setCargando(true)
-    setErrorCarga('')
-    cargar()
-  }
-
   const pedirEliminar = (c) => {
     setNombreEliminar(c.nombre)
     setAEliminar(c)
   }
-
-  useEffect(() => { cargar() }, [])
 
   const porCliente = useMemo(() => {
     const map = {}
@@ -153,10 +131,10 @@ export default function Clientes() {
   }
 
   let lista
-  if (cargando) {
+  if (!hayDatos && errorCarga) {
+    lista = <ErrorMsg msg={errorCarga} onRetry={reintentar} cargando={cargando} />
+  } else if (!hayDatos) {
     lista = <Skeleton />
-  } else if (errorCarga) {
-    lista = <ErrorMsg msg={errorCarga} onRetry={reintentar} />
   } else if (clientes.length === 0) {
     lista = (
       <EmptyState

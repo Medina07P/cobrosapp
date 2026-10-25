@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { api } from '../api.js'
 import PageHeader from '../ui/PageHeader.jsx'
 import { mensajeError } from '../lib/errores.js'
@@ -12,7 +12,9 @@ import { toast } from '../ui/Toast.jsx'
 import { validarPlan } from '../lib/validaciones.js'
 import { enfocarPrimerInvalido } from '../lib/formularios.js'
 import { fmt } from '../lib/formato.js'
+import { useCarga } from '../lib/useCarga.js'
 
+const VACIO = []
 const FORM_VACIO = { nombre_plan: '', monto: '', frecuencia: 'mensual', dia_cobro: 1 }
 
 const enfocarNombre = () => document.getElementById('plan-nombre')?.focus()
@@ -23,9 +25,8 @@ const capitalizar = (t) => {
 }
 
 export default function Planes() {
-  const [planes, setPlanes] = useState([])
-  const [cargando, setCargando] = useState(true)
-  const [errorCarga, setErrorCarga] = useState('')
+  const { datos, cargando, hayDatos, error: errorCarga, cargar, reintentar } = useCarga(() => api.getPlanes())
+  const planes = datos ?? VACIO
   const [form, setForm] = useState(FORM_VACIO)
   const [errores, setErrores] = useState({})
   const [editando, setEditando] = useState(null)
@@ -34,30 +35,6 @@ export default function Planes() {
   const [eliminando, setEliminando] = useState(false)
   const [nombreEliminar, setNombreEliminar] = useState('')
   const formRef = useRef(null)
-
-  const hayDatos = useRef(false)
-
-  const cargar = async () => {
-    setErrorCarga('')
-    try {
-      setPlanes(await api.getPlanes())
-      hayDatos.current = true
-    } catch (e) {
-      // Tras una operación se conserva la lista y se avisa con un toast.
-      if (hayDatos.current) toast.error(mensajeError(e))
-      else setErrorCarga(mensajeError(e))
-    } finally {
-      setCargando(false)
-    }
-  }
-
-  const reintentar = () => {
-    setCargando(true)
-    setErrorCarga('')
-    cargar()
-  }
-
-  useEffect(() => { cargar() }, [])
 
   const pedirEliminar = (p) => {
     setNombreEliminar(p.nombre_plan)
@@ -144,10 +121,10 @@ export default function Planes() {
   }
 
   let lista
-  if (cargando) {
+  if (!hayDatos && errorCarga) {
+    lista = <ErrorMsg msg={errorCarga} onRetry={reintentar} cargando={cargando} />
+  } else if (!hayDatos) {
     lista = <Skeleton />
-  } else if (errorCarga) {
-    lista = <ErrorMsg msg={errorCarga} onRetry={reintentar} />
   } else if (planes.length === 0) {
     lista = (
       <EmptyState

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { api } from '../api.js'
 import PageHeader from '../ui/PageHeader.jsx'
 import { mensajeError } from '../lib/errores.js'
@@ -13,6 +13,9 @@ import { toast } from '../ui/Toast.jsx'
 import { validarSuscripcion } from '../lib/validaciones.js'
 import { enfocarPrimerInvalido } from '../lib/formularios.js'
 import { fmt, fmtFecha } from '../lib/formato.js'
+import { useCarga } from '../lib/useCarga.js'
+
+const VACIO = []
 
 const enfocarCliente = () => document.getElementById('sub-cliente')?.focus()
 
@@ -46,11 +49,13 @@ export default function Suscripciones() {
     () => ({ cliente_id: '', plan_id: '', activa: true, descripcion: '', fecha_alta: hoy }),
     [hoy],
   )
-  const [subs, setSubs] = useState([])
-  const [clientes, setClientes] = useState([])
-  const [planes, setPlanes] = useState([])
-  const [cargando, setCargando] = useState(true)
-  const [errorCarga, setErrorCarga] = useState('')
+  const { datos, cargando, hayDatos, error: errorCarga, cargar, reintentar } = useCarga(async () => {
+    const [subs, clientes, planes] = await Promise.all([api.getSuscripciones(), api.getClientes(), api.getPlanes()])
+    return { subs, clientes, planes }
+  })
+  const subs = datos?.subs ?? VACIO
+  const clientes = datos?.clientes ?? VACIO
+  const planes = datos?.planes ?? VACIO
   const [form, setForm] = useState(formVacio)
   const [errores, setErrores] = useState({})
   const [editando, setEditando] = useState(null)
@@ -61,33 +66,6 @@ export default function Suscripciones() {
   const [eliminando, setEliminando] = useState(false)
   const [nombreEliminar, setNombreEliminar] = useState('')
   const formRef = useRef(null)
-
-  const hayDatos = useRef(false)
-
-  const cargar = async () => {
-    setErrorCarga('')
-    try {
-      const [s, c, p] = await Promise.all([api.getSuscripciones(), api.getClientes(), api.getPlanes()])
-      setSubs(s)
-      setClientes(c)
-      setPlanes(p)
-      hayDatos.current = true
-    } catch (e) {
-      // Tras una operación se conserva la lista y se avisa con un toast.
-      if (hayDatos.current) toast.error(mensajeError(e))
-      else setErrorCarga(mensajeError(e))
-    } finally {
-      setCargando(false)
-    }
-  }
-
-  const reintentar = () => {
-    setCargando(true)
-    setErrorCarga('')
-    cargar()
-  }
-
-  useEffect(() => { cargar() }, [])
 
   const nombreCliente = (s) => clientes.find((c) => c.id === s.cliente_id)?.nombre || 'Cliente eliminado'
 
@@ -364,10 +342,10 @@ export default function Suscripciones() {
   }
 
   let contenido
-  if (cargando) {
+  if (!hayDatos && errorCarga) {
+    contenido = <ErrorMsg msg={errorCarga} onRetry={reintentar} cargando={cargando} />
+  } else if (!hayDatos) {
     contenido = <Skeleton />
-  } else if (errorCarga) {
-    contenido = <ErrorMsg msg={errorCarga} onRetry={reintentar} />
   } else {
     contenido = (
       <>
