@@ -3,6 +3,9 @@ import { particionarNav, vistaEnMas } from '../lib/navegacion.js'
 import Icon from './Icon.jsx'
 import Button from './Button.jsx'
 
+// Etiqueta visible abreviada en la barra donde la completa no cabe en una quinta parte de 360 px (el nombre accesible sigue siendo el completo).
+const ETIQUETA_BARRA = { suscripciones: 'Suscrip.' }
+
 // Barra de navegación inferior (móvil) con un panel "Más" para los destinos restantes y "Salir".
 export default function NavMovil({ view, onNavegar, onSalir }) {
   const { barra, mas } = particionarNav()
@@ -32,16 +35,18 @@ export default function NavMovil({ view, onNavegar, onSalir }) {
   }, [abierto])
 
   const elegir = (id) => { setAbierto(false); onNavegar(id) }
+  // Desde el panel: si la vista ya es la activa, App no mueve el foco y el panel oculto lo dejaría en body.
+  const elegirEnPanel = (id) => { elegir(id); if (id === view) botonMas.current?.focus() }
   const salir = () => { setAbierto(false); onSalir() }
 
   return (
-    <div ref={contenedor} className="nav-movil-contenedor">
+    <div ref={contenedor}>
       <div id="panel-mas" ref={panel} className="panel-mas" hidden={!abierto}>
         {mas.map((n) => (
           <button
             key={n.id} type="button" className="nav-item"
             aria-current={view === n.id ? 'page' : undefined}
-            onClick={() => elegir(n.id)}
+            onClick={() => elegirEnPanel(n.id)}
           >
             <Icon name={n.icon} size={20} />
             {n.label}
@@ -53,11 +58,12 @@ export default function NavMovil({ view, onNavegar, onSalir }) {
         {barra.map((n) => (
           <button
             key={n.id} type="button" className="nav-inf-item"
+            aria-label={ETIQUETA_BARRA[n.id] ? n.label : undefined}
             aria-current={view === n.id ? 'page' : undefined}
             onClick={() => elegir(n.id)}
           >
             <Icon name={n.icon} size={22} />
-            <span>{n.label}</span>
+            <span>{ETIQUETA_BARRA[n.id] || n.label}</span>
           </button>
         ))}
         <button

@@ -130,27 +130,27 @@ export default function Historial() {
         ) : (
           <>
             <div className="tabla-wrap" tabIndex={0} role="region" aria-label="Historial de envíos">
-              <table className="tabla">
+              <table className="tabla" role="table">
                 <caption className="sr-only">Historial de envíos</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Fecha</th>
-                    <th scope="col">Cliente</th>
-                    <th scope="col">Suscripción</th>
-                    <th scope="col" className="num">Monto</th>
-                    <th scope="col">Estado</th>
+                <thead role="rowgroup">
+                  <tr role="row">
+                    <th role="columnheader" scope="col">Fecha</th>
+                    <th role="columnheader" scope="col">Cliente</th>
+                    <th role="columnheader" scope="col">Suscripción</th>
+                    <th role="columnheader" scope="col" className="num">Monto</th>
+                    <th role="columnheader" scope="col">Estado</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody role="rowgroup">
                   {mostrados.map(h => {
                     const fecha = fechaHistorial(h.fecha_valida)
                     return (
-                      <tr key={h.id}>
-                        <td data-label="Fecha" className="hist-fecha">{fecha || <SinDato />}</td>
-                        <td data-label="Cliente">{h.cli?.nombre || <SinDato />}</td>
-                        <td data-label="Suscripción">{h.sus?.tipo || <SinDato />}</td>
-                        <td data-label="Monto" className="num">{fmt(h.monto_final)}</td>
-                        <td data-label="Estado"><EstadoBadge estado={h.estado} /></td>
+                      <tr role="row" key={h.id}>
+                        <td role="cell" data-label="Fecha" className="hist-fecha">{fecha || <SinDato />}</td>
+                        <td role="cell" data-label="Cliente">{h.cli?.nombre || <SinDato />}</td>
+                        <td role="cell" data-label="Suscripción">{h.sus?.tipo || <SinDato />}</td>
+                        <td role="cell" data-label="Monto" className="num">{fmt(h.monto_final)}</td>
+                        <td role="cell" data-label="Estado"><EstadoBadge estado={h.estado} /></td>
                       </tr>
                     )
                   })}

@@ -187,23 +187,23 @@ export default function Clientes() {
           </EmptyState>
         ) : (
           <div className="tabla-wrap" tabIndex={0} role="region" aria-label="Lista de clientes">
-            <table className="tabla">
+            <table className="tabla" role="table">
               <caption className="sr-only">Lista de clientes</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Nombre</th>
-                  <th scope="col">Correo</th>
-                  <th scope="col" className="num">Suscripciones activas</th>
-                  <th scope="col" className="acciones">Acciones</th>
+              <thead role="rowgroup">
+                <tr role="row">
+                  <th role="columnheader" scope="col">Nombre</th>
+                  <th role="columnheader" scope="col">Correo</th>
+                  <th role="columnheader" scope="col" className="num">Suscripciones activas</th>
+                  <th role="columnheader" scope="col" className="acciones">Acciones</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody role="rowgroup">
                 {filtrados.map((c) => (
-                  <tr key={c.id}>
-                    <td data-label="Nombre">{c.nombre}</td>
-                    <td data-label="Correo">{c.correo}</td>
-                    <td data-label="Suscripciones activas" className="num">{porCliente[c.id] || 0}</td>
-                    <td data-label="Acciones" className="acciones">
+                  <tr role="row" key={c.id}>
+                    <td role="cell" data-label="Nombre">{c.nombre}</td>
+                    <td role="cell" data-label="Correo">{c.correo}</td>
+                    <td role="cell" data-label="Suscripciones activas" className="num">{porCliente[c.id] || 0}</td>
+                    <td role="cell" data-label="Acciones" className="acciones">
                       <Button variante="secundario" tam="sm" icono="pencil-simple" aria-label={`Editar a ${c.nombre}`} disabled={guardando} onClick={() => editar(c)}>Editar</Button>
                       <Button variante="peligro" tam="sm" icono="trash" aria-label={`Eliminar a ${c.nombre}`} disabled={guardando} onClick={() => pedirEliminar(c)}>Eliminar</Button>
                     </td>

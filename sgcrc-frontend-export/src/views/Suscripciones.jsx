@@ -320,35 +320,35 @@ export default function Suscripciones() {
           </EmptyState>
         ) : (
           <div className="tabla-wrap" tabIndex={0} role="region" aria-label="Lista de suscripciones">
-            <table className="tabla">
+            <table className="tabla" role="table">
               <caption className="sr-only">Lista de suscripciones</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Cliente</th>
-                  <th scope="col">Plan</th>
-                  <th scope="col">Inicio</th>
-                  <th scope="col" className="num">Monto</th>
-                  <th scope="col">Estado</th>
-                  <th scope="col" className="acciones">Acciones</th>
+              <thead role="rowgroup">
+                <tr role="row">
+                  <th role="columnheader" scope="col">Cliente</th>
+                  <th role="columnheader" scope="col">Plan</th>
+                  <th role="columnheader" scope="col">Inicio</th>
+                  <th role="columnheader" scope="col" className="num">Monto</th>
+                  <th role="columnheader" scope="col">Estado</th>
+                  <th role="columnheader" scope="col" className="acciones">Acciones</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody role="rowgroup">
                 {filtradas.map((s) => {
                   const nombre = nombreCliente(s)
                   return (
-                    <tr key={s.id}>
-                      <td data-label="Cliente">
+                    <tr role="row" key={s.id}>
+                      <td role="cell" data-label="Cliente">
                         {nombre}
                         <span className="celda-nota">{s.descripcion || 'Sin nota'}</span>
                       </td>
-                      <td data-label="Plan">
+                      <td role="cell" data-label="Plan">
                         {s.tipo}
                         <span className="celda-nota">{capitalizar(s.frecuencia)}</span>
                       </td>
-                      <td data-label="Inicio">{fmtFecha(s.fecha_alta) || '—'}</td>
-                      <td data-label="Monto" className="num">{fmt(s.monto)}</td>
-                      <td data-label="Estado"><EstadoBadge estado={s.activa ? 'Activa' : 'Inactiva'} /></td>
-                      <td data-label="Acciones" className="acciones">
+                      <td role="cell" data-label="Inicio">{fmtFecha(s.fecha_alta) || '—'}</td>
+                      <td role="cell" data-label="Monto" className="num">{fmt(s.monto)}</td>
+                      <td role="cell" data-label="Estado"><EstadoBadge estado={s.activa ? 'Activa' : 'Inactiva'} /></td>
+                      <td role="cell" data-label="Acciones" className="acciones">
                         <Button variante="secundario" tam="sm" icono="pencil-simple" aria-label={`Editar la suscripción de ${nombre}`} disabled={guardando} onClick={() => editar(s)}>Editar</Button>
                         <Button variante="peligro" tam="sm" icono="trash" aria-label={`Eliminar la suscripción de ${nombre}`} disabled={guardando} onClick={() => pedirEliminar(s)}>Eliminar</Button>
                       </td>

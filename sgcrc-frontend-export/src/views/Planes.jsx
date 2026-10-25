@@ -162,26 +162,26 @@ export default function Planes() {
   } else {
     lista = (
       <div className="tabla-wrap" tabIndex={0} role="region" aria-label="Lista de planes">
-        <table className="tabla">
+        <table className="tabla" role="table">
           <caption className="sr-only">Lista de planes</caption>
-          <thead>
-            <tr>
-              <th scope="col">Nombre del plan</th>
-              <th scope="col" className="num">Precio</th>
-              <th scope="col">Día de cobro</th>
-              <th scope="col" className="acciones">Acciones</th>
+          <thead role="rowgroup">
+            <tr role="row">
+              <th role="columnheader" scope="col">Nombre del plan</th>
+              <th role="columnheader" scope="col" className="num">Precio</th>
+              <th role="columnheader" scope="col">Día de cobro</th>
+              <th role="columnheader" scope="col" className="acciones">Acciones</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody role="rowgroup">
             {planes.map((p) => (
-              <tr key={p.id}>
-                <td data-label="Nombre del plan">
+              <tr role="row" key={p.id}>
+                <td role="cell" data-label="Nombre del plan">
                   {p.nombre_plan}
                   <span className="celda-nota">{capitalizar(p.frecuencia)}</span>
                 </td>
-                <td data-label="Precio" className="num">{fmt(p.monto)}</td>
-                <td data-label="Día de cobro">{`Día ${p.dia_cobro}`}</td>
-                <td data-label="Acciones" className="acciones">
+                <td role="cell" data-label="Precio" className="num">{fmt(p.monto)}</td>
+                <td role="cell" data-label="Día de cobro">{`Día ${p.dia_cobro}`}</td>
+                <td role="cell" data-label="Acciones" className="acciones">
                   <Button variante="secundario" tam="sm" icono="pencil-simple" aria-label={`Editar ${p.nombre_plan}`} disabled={guardando} onClick={() => editar(p)}>Editar</Button>
                   <Button variante="peligro" tam="sm" icono="trash" aria-label={`Eliminar ${p.nombre_plan}`} disabled={guardando} onClick={() => pedirEliminar(p)}>Eliminar</Button>
                 </td>

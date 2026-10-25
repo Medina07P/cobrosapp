@@ -19,21 +19,23 @@ npm run preview  # Preview del build local
 | Archivo / Carpeta | Rol |
 |---|---|
 | `main.jsx` | Bootstrap React: importa fuentes y los estilos `src/styles/tokens.css`, `base.css`, `ui.css` y `shell.css`, y monta la app junto con `ToastRegion` |
-| `styles/` | `tokens.css` (variables CSS), `base.css` (estilos base), `ui.css` (clases de los componentes base y de estructura de vistas) y `shell.css` (shell: sidebar clara, barra y navegación móvil, y `.acceso*` del login) |
+| `styles/` | `tokens.css` (variables CSS), `base.css` (estilos base), `ui.css` (clases de los componentes base y de estructura de vistas) y `shell.css` (shell: sidebar clara, barra superior y barra inferior móviles, y `.acceso*` del login) |
 | `lib/colorTema.js` | `aplicarColorTema`, `parseHex`, `ratioContraste`, `textoSobre`, `COLOR_POR_DEFECTO`, `TINTA`, más `colorLegibleSobreBlanco` (color de marca si contrasta >= 4.5 con blanco, si no `TINTA`; mismo contrato que `backend/perfil.js`) y `colorTextoMarca` (variante del color mezclada con la tinta hasta contrastar >= 4.5 sobre blanco, `--surface-page` y `--surface-alt`; alimenta `--color-primario-texto`). Tests: `npm test` |
 | `lib/contrasteCorreo.js` | `estadoContrasteCorreo(hex)`: `{ ratio, suficiente, textoBoton, colorMonto }` con la regla real del correo (contraste del texto del botón; el monto cae a tinta si el color no contrasta con blanco) |
 | `lib/errores.js` | `mensajeError(e)`: texto en español para cualquier error capturado (red/`TypeError`, `SyntaxError` por respuesta no JSON, `Error NNN` sin cuerpo JSON como lo construye `api.js`; el resto conserva el mensaje del backend) |
 | `lib/historial.js` | Lógica pura del Historial: `enriquecerHistorial`, `indexarPorId`, `limitarFilas` (`LIMITE_FILAS` = 100), `fechaHistorial`, `textoRegistros` |
 | `lib/calendario.js` | Lógica pura del Calendario: fechas locales, rejilla del mes, `agruparCobrosPorDia` y `tocaCobrarEn`, réplica exacta de `backend/cobros.js` (una prueba de paridad en `calendario.test.js` las compara) |
+| `lib/navegacion.js` | `NAV` (los 7 destinos), `IDS_BARRA_MOVIL`, `particionarNav` (`{ barra, mas }`) y `vistaEnMas`: reparto de destinos entre la barra inferior y "Más" en móvil. Tests: `npm test` |
 | `lib/validaciones.js` | `validarCliente`, `validarPlan`, `validarSuscripcion`, `validarPerfil`: espejo de las reglas del backend; devuelven un objeto `{campo: mensaje}` (vacío si es válido) |
 | `lib/formularios.js` | `enfocarPrimerInvalido(contenedor)` (y `primerInvalido`): enfoca el primer campo con error |
 | `lib/formato.js` | `fmt` (moneda COP), `fmtFecha` (`AAAA-MM-DD` a `DD/MM/AAAA`, sin desfase de zona horaria) y `esHoyLocal` (¿una fecha ISO UTC cae hoy en el día calendario local?) |
 | `lib/toastStore.js`, `lib/focoDialog.js` | Almacén de toasts y trampa de foco (con pruebas, `npm test`) |
 | `ui/Icon.jsx` | Componente de iconos; `npm run icons` regenera `ui/icons.generated.js` |
 | `ui/Logo.jsx` | Logo SGCRC en SVG |
+| `ui/NavMovil.jsx` | Barra inferior móvil (4 destinos fijos + "Más") y panel "Más" (resto de destinos y "Salir"); ver "Móvil (Fase 5)" |
 | `ui/PageHeader.jsx` | Encabezado de página (`titulo`, `descripcion`, `acciones`): el único `h1` de cada vista |
 | `ui/` | Componentes base (Button, Badge/EstadoBadge, Field, Dialog, ConfirmDialog, Toast, EmptyState, Skeleton, ErrorMsg, PageHeader, Icon, Logo); estilos en `styles/ui.css` |
-| `App.jsx` | Shell de la SPA: estado `view`, `NAV` y objeto `VIEWS`. Escritorio: sidebar clara (`.lateral`) con `aria-current="page"` en el ítem activo. Móvil: barra superior (`.barra-movil`) y navegación en fila (`.nav-movil`); `div.principal` envuelve barra, navegación y `main#contenido`. Enlace "Saltar al contenido" (`.saltar`) hacia `main#contenido`. Al cambiar de vista actualiza `document.title` y mueve el foco al `h1` de la vista (o a `main` si no hay; no lo hace en el primer render ni sin sesión). El estado del servidor se anuncia con una región `role="status"` `sr-only` siempre montada, una sola vez en el shell; el texto visible (`.estado-server`) no lleva `role`. Ya no usa Tailwind |
+| `App.jsx` | Shell de la SPA: estado `view`, `NAV` y objeto `VIEWS`. Escritorio: sidebar clara (`.lateral`) con `aria-current="page"` en el ítem activo. Móvil: barra superior (`.barra-movil`) y `NavMovil` (barra inferior fija); `div.principal` envuelve la barra superior y `main#contenido`. `NAV` vive en `lib/navegacion.js`. Enlace "Saltar al contenido" (`.saltar`) hacia `main#contenido`. Al cambiar de vista actualiza `document.title` y mueve el foco al `h1` de la vista (o a `main` si no hay; no lo hace en el primer render ni sin sesión). El estado del servidor se anuncia con una región `role="status"` `sr-only` siempre montada, una sola vez en el shell; el texto visible (`.estado-server`) no lleva `role`. Ya no usa Tailwind |
 | `api.js` | Cliente HTTP con `fetch`, base `/api`, inyecta `Authorization: Bearer <token>`, borra la sesión del localStorage en 401 (sin recargar) |
 | `views/Login.jsx` | Login y registro (toggle en la misma vista); usa `.acceso*` de `shell.css` |
 | `views/Dashboard.jsx` | KPIs + próximos cobros + botón "ejecutar cobros del día" (estilos antiguos, pendiente de migrar en la Fase 6) |
@@ -41,8 +43,17 @@ npm run preview  # Preview del build local
 | `views/Planes.jsx` | ABM del catálogo de planes (se llama "Planes" en el menú) |
 | `views/Suscripciones.jsx` | ABM de suscripciones (vincula cliente + plan) con filtros |
 | `views/Historial.jsx` | Listado de envíos con estado y monto (migrado: accesible, con límite de filas y estados vacíos; usa `lib/historial.js`) |
-| `views/Calendario.jsx` | Calendario de próximos cobros (migrado: panel de detalle anunciado, rejilla que se apila; usa `lib/calendario.js`) |
+| `views/Calendario.jsx` | Calendario de próximos cobros (migrado: panel de detalle anunciado, rejilla que se apila y, en móvil, agenda por día `.cal-agenda`; usa `lib/calendario.js`) |
 | `views/Configuracion.jsx` | Perfil: nombre + color de marca (con validación de contraste y vista previa en vivo) + WhatsApp |
+
+## Móvil (Fase 5)
+
+- **Un solo breakpoint móvil**: `@media (max-width: 47.9375rem)` (bajo 768 px). Ahí aparece la barra inferior y las tablas pasan a tarjetas. El Calendario conserva además su regla `max-width: 40rem` para la rejilla.
+- **`NavMovil`**: barra inferior fija (`.nav-inferior`, 5 columnas) con Dashboard, Clientes, Suscripciones, Calendario y "Más" (`aria-expanded`, `aria-controls="panel-mas"`). El panel `.panel-mas` lista Planes, Historial, Configuración y "Salir"; se cierra con Escape (devuelve el foco a "Más") o clic fuera; si se elige la vista ya activa, el foco vuelve a "Más". "Más" lleva `aria-current` cuando la vista activa está en el panel. En la barra, "Suscripciones" se muestra como "Suscrip." (`ETIQUETA_BARRA`; la completa no cabe en 72 px) con `aria-label` completo. `.contenido` y `.toast-region` reservan espacio para la barra.
+- **Tablas como tarjetas**: solo con CSS (`ui.css`). El `thead` se oculta visualmente, cada `tr` es una tarjeta y cada `td` muestra su `data-label` como etiqueta (`td::before`). Toda tabla nueva debe poner `data-label` en cada celda (`Acciones` sin etiqueta). Las tablas llevan `role` explícitos (`table`, `rowgroup`, `row`, `columnheader`, `cell`) para conservar la semántica con `display` distinto de `table`.
+- **Objetivos táctiles**: en móvil botones, campos y filtros miden al menos 44 px (también los `btn-sm`).
+- **Agenda del Calendario**: en móvil se oculta la rejilla y el detalle y se muestra `.cal-agenda` (un bloque por día con cobros; `etiquetaAgenda` y `diaSemanaCorto` de `lib/calendario.js`).
+- **Cómo verificar a 360 px**: con sesión iniciada, inyectar en una pestaña de la app un `<iframe src="/" style="width:360px;height:740px">` (mismo origen) y medir ahí (`scrollWidth <= innerWidth`, objetivos < 44 px, contenido bajo la barra). El Dashboard sigue sin rediseñar (Fase 6).
 
 ## Pendiente de migrar
 
