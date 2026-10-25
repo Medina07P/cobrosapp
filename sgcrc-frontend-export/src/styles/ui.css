@@ -129,6 +129,10 @@ textarea.field-control { min-height: 5.5rem; resize: vertical; }
   .toast-region { left: auto; right: 1.25rem; justify-items: end; }
 }
 
+@media (max-width: 47.9375rem) {
+  .toast-region { bottom: calc(3.5rem + env(safe-area-inset-bottom) + 0.75rem); }
+}
+
 /* ---------- Estructura de página ---------- */
 .pagina { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.25rem; }
 .pagina-cab { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 0.75rem; }

@@ -5,6 +5,7 @@ import { NAV } from './lib/navegacion.js'
 import Icon from './ui/Icon.jsx'
 import Logo from './ui/Logo.jsx'
 import Button from './ui/Button.jsx'
+import NavMovil from './ui/NavMovil.jsx'
 import Login from './views/Login.jsx'
 import Dashboard from './views/Dashboard.jsx'
 import Clientes from './views/Clientes.jsx'
@@ -180,13 +181,13 @@ export default function App() {
         <div className="barra-movil">
           <div className="marca"><Logo size={26} decorativo /><span>SGCRC</span></div>
           {estadoServidor}
-          <Button variante="secundario" tam="sm" icono="sign-out" onClick={handleLogout}>Salir</Button>
         </div>
-        <nav className="nav-movil" aria-label="Principal">{items()}</nav>
         <main id="contenido" className="contenido" tabIndex={-1}>
           {VIEWS[view]}
         </main>
       </div>
+
+      <NavMovil view={view} onNavegar={setView} onSalir={handleLogout} />
     </div>
   )
 }
