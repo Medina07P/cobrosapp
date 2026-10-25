@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
-import { ratioContraste, textoSobre, colorLegibleSobreBlanco } from './colorTema.js'
+import { COLOR_POR_DEFECTO, ratioContraste, textoSobre, colorLegibleSobreBlanco } from './colorTema.js'
 
 // Solo #RRGGBB: el frontend también acepta #RGB y el backend no; esa diferencia es intencional y no se prueba.
 test('PARIDAD: colores del frontend idénticos a backend/perfil.js', (t) => {
@@ -12,6 +12,7 @@ test('PARIDAD: colores del frontend idénticos a backend/perfil.js', (t) => {
     t.skip('backend no disponible')
     return
   }
+  assert.equal(b.COLOR_POR_DEFECTO, COLOR_POR_DEFECTO)
   const colores = ['#000000', '#FFFFFF', '#FFD400', '#1F6B4F', '#4F46E5', '#808080']
   const hex = (v) => v.toString(16).padStart(2, '0').toUpperCase()
   for (let r = 0; r <= 255; r += 0x11) for (let g = 0; g <= 255; g += 0x11) for (let bl = 0; bl <= 255; bl += 0x11) colores.push(`#${hex(r)}${hex(g)}${hex(bl)}`)

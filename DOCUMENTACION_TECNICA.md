@@ -35,7 +35,7 @@ La base de datos reside en `backend/data/sgcrc.db` con foreign keys habilitadas.
 usuarios
 ├── id, email (UNIQUE), password (hash bcrypt), nombre
 ├── config_smtp (JSON string, SMTP por usuario)
-└── color_tema (hex, default #4f46e5)
+└── color_tema (hex, default #1F6B4F, `COLOR_POR_DEFECTO` en `backend/perfil.js`)
 
 clientes
 ├── id, nombre, correo

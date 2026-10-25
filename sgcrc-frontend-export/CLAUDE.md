@@ -122,7 +122,7 @@ createMiRecurso: (data) => req('POST', '/mi-recurso', data),
 
 ## Theming
 
-- El color del usuario se guarda en DB como `color_tema` (hex, ej: `#4f46e5`).
+- El color del usuario se guarda en DB como `color_tema` (hex, default `#1F6B4F`: `COLOR_POR_DEFECTO` en `backend/perfil.js`).
 - El color de marca se aplica SOLO mediante `aplicarColorTema(elemento, hex)` de `src/lib/colorTema.js`. `App.jsx` lo llama sobre `document.documentElement` al login/refrescar perfil y `Configuracion.jsx` tras guardar. Define `--color-primario`, `--color-primario-glow`, `--color-primario-contraste` (`textoSobre`) y `--color-primario-texto` (`colorTextoMarca`, para usar la marca como texto: clase `.text-brand`).
 - `--line-control` (`tokens.css`) es el borde de controles interactivos (>= 3:1 sobre las superficies); `--line` queda para divisores decorativos. El anillo de foco (`base.css`, `:focus-visible`) usa la tinta y es independiente del color de marca; `.contenido:focus-visible` (`shell.css`) lo anula solo en el `main`, no en el `h1`.
 - La vista previa en vivo de Configuración usa `aplicarColorTema(previaRef.current, color)` sobre su propio elemento (`.vista-previa`), no sobre `documentElement`: el color de la app solo cambia al guardar.

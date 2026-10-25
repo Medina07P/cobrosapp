@@ -58,3 +58,9 @@ test('paridad con el frontend (colorTema.js) para los mismos colores', async () 
     assert.equal(ratioContraste(c, '#FFFFFF'), fe.ratioContraste(c, '#FFFFFF'), c);
   }
 });
+
+test('COLOR_POR_DEFECTO es el verde de marca y pasa la validación', () => {
+  const { COLOR_POR_DEFECTO } = require('./perfil');
+  assert.equal(COLOR_POR_DEFECTO, '#1F6B4F');
+  assert.equal(colorValido(COLOR_POR_DEFECTO), true);
+});

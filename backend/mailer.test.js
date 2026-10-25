@@ -30,7 +30,7 @@ test('un WhatsApp inválido no genera enlace', () => {
 test('un color inválido cae al color por defecto y no se inyecta en el HTML', () => {
   const html = buildHtml({ ...base, color: '#fff;}</style><script>x</script>' });
   assert.ok(!html.includes('<script>'));
-  assert.ok(html.includes('#4f46e5'));
+  assert.ok(html.includes('#1F6B4F'));
 });
 
 test('la frecuencia y el nombre del cliente se escapan', () => {
@@ -70,8 +70,8 @@ test('con color de marca oscuro el botón usa texto blanco y el monto conserva e
   assert.ok(html.includes('.total-amount { font-size: 32px; font-weight: 800; color: #1F6B4F;'));
 });
 
-test('con color inválido el índigo por defecto usa texto blanco', () => {
+test('con color inválido el verde por defecto usa texto blanco', () => {
   const html = buildHtml({ ...base, color: 'rojo' });
-  assert.ok(html.includes('background-color: #4f46e5;'));
+  assert.ok(html.includes('background-color: #1F6B4F;'));
   assert.ok(html.includes('color: #FFFFFF !important'));
 });

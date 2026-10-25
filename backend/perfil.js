@@ -53,4 +53,6 @@ function colorLegibleSobreBlanco(hex) {
   return ratioContraste(hex, BLANCO) >= 4.5 ? hex : TINTA;
 }
 
-module.exports = { colorValido, normalizarWhatsapp, ratioContraste, textoSobre, colorLegibleSobreBlanco };
+const COLOR_POR_DEFECTO = '#1F6B4F';
+
+module.exports = { COLOR_POR_DEFECTO, colorValido, normalizarWhatsapp, ratioContraste, textoSobre, colorLegibleSobreBlanco };

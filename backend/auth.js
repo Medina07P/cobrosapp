@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const db = require('./database'); 
 
 const { jwtSecret } = require('./config');
+const { COLOR_POR_DEFECTO } = require('./perfil');
 
 // Helper para enviar JSON (Mantenemos el tuyo, es correcto)
 function enviarJSON(res, status, data) {
@@ -31,7 +32,7 @@ const auth = {
             const stmt = db.prepare('INSERT INTO usuarios (email, password, nombre, color_tema) VALUES (?, ?, ?, ?)');
             
             // Usamos el color corporativo por defecto
-            const info = stmt.run(email, hashedPassword, (nombre && nombre.trim()) || 'Mi negocio', '#4f46e5');
+            const info = stmt.run(email, hashedPassword, (nombre && nombre.trim()) || 'Mi negocio', COLOR_POR_DEFECTO);
             
             return enviarJSON(res, 201, { 
                 id: info.lastInsertRowid, 

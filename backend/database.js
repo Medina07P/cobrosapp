@@ -1,5 +1,6 @@
 const Database = require('better-sqlite3');
 const path = require('path');
+const { COLOR_POR_DEFECTO } = require('./perfil');
 
 const dbPath = path.join(__dirname, 'data', 'sgcrc.db');
 const db = new Database(dbPath);
@@ -18,7 +19,7 @@ db.prepare(`
     password TEXT NOT NULL,
     nombre TEXT,
     config_smtp TEXT,
-    color_tema TEXT DEFAULT '#4f46e5'
+    color_tema TEXT DEFAULT '${COLOR_POR_DEFECTO}'
   )
 `).run();
 
@@ -99,7 +100,7 @@ try { db.prepare("ALTER TABLE suscripciones ADD COLUMN cobro_desde TEXT").run();
 /**
  * --- BLOQUE DE MIGRACIÓN SEGURO ---
  */
-try { db.prepare("ALTER TABLE usuarios ADD COLUMN color_tema TEXT DEFAULT '#4f46e5'").run(); } catch(e) {}
+try { db.prepare(`ALTER TABLE usuarios ADD COLUMN color_tema TEXT DEFAULT '${COLOR_POR_DEFECTO}'`).run(); } catch(e) {}
 // WhatsApp del vendedor para el botón "Reportar pago" de los correos (solo dígitos, con código de país)
 try { db.prepare("ALTER TABLE usuarios ADD COLUMN whatsapp TEXT").run(); } catch(e) {}
 // ... los otros try/catch que ya tenías

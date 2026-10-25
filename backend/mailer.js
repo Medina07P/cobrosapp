@@ -1,6 +1,6 @@
 const nodemailer = require("nodemailer");
 require("dotenv").config();
-const { colorValido, normalizarWhatsapp, textoSobre, colorLegibleSobreBlanco } = require("./perfil");
+const { COLOR_POR_DEFECTO, colorValido, normalizarWhatsapp, textoSobre, colorLegibleSobreBlanco } = require("./perfil");
 
 function crearTransporter(usuarioConfig = null) {
   let config;
@@ -35,8 +35,8 @@ function escapeHtml(value) {
 }
 
 // Agregamos 'color' a los parámetros
-function buildHtml({ cliente, suscripcion, nombreVendedor = "SGCRC", color: colorEntrada = "#4f46e5", whatsapp = null }) {
-  const color = colorValido(colorEntrada) ? colorEntrada : "#4f46e5";
+function buildHtml({ cliente, suscripcion, nombreVendedor = "SGCRC", color: colorEntrada = COLOR_POR_DEFECTO, whatsapp = null }) {
+  const color = colorValido(colorEntrada) ? colorEntrada : COLOR_POR_DEFECTO;
   const textoBoton = textoSobre(color);
   const colorMonto = colorLegibleSobreBlanco(color);
   const fecha = new Date().toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" });
@@ -153,7 +153,7 @@ async function enviarCobro({ cliente, suscripcion, usuarioConfig }) {
   const frecuencia = (suscripcion.frecuencia || "Mensual");
   
   // LEEMOS EL COLOR DEL USUARIO (SI NO EXISTE, INDIGO POR DEFECTO)
-  const colorMarca = usuarioConfig.color_tema || "#4f46e5";
+  const colorMarca = usuarioConfig.color_tema || COLOR_POR_DEFECTO;
 
   let fromEmail;
   try {
