@@ -42,13 +42,13 @@ No hay linter configurado (sin ESLint/Prettier). No hay framework de tests forma
 
 ### Multi-tenant
 
-Cada operación de datos filtra por `usuario_id`. El `usuario_id` viene del JWT que `api.js:obtenerUsuario()` verifica con `jwt.verify`. **Toda ruta nueva debe respetar este patrón**: obtener `usuario.id` del JWT verificado y pasarlo a la capa repositorio.
+Cada operación de datos filtra por `usuario_id`. El `usuario_id` viene del JWT que `api.js:obtenerUsuario()` verifica con `jwt.verify`. **Toda ruta nueva debe respetar este patrón**: obtener `usuario.id` del JWT verificado y pasarlo a la capa repositorio. Todo `update`/`delete` también filtra por `usuario_id` (un id de otro usuario responde 404) y las columnas editables deben estar en la lista blanca `COLUMNAS` de `backend/db.js`.
 
 ### Router HTTP imperativo
 
 `backend/api.js` despacha con un `switch` implícito (`if/else if`) sobre `pathname + method`. No hay Express ni framework HTTP. Para agregar un endpoint:
 1. Agregar los métodos del recurso en `backend/db.js` (capa repositorio).
-2. Registrar el bloque `if (pathname.startsWith("/recurso"))` en `api.js` después de la verificación JWT (línea ~76).
+2. Registrar el bloque `if (pathname.startsWith("/recurso"))` en `api.js` después de la verificación JWT (línea ~99).
 
 ### Migraciones de base de datos
 
@@ -56,7 +56,7 @@ El DDL está en `backend/database.js`. Las migraciones se hacen con bloques `try
 
 ### Scheduler de cobros
 
-`backend/scheduler.js` ejecuta `procesarCobrosDelDia()` diariamente a la hora configurada. `tocaCobrarHoy()` decide por frecuencia (`mensual`, `quincenal`, `semanal`, `anual`) usando `fecha_alta` como fecha base cuando está disponible. Hay un mutex booleano `procesandoCobros` para evitar concurrencia.
+`backend/scheduler.js` ejecuta `procesarCobrosDelDia()` diariamente a la hora configurada. Las reglas de fechas están en `backend/cobros.js`: `tocaCobrarEn()` decide por frecuencia (`mensual`, `quincenal`, `semanal`, `anual`) usando `fecha_alta` como fecha base cuando está disponible, y `planificarCobros()` incluye los cobros vencidos (reintento hasta `COBROS_REINTENTO_DIAS`, 7 por defecto). Hay un mutex booleano `procesandoCobros` para evitar concurrencia.
 
 ### Frontend SPA
 
@@ -78,12 +78,12 @@ CRON_MIN=00
 JWT_SECRET=una_clave_larga_y_aleatoria   # Obligatorio — ver gotchas
 ```
 
-Ver `backend/.env.example` para referencia (le faltan `JWT_SECRET`, `CORS_ORIGIN`, `SMTP_REQUIRED`).
+Ver `backend/.env.example` para referencia (le faltan `CORS_ORIGIN`, `SMTP_REQUIRED`).
 
 ## Gotchas importantes
 
-- **JWT_SECRET sin setear**: `api.js:7` y `auth.js:5` tienen el fallback hardcodeado `'clave_maestra_super_secreta_123'`. Si `JWT_SECRET` no está en `.env`, tokens de cualquier instancia son válidos. Siempre configurar.
+- **JWT_SECRET obligatorio**: `backend/config.js` lanza error si falta o está vacío y `index.js` lo exige al arrancar (el servidor no inicia, código 1). Ya no hay clave por defecto. Despliegue: definirlo en `backend/.env` antes de desplegar; los tokens firmados con la clave por defecto anterior quedan inválidos y, si el secreto cambia, todos los usuarios deben iniciar sesión de nuevo.
 - **CORS abierto**: `api.js` usa `Access-Control-Allow-Origin: *` fijo. La variable `CORS_ORIGIN` del `.env.example` no está implementada en el código actual.
-- **Tailwind por CDN**: el frontend carga Tailwind desde CDN en `index.html`. No hay `tailwind.config.js` ni PostCSS — no agregar configuración local esperando que funcione.
+- **Sin Tailwind**: se retiró el CDN en la Fase 7; el reset CSS está en `src/styles/base.css`. No agregar `tailwind.config.js` ni PostCSS.
 - **`axios` en `package.json` pero no usado**: el código del frontend usa `fetch` en `src/api.js`. No mezclar los dos.
 - **Carpetas vacías**: `backend/auth/login/` y `backend/auth/register/` son restos de un refactor anterior, no tienen contenido.

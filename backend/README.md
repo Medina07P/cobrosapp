@@ -33,7 +33,9 @@ PORT=3000
 CRON_HORA=08
 CRON_MIN=00
 
-# Seguridad — obligatorio en producción
+# Seguridad — OBLIGATORIO: el servidor no arranca sin JWT_SECRET (sin clave por defecto).
+# Generar: node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+# Al desplegar, defínelo antes; si cambia, los tokens anteriores quedan inválidos y todos deben iniciar sesión de nuevo.
 JWT_SECRET=clave_larga_y_aleatoria_aqui
 
 # Opcionales
@@ -90,6 +92,8 @@ PUT    /planes/:id           → Editar campos
 DELETE /planes/:id           → Eliminar (falla si hay suscripciones vinculadas)
 ```
 
+Errores comunes: `400` con mensaje en español si un valor no es válido (también JSON malformado o cuerpo que no es un objeto); `404` si el id no existe **o pertenece a otro usuario** (en `PUT` y `DELETE`); cualquier otro fallo responde `500 Error interno del servidor` sin detalles. `cobro_desde` de las suscripciones lo gestiona el servidor (se fija a hoy al crear, reactivar, cambiar `fecha_alta` o cambiar de plan) y no se puede enviar.
+
 Valores de `frecuencia`: `mensual` (default), `quincenal`, `semanal`, `anual`.
 
 ### Suscripciones
@@ -108,8 +112,11 @@ GET    /historial            → Listar todos los envíos del usuario (orden des
 ### Perfil de usuario
 ```
 GET    /usuario/perfil                    → Datos del usuario (sin password)
-POST   /usuario/config-tema               → { nombre?, color_tema? }
+PATCH  /usuario/config-tema               → { nombre?, color_tema?, whatsapp? }  (POST también se acepta)
 ```
+
+`GET /usuario/perfil` devuelve solo `id, email, nombre, color_tema, whatsapp` (nunca password ni `config_smtp`).  
+`color_tema` debe ser `#RRGGBB`. `whatsapp` son solo dígitos (8–15, con código de país, p. ej. `573001234567`); vacío o `null` lo borra y los correos salen sin botón de WhatsApp. Los datos se validan y se guardan en una sola transacción.
 
 ### Cobros
 ```
@@ -166,9 +173,10 @@ curl -X POST http://localhost:3000/run \
 
 Ejecuta `procesarCobrosDelDia()` cada día a la hora configurada (timezone `America/Bogota`).
 
-- `tocaCobrarHoy()` usa `fecha_alta` como día base si existe; de lo contrario, usa `dia_cobro` del plan.
+- `cobros.js` (`tocaCobrarEn` y `planificarCobros`) usa `fecha_alta` como día base si existe; de lo contrario, usa `dia_cobro` del plan.
+- Cobros vencidos: el scheduler reintenta cada día los cobros pasados sin enviar hasta `COBROS_REINTENTO_DIAS` días (7 por defecto).
 - Los envíos ya procesados en el día se omiten para evitar duplicados (idempotencia).
-- El endpoint `/run` requiere `{ confirmarReenvio: true }` si ya hubo envíos en el día.
+- El endpoint `/run` responde 409 y requiere `{ confirmarReenvio: true }` solo cuando no hay nada nuevo que enviar y sí hay cobros de hoy ya enviados.
 - El mutex `procesandoCobros` evita ejecuciones concurrentes del mismo proceso.
 
 ---
@@ -179,3 +187,16 @@ SQLite en `backend/data/sgcrc.db` (modo WAL, foreign keys ON).
 
 Tablas: `usuarios`, `clientes`, `planes`, `suscripciones`, `historial`.  
 Migraciones defensivas en `database.js` mediante bloques `ALTER TABLE … try/catch`.
+
+---
+
+## Pruebas
+
+```bash
+npm run test:unit         # cobros + perfil + mailer (sin base de datos)
+npm run test:security     # aislamiento entre usuarios, inyección, validación, cobro_desde, perfil
+npm run test:integration  # scheduler con correo simulado
+npm test                  # smoke de la API
+```
+
+**Advertencia:** `test:security`, `test:integration` y `npm test` crean usuarios temporales en la base de desarrollo `data/sgcrc.db` (`database.js` ignora `DB_PATH`). No ejecutarlos nunca en el servidor de producción.

@@ -1,0 +1,28 @@
+/* Tokens de diseño de SGCRC. Valores de superficie, texto y estado; el color de
+   marca (--color-primario*) lo sobrescribe aplicarColorTema() en tiempo de ejecución. */
+:root {
+  --surface-page: #F6F3EC;
+  --surface: #FFFFFF;
+  --surface-alt: #FBF9F4;
+  --line: #E3DED2;
+  --line-control: #7F847C;
+  --ink: #1F2421;
+  --ink-2: #5C625C;
+
+  --ok: #1F7A4D;
+  --ok-bg: #EAF5EE;
+  --warn: #7F5800;
+  --warn-bg: #FBF1D6;
+  --bad: #B3261E;
+  --bad-bg: #FBE4E1;
+  --info: #2D5F8B;
+  --info-bg: #E3EDF5;
+
+  --font-display: 'Fraunces Variable', Georgia, 'Times New Roman', serif;
+  --font-ui: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --color-primario: #1F6B4F;
+  --color-primario-glow: rgba(31, 107, 79, 0.2);
+  --color-primario-contraste: #FFFFFF;
+  --color-primario-texto: #1F6B4F;
+}

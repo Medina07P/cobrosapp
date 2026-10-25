@@ -1,4 +1,5 @@
 require('dotenv').config();
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'secreto-solo-para-pruebas';
 const assert = require('assert');
 const http = require('http');
 
@@ -74,6 +75,17 @@ async function run() {
       descripcion: 'Sin cliente ni plan',
     }, token);
     assert.strictEqual(subInvalida.status, 400, 'Suscripción sin campos obligatorios debe devolver 400');
+
+    // 8. /cobros/resumen exige JWT y devuelve las tres listas
+    const resumenSinToken = await json(port, 'GET', '/cobros/resumen');
+    assert.strictEqual(resumenSinToken.status, 401, '/cobros/resumen sin JWT debe devolver 401');
+    const resumen = await json(port, 'GET', '/cobros/resumen', undefined, token);
+    assert.strictEqual(resumen.status, 200, 'GET /cobros/resumen con JWT debe devolver 200');
+    const datosResumen = JSON.parse(resumen.body);
+    assert.ok(Array.isArray(datosResumen.paraHoy), 'resumen.paraHoy debe ser un arreglo');
+    assert.ok(Array.isArray(datosResumen.vencidos), 'resumen.vencidos debe ser un arreglo');
+    assert.ok(Array.isArray(datosResumen.perdidos), 'resumen.perdidos debe ser un arreglo');
+    assert.strictEqual(datosResumen.vencidos.length, 0, 'un usuario nuevo no tiene vencidos');
 
     console.log('OK backend smoke test');
   } finally {

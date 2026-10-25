@@ -1,118 +1,152 @@
-import { useState, useEffect } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { api } from '../api.js'
-import { Badge, Spinner, ErrorMsg, Btn, fmt } from '../components.jsx'
+import { EstadoBadge } from '../ui/Badge.jsx'
+import Skeleton from '../ui/Skeleton.jsx'
+import ErrorMsg from '../ui/ErrorMsg.jsx'
+import EmptyState from '../ui/EmptyState.jsx'
+import Button from '../ui/Button.jsx'
+import PageHeader from '../ui/PageHeader.jsx'
+import { fmt } from '../lib/formato.js'
+import { enriquecerHistorial, limitarFilas, fechaHistorial, textoRegistros, LIMITE_FILAS } from '../lib/historial.js'
+import { useCarga } from '../lib/useCarga.js'
+
+const VACIO = []
+const FILTROS = ['todos', 'Enviado', 'Fallido']
+
+const SinDato = () => (
+  <>
+    <span aria-hidden="true">—</span>
+    <span className="sr-only">Sin dato</span>
+  </>
+)
 
 export default function Historial() {
-  const [historial, setHistorial] = useState([])
-  const [clientes, setClientes]   = useState([])
-  const [subs, setSubs]           = useState([])
-  const [loading, setLoading]     = useState(true)
-  const [error, setError]         = useState(null)
+  const { datos, cargando, hayDatos: conDatos, error, cargar, reintentar } = useCarga(async () => {
+    const [historial, clientes, subs] = await Promise.all([api.getHistorial(), api.getClientes(), api.getSuscripciones()])
+    return { historial, clientes, subs }
+  })
+  const historial = datos?.historial ?? VACIO
+  const clientes = datos?.clientes ?? VACIO
+  const subs = datos?.subs ?? VACIO
   const [filtro, setFiltro]       = useState('todos')
+  const [visibles, setVisibles]   = useState(LIMITE_FILAS)
+  const pieRef = useRef(null)
 
-  const cargar = async () => {
-    setLoading(true); setError(null)
-    try {
-      const [h, c, s] = await Promise.all([api.getHistorial(), api.getClientes(), api.getSuscripciones()])
-      setHistorial(h); setClientes(c); setSubs(s)
-    } catch (e) { setError(e.message) }
-    finally { setLoading(false) }
+  const enriquecido = useMemo(() => enriquecerHistorial(historial, subs, clientes), [historial, subs, clientes])
+  const filtrados = useMemo(
+    () => (filtro === 'todos' ? enriquecido : enriquecido.filter(h => h.estado === filtro)),
+    [enriquecido, filtro]
+  )
+  const total = useMemo(
+    () => enriquecido.filter(h => h.estado === 'Enviado').reduce((a, h) => a + (Number(h.monto_final) || 0), 0),
+    [enriquecido]
+  )
+  const fallidos = useMemo(() => enriquecido.filter(h => h.estado === 'Fallido').length, [enriquecido])
+  const mostrados = limitarFilas(filtrados, visibles)
+
+  const elegirFiltro = (f) => { setFiltro(f); setVisibles(LIMITE_FILAS) }
+  const quitarFiltro = () => {
+    elegirFiltro('todos')
+    requestAnimationFrame(() => document.getElementById('hist-filtro-todos')?.focus())
+  }
+  const verMas = () => {
+    setVisibles(v => v + LIMITE_FILAS)
+    requestAnimationFrame(() => pieRef.current?.focus())
   }
 
-  useEffect(() => { cargar() }, [])
+  let cuerpo
+  if (!conDatos && error) {
+    cuerpo = <ErrorMsg msg={error} onRetry={reintentar} cargando={cargando} />
+  } else if (!conDatos) {
+    cuerpo = <Skeleton />
+  } else {
+    cuerpo = (
+      <>
+        <div className="hist-barra">
+          <div className="hist-filtros" role="group" aria-label="Filtrar por estado">
+            {FILTROS.map(f => (
+              <Button key={f} id={`hist-filtro-${f === 'todos' ? 'todos' : f.toLowerCase()}`} tam="sm" variante={filtro === f ? 'primario' : 'secundario'}
+                aria-pressed={filtro === f} onClick={() => elegirFiltro(f)}>
+                {f === 'todos' ? 'Todos' : f}
+              </Button>
+            ))}
+          </div>
+        </div>
+        <p className="sr-only" aria-live="polite">{textoRegistros(filtrados.length)}</p>
 
-  if (loading) return <Spinner />
+        <div className="hist-resumen">
+          <div className="hist-tarjeta">
+            <div className="hist-cifra hist-cifra-ok">{fmt(total)}</div>
+            <div className="hist-rotulo">Total cobrado (historial)</div>
+          </div>
+          <div className="hist-tarjeta">
+            <div className="hist-cifra hist-cifra-mal">{fallidos}</div>
+            <div className="hist-rotulo">Envíos fallidos</div>
+          </div>
+          <div className="hist-tarjeta">
+            <div className="hist-cifra hist-cifra-info">{enriquecido.length}</div>
+            <div className="hist-rotulo">Total registros</div>
+          </div>
+        </div>
 
-  const enriquecido = historial.map(h => {
-    const sus = subs.find(s => s.id === h.suscripcion_id)
-    const cli = clientes.find(c => c.id === sus?.cliente_id)
-    
-    return { 
-      ...h, 
-      sus, 
-      cli,
-      // CORRECCIÓN: Si h.monto no existe (registros viejos), usamos el de la suscripción
-      monto_final: h.monto || sus?.monto || 0,
-      // CORRECCIÓN: Buscamos 'fecha' (nuevo backend) o 'fecha_envio' (registros viejos)
-      fecha_valida: h.fecha || h.fecha_envio 
-    }
-  }).sort((a, b) => new Date(b.fecha_valida) - new Date(a.fecha_valida));
-
-  const filtrados = filtro === 'todos' ? enriquecido : enriquecido.filter(h => h.estado === filtro)
-
-  // CORRECCIÓN: Usamos monto_final para el cálculo del total
-  const total   = enriquecido
-    .filter(h => h.estado === 'Enviado')
-    .reduce((a, h) => a + (Number(h.monto_final) || 0), 0)
-    
-  const fallidos = enriquecido.filter(h => h.estado === 'Fallido').length
+        {enriquecido.length === 0 ? (
+          <EmptyState icono="tag" nivel={2} titulo="Aún no hay envíos">
+            Cuando se envíen recordatorios de cobro aparecerán aquí.
+          </EmptyState>
+        ) : filtrados.length === 0 ? (
+          <EmptyState icono="magnifying-glass" nivel={2} titulo="Ningún envío con ese estado"
+            accion={<Button variante="secundario" onClick={quitarFiltro}>Quitar filtro</Button>}>
+            {`No hay envíos con estado «${filtro}».`}
+          </EmptyState>
+        ) : (
+          <>
+            <div className="tabla-wrap" tabIndex={0} role="region" aria-label="Historial de envíos">
+              <table className="tabla" role="table">
+                <caption className="sr-only">Historial de envíos</caption>
+                <thead role="rowgroup">
+                  <tr role="row">
+                    <th role="columnheader" scope="col">Fecha</th>
+                    <th role="columnheader" scope="col">Cliente</th>
+                    <th role="columnheader" scope="col">Suscripción</th>
+                    <th role="columnheader" scope="col" className="num">Monto</th>
+                    <th role="columnheader" scope="col">Estado</th>
+                  </tr>
+                </thead>
+                <tbody role="rowgroup">
+                  {mostrados.map(h => {
+                    const fecha = fechaHistorial(h.fecha_valida)
+                    return (
+                      <tr role="row" key={h.id}>
+                        <td role="cell" data-label="Fecha" className="hist-fecha">{fecha || <SinDato />}</td>
+                        <td role="cell" data-label="Cliente">{h.cli?.nombre || <SinDato />}</td>
+                        <td role="cell" data-label="Suscripción">{h.sus?.tipo || <SinDato />}</td>
+                        <td role="cell" data-label="Monto" className="num">{fmt(h.monto_final)}</td>
+                        <td role="cell" data-label="Estado"><EstadoBadge estado={h.estado} /></td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="hist-pie">
+              <p ref={pieRef} tabIndex={-1}>Mostrando {mostrados.length} de {filtrados.length}</p>
+              {mostrados.length < filtrados.length && (
+                <Button variante="secundario" onClick={verMas}>Ver más</Button>
+              )}
+            </div>
+          </>
+        )}
+      </>
+    )
+  }
 
   return (
-    <div>
-      <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.5rem',flexWrap:'wrap',gap:'1rem' }}>
-        <h2 style={{ fontFamily:"'Playfair Display',serif",color:'#e8eaf0',margin:0,fontSize:'1.8rem' }}>Historial de Envíos</h2>
-        <div style={{ display:'flex',gap:'0.5rem',alignItems:'center' }}>
-          {['todos','Enviado','Fallido'].map(f => (
-            <button key={f} onClick={() => setFiltro(f)} style={{
-              background: filtro===f ? 'linear-gradient(135deg,#6c63ff,#a78bfa)' : '#1a1d27',
-              border:'1px solid #2a2d3a',borderRadius:'6px',padding:'0.45rem 0.9rem',
-              color:'#e8eaf0',cursor:'pointer',fontSize:'0.82rem'
-            }}>{f}</button>
-          ))}
-          <Btn variant='secondary' style={{ padding:'0.45rem 0.9rem',fontSize:'0.82rem' }} onClick={cargar}>↻ Actualizar</Btn>
-        </div>
-      </div>
-
-      {error && <ErrorMsg msg={error} onRetry={cargar} />}
-
-      <div style={{ display:'flex',gap:'1rem',marginBottom:'1.2rem',flexWrap:'wrap' }}>
-        <div style={{ background:'#0f1117',border:'1px solid #2a2d3a',borderRadius:'10px',padding:'0.8rem 1.2rem',flex:1,minWidth:'160px' }}>
-          <div style={{ color:'#34d399',fontFamily:'monospace',fontWeight:800,fontSize:'1.2rem' }}>{fmt(total)}</div>
-          <div style={{ color:'#555',fontSize:'0.78rem' }}>Total cobrado (historial)</div>
-        </div>
-        <div style={{ background:'#0f1117',border:'1px solid #2a2d3a',borderRadius:'10px',padding:'0.8rem 1.2rem',flex:1,minWidth:'160px' }}>
-          <div style={{ color:'#f87171',fontFamily:'monospace',fontWeight:800,fontSize:'1.2rem' }}>{fallidos}</div>
-          <div style={{ color:'#555',fontSize:'0.78rem' }}>Envíos fallidos</div>
-        </div>
-        <div style={{ background:'#0f1117',border:'1px solid #2a2d3a',borderRadius:'10px',padding:'0.8rem 1.2rem',flex:1,minWidth:'160px' }}>
-          <div style={{ color:'#60a5fa',fontFamily:'monospace',fontWeight:800,fontSize:'1.2rem' }}>{enriquecido.length}</div>
-          <div style={{ color:'#555',fontSize:'0.78rem' }}>Total registros</div>
-        </div>
-      </div>
-
-      <div style={{ background:'#0f1117',border:'1px solid #2a2d3a',borderRadius:'12px',overflow:'auto' }}>
-        <table style={{ width:'100%',borderCollapse:'collapse',fontSize:'0.88rem' }}>
-          <thead>
-            <tr style={{ background:'#0a0c12',borderBottom:'1px solid #2a2d3a' }}>
-              {['Fecha','Cliente','Suscripción','Monto','Estado'].map(h =>
-                <th key={h} style={{ textAlign:'left',padding:'0.9rem 1rem',color:'#555',fontWeight:600,fontSize:'0.78rem',textTransform:'uppercase' }}>{h}</th>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {filtrados.length === 0
-              ? <tr><td colSpan={5} style={{ padding:'2rem',textAlign:'center',color:'#444' }}>Sin registros</td></tr>
-              : filtrados.map(h => (
-                  <tr key={h.id} style={{ borderBottom:'1px solid #1a1d27' }}>
-                    <td style={{ padding:'0.85rem 1rem',color:'#8b8fa8',fontFamily:'monospace',whiteSpace:'nowrap',fontSize:'0.82rem' }}>
-                      {/* CORRECCIÓN: Manejo de fecha con fallback */}
-                      {h.fecha_valida 
-                        ? new Date(h.fecha_valida).toLocaleString('es-CO', { dateStyle:'short', timeStyle:'short' }) 
-                        : '—'}
-                    </td>
-                    <td style={{ padding:'0.85rem 1rem',color:'#e8eaf0' }}>{h.cli?.nombre || '—'}</td>
-                    <td style={{ padding:'0.85rem 1rem',color:'#8b8fa8' }}>{h.sus?.tipo || '—'}</td>
-                    <td style={{ padding:'0.85rem 1rem',color:'#34d399',fontFamily:'monospace' }}>
-                      {/* CORRECCIÓN: Usamos monto_final */}
-                      {fmt(h.monto_final)}
-                    </td>
-                    <td style={{ padding:'0.85rem 1rem' }}><Badge status={h.estado} /></td>
-                  </tr>
-                ))
-            }
-          </tbody>
-        </table>
-      </div>
+    <div className="pagina">
+      <PageHeader
+        titulo="Historial de Envíos"
+        acciones={<Button variante="secundario" tam="sm" icono="arrow-clockwise" cargando={cargando} onClick={cargar}>Actualizar</Button>}
+      />
+      {cuerpo}
     </div>
   )
 }

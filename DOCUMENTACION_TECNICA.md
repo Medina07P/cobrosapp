@@ -25,7 +25,7 @@ Usuario remoto → HTTPS → Cloudflare → Túnel → Servidor local Ubuntu
 | Scheduler | `node-cron` (timezone America/Bogota) |
 | Gestor de procesos | PM2 (modo fork, instancia única) |
 | Frontend | React 18 + Vite |
-| Estilos | Tailwind CSS (CDN) |
+| Estilos | CSS propio (`src/styles/`, tokens y reset) |
 
 ## 4. Modelo de Datos (SQLite)
 
@@ -35,7 +35,7 @@ La base de datos reside en `backend/data/sgcrc.db` con foreign keys habilitadas.
 usuarios
 ├── id, email (UNIQUE), password (hash bcrypt), nombre
 ├── config_smtp (JSON string, SMTP por usuario)
-└── color_tema (hex, default #4f46e5)
+└── color_tema (hex, default #1F6B4F, `COLOR_POR_DEFECTO` en `backend/perfil.js`)
 
 clientes
 ├── id, nombre, correo
@@ -72,7 +72,7 @@ Las migraciones se aplican como sentencias `ALTER TABLE … try/catch` en `backe
 
 1. `node-cron` dispara `procesarCobrosDelDia()` a las 08:00 America/Bogota (configurable).
 2. Se obtienen todas las suscripciones activas del usuario.
-3. `tocaCobrarHoy()` determina si cada suscripción corresponde al día actual según su frecuencia (`mensual`, `quincenal`, `semanal`, `anual`) y `fecha_alta`.
+3. `tocaCobrarEn()` / `planificarCobros()` (`backend/cobros.js`) determinan si cada suscripción corresponde al día actual según su frecuencia (`mensual`, `quincenal`, `semanal`, `anual`) y `fecha_alta`.
 4. Se omiten las suscripciones ya enviadas en el día (idempotencia).
 5. Para cada suscripción elegible: `mailer.enviarCobro()` genera y envía el HTML del correo.
 6. Se registra el resultado (`Enviado` o `Fallido`) en la tabla `historial`.

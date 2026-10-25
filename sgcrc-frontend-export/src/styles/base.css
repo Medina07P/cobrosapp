@@ -1,0 +1,58 @@
+/* Reset mínimo (sustituye al preflight del CDN de Tailwind, ya retirado). */
+*, ::before, ::after { box-sizing: border-box; border-width: 0; border-style: solid; border-color: currentColor; }
+html { line-height: 1.5; -webkit-text-size-adjust: 100%; }
+h1, h2, h3, h4, h5, h6 { font-size: inherit; font-weight: inherit; margin: 0; }
+p, figure, blockquote, dl, dd, pre { margin: 0; }
+ul, ol, menu { list-style: none; margin: 0; padding: 0; }
+a { color: inherit; text-decoration: inherit; }
+button, input, select, textarea { font: inherit; color: inherit; margin: 0; padding: 0; line-height: inherit; }
+button, [role="button"] { cursor: pointer; background: transparent; }
+button:disabled { cursor: default; }
+table { border-collapse: collapse; border-color: inherit; text-indent: 0; }
+img, svg, video, canvas { display: block; max-width: 100%; }
+[hidden] { display: none; }
+
+body {
+  margin: 0;
+  background: var(--surface-page);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 0.9375rem;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* Foco visible en todo elemento interactivo, independiente del color de marca:
+   anillo de tinta con halo de superficie para verse sobre fondos oscuros o de marca.
+   !important porque algún estilo propio puede quitar el outline sin reemplazo. */
+:focus-visible {
+  outline: 2px solid var(--ink) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 5px var(--surface);
+}
+
+::placeholder { color: var(--ink-2); opacity: 1; }
+
+/* Utilidades de color de marca usadas por las vistas */
+.bg-brand { background-color: var(--color-primario) !important; }
+.text-brand { color: var(--color-primario-texto) !important; }
+.border-brand { border-color: var(--color-primario) !important; }
+.hover-brand:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 4px 12px var(--color-primario-glow);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

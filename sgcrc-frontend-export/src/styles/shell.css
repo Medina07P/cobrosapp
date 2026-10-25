@@ -1,0 +1,97 @@
+/* Shell de la aplicación: sidebar clara en escritorio, barra superior y navegación en móvil. */
+.saltar {
+  position: absolute; left: 0.75rem; top: -4rem; z-index: 70;
+  padding: 0.6rem 1rem; border-radius: 6px;
+  background: var(--ink); color: var(--surface); font-weight: 600; text-decoration: none;
+}
+.saltar:focus { top: 0.75rem; }
+
+.shell { min-height: 100vh; display: flex; }
+
+.lateral {
+  display: none; flex-direction: column; gap: 0.25rem;
+  width: 16rem; flex-shrink: 0; height: 100vh; height: 100dvh; overflow-y: auto; position: sticky; top: 0;
+  padding: 1.25rem 1rem 1.25rem calc(1rem + env(safe-area-inset-left));
+  background: var(--surface); border-right: 1px solid var(--line);
+}
+@media (width >= 768px) { .lateral { display: flex; } }
+
+.marca { display: flex; align-items: center; gap: 0.6rem; font-family: var(--font-display); font-size: 1.375rem; font-weight: 600; color: var(--ink); }
+.marca svg { color: var(--color-primario); }
+.lateral .marca { padding: 0.25rem 0.5rem 1rem; }
+
+.empresa { margin: 0 0.5rem 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--line); font-size: 0.875rem; color: var(--ink-2); }
+.empresa strong { display: block; font-size: 1rem; color: var(--ink); overflow-wrap: anywhere; }
+
+.nav { display: flex; flex-direction: column; gap: 0.125rem; }
+.nav-item {
+  position: relative; display: flex; align-items: center; gap: 0.75rem;
+  width: 100%; min-height: 2.75rem; padding: 0.5rem 0.75rem 0.5rem 1rem;
+  border: 0; border-radius: 6px; background: transparent;
+  font: inherit; font-weight: 500; text-align: left; color: var(--ink-2); cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+.nav-item:hover { background: var(--surface-alt); color: var(--ink); }
+.nav-item[aria-current="page"] { background: var(--surface-alt); color: var(--ink); font-weight: 600; }
+.nav-item[aria-current="page"]::before {
+  content: ""; position: absolute; left: 0; top: 0.4rem; bottom: 0.4rem;
+  width: 3px; border-radius: 2px; background: var(--color-primario);
+}
+.nav-item[aria-current="page"] svg { color: var(--color-primario); }
+
+.lateral-pie { margin-top: auto; display: grid; gap: 0.5rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.estado-server { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0 0.5rem; font-size: 0.8125rem; color: var(--ink-2); }
+.estado-server i { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--ink-2); }
+.estado-server[data-ok="true"] i { background: var(--ok); }
+.estado-server[data-ok="false"] i { background: var(--bad); }
+
+.principal { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.contenido { flex: 1; min-width: 0; padding: 1rem calc(1rem + env(safe-area-inset-right)) 1rem calc(1rem + env(safe-area-inset-left)); }
+/* El foco programático va al h1 (conserva el anillo global de base.css). El contenedor main solo recibe
+   foco como respaldo y no debe dibujar anillo: `.contenido:focus-visible` (0,2,0) supera por
+   especificidad a `:focus-visible` (0,1,0) de base.css, ambos con !important, así que gana aquí. */
+.contenido:focus-visible { outline: none !important; box-shadow: none; }
+@media (width >= 768px) { .contenido { padding: 2rem calc(2.5rem + env(safe-area-inset-right)) 2rem calc(2.5rem + env(safe-area-inset-left)); } }
+
+/* Móvil: barra superior (marca + estado) y barra de navegación inferior con panel "Más" */
+.barra-movil { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem 0.75rem; padding: 0.75rem calc(1rem + env(safe-area-inset-right)) 0.75rem calc(1rem + env(safe-area-inset-left)); border-bottom: 1px solid var(--line); background: var(--surface); margin: 0; }
+.barra-movil .estado-server { padding: 0; min-width: 0; text-align: right; }
+.barra-movil .marca { font-size: 1.25rem; }
+.nav-inferior { display: none; }
+.panel-mas { display: none; }
+@media (width < 768px) {
+  .nav-inferior {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    display: flex; justify-content: space-around;
+    background: var(--surface); border-top: 1px solid var(--line);
+    padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .nav-inf-item {
+    position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 0.15rem; min-height: 3.5rem; flex: 1 1 auto; min-width: 2.75rem; padding: 0.25rem 0.125rem; text-align: center;
+    border: 0; background: transparent; font: inherit; font-size: 0.8125rem; color: var(--ink-2); cursor: pointer;
+  }
+  .nav-inf-item[aria-current="page"] { color: var(--ink); font-weight: 600; }
+  .nav-inf-item[aria-current="page"]::before {
+    content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--color-primario);
+  }
+  .nav-inf-item[aria-current="page"] svg { color: var(--color-primario); }
+  .panel-mas {
+    position: fixed; left: calc(0.75rem + env(safe-area-inset-left)); right: calc(0.75rem + env(safe-area-inset-right)); z-index: 45;
+    bottom: calc(3.5rem + env(safe-area-inset-bottom) + 0.5rem);
+    display: grid; gap: 0.25rem; padding: 0.5rem;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+    box-shadow: 0 12px 32px rgba(31, 36, 33, 0.25);
+  }
+  .panel-mas[hidden] { display: none; }
+  .contenido { padding-bottom: calc(3.5rem + env(safe-area-inset-bottom) + 1.5rem); }
+}
+@media (width >= 768px) { .barra-movil, .nav-inferior, .panel-mas { display: none; } }
+
+/* Acceso: inicio de sesión y registro */
+.acceso { min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 1rem; background: var(--surface-page); }
+.acceso-tarjeta { width: 100%; max-width: 26rem; display: grid; gap: 1rem; padding: 1.5rem; }
+.acceso-titulo { margin: 0; font-family: var(--font-display); font-size: 1.5rem; color: var(--ink); }
+.acceso-tarjeta .pagina-desc { margin: -0.5rem 0 0; }
+.acceso-form { display: grid; gap: 1rem; }
+.acceso-tarjeta .btn { width: 100%; }

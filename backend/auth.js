@@ -2,7 +2,8 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const db = require('./database'); 
 
-const SECRET_KEY = process.env.JWT_SECRET || 'clave_maestra_super_secreta_123';
+const { jwtSecret } = require('./config');
+const { COLOR_POR_DEFECTO } = require('./perfil');
 
 // Helper para enviar JSON (Mantenemos el tuyo, es correcto)
 function enviarJSON(res, status, data) {
@@ -13,30 +14,17 @@ function enviarJSON(res, status, data) {
     res.end(JSON.stringify(data));
 }
 
-// NUEVO: Helper para leer el body en Node.js puro
-async function getBody(req) {
-    return new Promise((resolve, reject) => {
-        let body = '';
-        req.on('data', chunk => { body += chunk.toString(); });
-        req.on('end', () => {
-            try {
-                resolve(body ? JSON.parse(body) : {});
-            } catch (e) {
-                resolve({});
-            }
-        });
-        req.on('error', (err) => reject(err));
-    });
-}
-
 const auth = {
     async registrar(req, res) {
-        // Leemos el body manualmente si no viene pre-procesado
-        const body = req.body || await getBody(req);
+        const body = req.body || {};
         const { email, password, nombre } = body;
-        
-        if (!email || !password) {
+
+        if (typeof email !== 'string' || typeof password !== 'string' || !email.trim() || !password) {
             return enviarJSON(res, 400, { error: "Email y contraseña son requeridos" });
+        }
+        if (nombre !== undefined && nombre !== null &&
+            (typeof nombre !== 'string' || !nombre.trim() || nombre.trim().length > 120)) {
+            return enviarJSON(res, 400, { error: "El nombre debe ser un texto de 1 a 120 caracteres." });
         }
 
         try {
@@ -44,7 +32,7 @@ const auth = {
             const stmt = db.prepare('INSERT INTO usuarios (email, password, nombre, color_tema) VALUES (?, ?, ?, ?)');
             
             // Usamos el color corporativo por defecto
-            const info = stmt.run(email, hashedPassword, nombre || 'Café Valdore Admin', '#4f46e5');
+            const info = stmt.run(email, hashedPassword, (nombre && nombre.trim()) || 'Mi negocio', COLOR_POR_DEFECTO);
             
             return enviarJSON(res, 201, { 
                 id: info.lastInsertRowid, 
@@ -59,9 +47,11 @@ const auth = {
     },
 
     async login(req, res) {
-        // ASEGURAMOS LA LECTURA DEL BODY
-        const body = req.body || await getBody(req);
+        const body = req.body || {};
         const { email, password } = body;
+        if (typeof email !== 'string' || typeof password !== 'string') {
+            return enviarJSON(res, 401, { error: "Credenciales incorrectas" });
+        }
 
         console.log(`[Auth] Intento de login para: ${email}`);
         
@@ -77,8 +67,8 @@ const auth = {
             // Generamos el Token JWT
             const token = jwt.sign(
                 { id: user.id, email: user.email, nombre: user.nombre },
-                SECRET_KEY,
-                { expiresIn: '24h' }
+                jwtSecret(),
+                { algorithm: 'HS256', expiresIn: '24h' }
             );
 
             console.log(`[Auth] Login exitoso: ${user.nombre}`);

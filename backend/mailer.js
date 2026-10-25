@@ -1,5 +1,6 @@
 const nodemailer = require("nodemailer");
 require("dotenv").config();
+const { COLOR_POR_DEFECTO, colorValido, normalizarWhatsapp, textoSobre, colorLegibleSobreBlanco } = require("./perfil");
 
 function crearTransporter(usuarioConfig = null) {
   let config;
@@ -23,107 +24,6 @@ function crearTransporter(usuarioConfig = null) {
     auth: { user, pass },
   });
 }
-// ... (Tus funciones crearTransporter y escapeHtml se mantienen igual)
-
-function buildHtml({ cliente, suscripcion, nombreVendedor = "SGCRC", color = "#4f46e5" }) {
-  const fecha = new Date().toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" });
-  const monto = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(suscripcion.monto);
-  
-  const clienteNombre = escapeHtml(cliente.nombre);
-  const tipo = escapeHtml(suscripcion.tipo);
-  const descripcion = suscripcion.descripcion ? escapeHtml(suscripcion.descripcion) : "";
-  const frecuencia = (suscripcion.frecuencia || "Mensual").toLowerCase();
-
-  // Configuración de WhatsApp (Asegúrate de que este número sea el de Café Valdore)
-  const mensajeWa = encodeURIComponent(`Hola, envío el comprobante de mi pago de ${tipo} por valor de ${monto}.`);
-  const urlWhatsapp = `https://wa.me/573014518350?text=${mensajeWa}`;
-
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f9fafb; margin: 0; padding: 0; }
-    .wrapper { width: 100%; background-color: #f9fafb; padding-bottom: 40px; }
-    .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; margin-top: 40px; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); border: 1px solid #f3f4f6; }
-    
-    /* GRADIENTE DINÁMICO MEJORADO: Del color de marca a una versión más profunda del mismo */
-    .header { 
-      background: ${color}; 
-      background: linear-gradient(135deg, ${color} 0%, #111111 150%); 
-      padding: 40px 20px; 
-      text-align: center; 
-      color: #ffffff; 
-    }
-    
-    .header h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.025em; text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    .header p { margin: 8px 0 0; opacity: 0.9; font-size: 14px; font-weight: 500; }
-    .content { padding: 32px; color: #374151; line-height: 1.6; }
-    .greeting { font-size: 18px; font-weight: 700; color: #111827; margin-bottom: 16px; }
-    .receipt-card { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin: 24px 0; }
-    
-    /* MONTO CON TU COLOR DE MARCA */
-    .total-amount { font-size: 32px; font-weight: 800; color: ${color}; margin: 4px 0; }
-    
-    .btn-container { text-align: center; margin-top: 32px; }
-    
-    /* BOTÓN TOTALMENTE PERSONALIZADO */
-    .btn { 
-      background-color: ${color}; 
-      color: #ffffff !important; 
-      padding: 16px 35px; 
-      border-radius: 12px; 
-      text-decoration: none; 
-      font-weight: 700; 
-      font-size: 16px; 
-      display: inline-block;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    }
-    
-    .footer { text-align: center; padding: 24px; font-size: 12px; color: #9ca3af; }
-  </style>
-</head>
-<body>
-  <div class="wrapper">
-    <div class="container">
-      <div class="header">
-        <h1>Confirmación de Cobro</h1>
-        <p>${escapeHtml(nombreVendedor)}</p>
-      </div>
-      <div class="content">
-        <div class="greeting">Hola, ${clienteNombre}</div>
-        <p>Te informamos que se ha generado el cobro de tu suscripción <strong>${frecuencia}</strong> de café especial.</p>
-        
-        <div class="receipt-card">
-          <div style="text-align: center;">
-            <div style="font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: bold;">Monto a pagar</div>
-            <div class="total-amount">${monto}</div>
-          </div>
-          <div style="border-top: 1px solid #e2e8f0; margin: 16px 0;"></div>
-          <div style="display: flex; justify-content: space-between; font-size: 14px;">
-            <span style="color: #64748b;">Producto:</span>
-            <span style="font-weight: 600; color: #1e293b;">${tipo}</span>
-          </div>
-        </div>
-
-        <p style="font-size: 14px; color: #6b7280; text-align: center;">Haz clic abajo para enviarnos tu soporte de pago por WhatsApp:</p>
-        
-        <div class="btn-container">
-          <a href="${urlWhatsapp}" class="btn">Reportar Pago por WhatsApp</a>
-        </div>
-      </div>
-      <div class="footer">
-        Este es un mensaje automático generado por el sistema de gestión de <strong>${escapeHtml(nombreVendedor)}</strong>.<br>
-        Pitalito, Huila - Colombia.
-      </div>
-    </div>
-  </div>
-</body>
-</html>`;
-}
-// ... (El resto de enviarCobro se queda igual)
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -135,18 +35,26 @@ function escapeHtml(value) {
 }
 
 // Agregamos 'color' a los parámetros
-function buildHtml({ cliente, suscripcion, nombreVendedor = "SGCRC", color = "#4f46e5" }) {
+function buildHtml({ cliente, suscripcion, nombreVendedor = "SGCRC", color: colorEntrada = COLOR_POR_DEFECTO, whatsapp = null }) {
+  const color = colorValido(colorEntrada) ? colorEntrada : COLOR_POR_DEFECTO;
+  const textoBoton = textoSobre(color);
+  const colorMonto = colorLegibleSobreBlanco(color);
   const fecha = new Date().toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" });
   const monto = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(suscripcion.monto);
   
   const clienteNombre = escapeHtml(cliente.nombre);
   const tipo = escapeHtml(suscripcion.tipo);
   const descripcion = suscripcion.descripcion ? escapeHtml(suscripcion.descripcion) : "";
-  const frecuencia = (suscripcion.frecuencia || "Mensual").toLowerCase();
+  const frecuencia = escapeHtml((suscripcion.frecuencia || "Mensual").toLowerCase());
 
-  // Configuración de WhatsApp
-  const mensajeWa = encodeURIComponent(`Hola, envío el comprobante de mi pago de ${tipo} por valor de ${monto}.`);
-  const urlWhatsapp = `https://wa.me/573014518350?text=${mensajeWa}`;
+  // WhatsApp del vendedor: sin número válido no se incluye el botón
+  const numeroWa = normalizarWhatsapp(whatsapp);
+  const bloqueWhatsapp = numeroWa
+    ? `<p style="font-size: 14px; color: #6b7280;">Para reportar tu pago de forma rápida, puedes usar el siguiente botón:</p>
+        <div class="btn-container">
+          <a href="https://wa.me/${numeroWa}?text=${encodeURIComponent(`Hola, envío el comprobante de mi pago de ${suscripcion.tipo} por valor de ${monto}.`)}" class="btn">Reportar Pago por WhatsApp</a>
+        </div>`
+    : "";
 
   return `
 <!DOCTYPE html>
@@ -182,12 +90,12 @@ function buildHtml({ cliente, suscripcion, nombreVendedor = "SGCRC", color = "#4
     .total-label { font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: bold; }
     
     /* MONTO CON COLOR DINÁMICO */
-    .total-amount { font-size: 32px; font-weight: 800; color: ${color}; margin: 4px 0; }
+    .total-amount { font-size: 32px; font-weight: 800; color: ${colorMonto}; margin: 4px 0; }
     
     .btn-container { text-align: center; margin-top: 32px; }
     
     /* BOTÓN CON COLOR DINÁMICO */
-    .btn { background-color: ${color}; color: #ffffff !important; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 16px; display: inline-block; }
+    .btn { background-color: ${color}; color: ${textoBoton} !important; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 16px; display: inline-block; }
     
     .footer { text-align: center; padding: 24px; font-size: 12px; color: #9ca3af; }
     .divider { border-top: 1px solid #f3f4f6; margin: 24px 0; }
@@ -221,11 +129,7 @@ function buildHtml({ cliente, suscripcion, nombreVendedor = "SGCRC", color = "#4
           ${descripcion ? `<div class="receipt-row"><span class="label">Referencia: </span><span class="value">${descripcion}</span></div>` : ""}
         </div>
 
-        <p style="font-size: 14px; color: #6b7280;">Para reportar tu pago de forma rápida, puedes usar el siguiente botón:</p>
-        
-        <div class="btn-container">
-          <a href="${urlWhatsapp}" class="btn">Reportar Pago por WhatsApp</a>
-        </div>
+        ${bloqueWhatsapp}
       </div>
       <div class="footer">
         Este es un mensaje automático generado por <strong>SGCRC</strong>.<br>
@@ -237,27 +141,37 @@ function buildHtml({ cliente, suscripcion, nombreVendedor = "SGCRC", color = "#4
 </html>`;
 }
 
+// Remitente como objeto (nodemailer lo codifica): el nombre nunca puede inyectar direcciones ni cabeceras
+function construirRemitente(usuarioConfig, fromEmail) {
+  const name = String(usuarioConfig?.nombre || "SGCRC").replace(/[\r\n"]/g, " ").trim().slice(0, 120) || "SGCRC";
+  return { name, address: fromEmail };
+}
+
 async function enviarCobro({ cliente, suscripcion, usuarioConfig }) {
   const monto = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(suscripcion.monto);
   const transporter = crearTransporter(usuarioConfig);
   const frecuencia = (suscripcion.frecuencia || "Mensual");
   
-  // LEEMOS EL COLOR DEL USUARIO (SI NO EXISTE, INDIGO POR DEFECTO)
-  const colorMarca = usuarioConfig.color_tema || "#4f46e5";
+  // LEEMOS EL COLOR DEL USUARIO (SI NO EXISTE, VERDE DE MARCA POR DEFECTO)
+  const colorMarca = usuarioConfig.color_tema || COLOR_POR_DEFECTO;
 
-  const fromEmail = (usuarioConfig && usuarioConfig.config_smtp) 
-    ? JSON.parse(usuarioConfig.config_smtp).user 
-    : (process.env.SMTP_FROM || process.env.SMTP_USER);
+  let fromEmail;
+  try {
+    fromEmail = usuarioConfig?.config_smtp ? JSON.parse(usuarioConfig.config_smtp).user : undefined;
+  } catch (e) { /* config_smtp corrupto: se usa el remitente global */ }
+  const global = process.env.SMTP_FROM || process.env.SMTP_USER || "";
+  fromEmail = fromEmail || (global.match(/<([^<>]+)>/)?.[1] ?? global);
 
   await transporter.sendMail({
-    from: `"${usuarioConfig.nombre}" <${fromEmail}>`,
+    from: construirRemitente(usuarioConfig, fromEmail),
     to: cliente.correo,
     subject: `Recibo de Cobro ${frecuencia} — ${monto}`,
     html: buildHtml({ 
         cliente, 
         suscripcion, 
         nombreVendedor: usuarioConfig.nombre,
-        color: colorMarca // Pasamos el color al constructor del HTML
+        color: colorMarca, // Pasamos el color al constructor del HTML
+        whatsapp: usuarioConfig.whatsapp,
     }),
   });
 }
@@ -274,4 +188,4 @@ async function verificarConexion() {
   }
 }
 
-module.exports = { enviarCobro, verificarConexion, buildHtml };
+module.exports = { enviarCobro, verificarConexion, buildHtml, construirRemitente };
