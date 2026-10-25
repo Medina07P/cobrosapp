@@ -205,6 +205,38 @@ textarea.field-control { min-height: 5.5rem; resize: vertical; }
 .hist-pie { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.75rem; margin-top: 1rem; color: var(--ink-2); font-size: 0.875rem; }
 .hist-pie p { margin: 0; }
 
+/* ---------- Móvil: tablas como tarjetas y objetivos táctiles de 44 px ---------- */
+@media (max-width: 47.9375rem) {
+  .tabla-wrap { background: none; border: 0; border-radius: 0; overflow-x: visible; }
+  .tabla thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+  .tabla, .tabla tbody { display: block; }
+  .tabla tr {
+    display: grid; gap: 0.5rem; margin-bottom: 0.75rem; padding: 0.75rem 1rem;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+  }
+  .tabla td {
+    display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.25rem 1rem;
+    padding: 0; border: 0; text-align: right; min-width: 0; overflow-wrap: anywhere; white-space: normal;
+  }
+  .tabla td::before {
+    content: attr(data-label); flex-shrink: 0; font-size: 0.8125rem; font-weight: 600;
+    color: var(--ink-2); text-align: left;
+  }
+  /* La nota secundaria ocupa su propia línea bajo la etiqueta y el valor */
+  .tabla td .celda-nota { flex: 0 0 100%; text-align: right; }
+  .tabla td.num, .tabla td.hist-fecha { font-variant-numeric: tabular-nums; white-space: normal; }
+  .tabla td.acciones {
+    flex-wrap: nowrap; justify-content: stretch; gap: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--line);
+  }
+  .tabla td.acciones::before { content: none; }
+  .tabla td.acciones > * { flex: 1; margin-left: 0; }
+  .tabla td.acciones > * + * { margin-left: 0; }
+
+  .btn-sm { min-height: 2.75rem; }
+  .hist-filtros { flex-wrap: wrap; }
+  .hist-tarjeta { min-width: 0; }
+}
+
 /* Calendario */
 .cal-layout { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); gap: 1.5rem; align-items: start; }
 .cal-panel { padding: 1.5rem; min-width: 0; }
