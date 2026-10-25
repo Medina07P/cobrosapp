@@ -3,9 +3,6 @@ import { particionarNav, vistaEnMas } from '../lib/navegacion.js'
 import Icon from './Icon.jsx'
 import Button from './Button.jsx'
 
-// Etiqueta visible abreviada en la barra donde la completa no cabe en una quinta parte de 360 px (el nombre accesible sigue siendo el completo).
-const ETIQUETA_BARRA = { suscripciones: 'Suscrip.' }
-
 // Barra de navegación inferior (móvil) con un panel "Más" para los destinos restantes y "Salir".
 export default function NavMovil({ view, onNavegar, onSalir }) {
   const { barra, mas } = particionarNav()
@@ -18,7 +15,8 @@ export default function NavMovil({ view, onNavegar, onSalir }) {
     if (!abierto) return
     panel.current?.querySelector('button')?.focus()
     const alPulsar = (e) => {
-      if (e.key === 'Escape') {
+      // Escape lo comparte con Dialog: si hay un diálogo abierto (o ya lo gestionó), el panel no actúa.
+      if (e.key === 'Escape' && !e.defaultPrevented && !document.querySelector('[role="dialog"], [role="alertdialog"], .dialog-velo')) {
         setAbierto(false)
         botonMas.current?.focus()
       }
@@ -34,14 +32,27 @@ export default function NavMovil({ view, onNavegar, onSalir }) {
     }
   }, [abierto])
 
+  // Al pasar a escritorio la barra se oculta: el panel se cierra para no dejar oyentes ni estado colgados.
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)')
+    const alCambiar = (e) => { if (e.matches) setAbierto(false) }
+    mq.addEventListener('change', alCambiar)
+    return () => mq.removeEventListener('change', alCambiar)
+  }, [])
+
+  // Si el foco sale del contenedor (Tab hacia fuera), el panel se cierra; pulsar dentro no lo cierra.
+  const alPerderFoco = (e) => {
+    if (abierto && e.relatedTarget && !e.currentTarget.contains(e.relatedTarget)) setAbierto(false)
+  }
+
   const elegir = (id) => { setAbierto(false); onNavegar(id) }
   // Desde el panel: si la vista ya es la activa, App no mueve el foco y el panel oculto lo dejaría en body.
   const elegirEnPanel = (id) => { elegir(id); if (id === view) botonMas.current?.focus() }
   const salir = () => { setAbierto(false); onSalir() }
 
   return (
-    <div ref={contenedor}>
-      <div id="panel-mas" ref={panel} className="panel-mas" hidden={!abierto}>
+    <div ref={contenedor} onBlur={alPerderFoco}>
+      <div id="panel-mas" ref={panel} className="panel-mas" role="group" aria-label="Más opciones" hidden={!abierto}>
         {mas.map((n) => (
           <button
             key={n.id} type="button" className="nav-item"
@@ -58,12 +69,11 @@ export default function NavMovil({ view, onNavegar, onSalir }) {
         {barra.map((n) => (
           <button
             key={n.id} type="button" className="nav-inf-item"
-            aria-label={ETIQUETA_BARRA[n.id] ? n.label : undefined}
             aria-current={view === n.id ? 'page' : undefined}
             onClick={() => elegir(n.id)}
           >
             <Icon name={n.icon} size={22} />
-            <span>{ETIQUETA_BARRA[n.id] || n.label}</span>
+            <span>{n.label}</span>
           </button>
         ))}
         <button

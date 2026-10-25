@@ -48,9 +48,9 @@ npm run preview  # Preview del build local
 
 ## Móvil (Fase 5)
 
-- **Un solo breakpoint móvil**: `@media (max-width: 47.9375rem)` (bajo 768 px). Ahí aparece la barra inferior y las tablas pasan a tarjetas. El Calendario conserva además su regla `max-width: 40rem` para la rejilla.
-- **`NavMovil`**: barra inferior fija (`.nav-inferior`, 5 columnas) con Dashboard, Clientes, Suscripciones, Calendario y "Más" (`aria-expanded`, `aria-controls="panel-mas"`). El panel `.panel-mas` lista Planes, Historial, Configuración y "Salir"; se cierra con Escape (devuelve el foco a "Más") o clic fuera; si se elige la vista ya activa, el foco vuelve a "Más". "Más" lleva `aria-current` cuando la vista activa está en el panel. En la barra, "Suscripciones" se muestra como "Suscrip." (`ETIQUETA_BARRA`; la completa no cabe en 72 px) con `aria-label` completo. `.contenido` y `.toast-region` reservan espacio para la barra.
-- **Tablas como tarjetas**: solo con CSS (`ui.css`). El `thead` se oculta visualmente, cada `tr` es una tarjeta y cada `td` muestra su `data-label` como etiqueta (`td::before`). Toda tabla nueva debe poner `data-label` en cada celda (`Acciones` sin etiqueta). Las tablas llevan `role` explícitos (`table`, `rowgroup`, `row`, `columnheader`, `cell`) para conservar la semántica con `display` distinto de `table`.
+- **Un solo breakpoint móvil**: `@media (width < 768px)` (sintaxis de rango; complementa sin hueco al `@media (width >= 768px)` del shell de escritorio, así que a 767 y 768 px siempre hay exactamente una navegación). Ahí aparece la barra inferior y las tablas pasan a tarjetas.
+- **`NavMovil`**: barra inferior fija (`.nav-inferior`, flex con `space-around`; los ítems se reparten según su contenido) con Dashboard, Clientes, Suscripciones, Calendario y "Más" (`aria-expanded`, `aria-controls="panel-mas"`). El panel `.panel-mas` lista Planes, Historial, Configuración y "Salir"; se cierra con Escape (devuelve el foco a "Más") o clic fuera; si se elige la vista ya activa, el foco vuelve a "Más". "Más" lleva `aria-current` cuando la vista activa está en el panel. Las etiquetas de la barra son completas (nombre accesible = texto visible). El panel es `role="group"` con `aria-label="Más opciones"`, se cierra al salir el foco del contenedor y al pasar a escritorio, y su Escape se ignora si hay un diálogo abierto. Las zonas seguras laterales (`viewport-fit=cover`) se aplican con `env(safe-area-inset-left/right)` en `.lateral`, `.contenido`, `.barra-movil`, `.nav-inferior` y `.panel-mas`. `.contenido` y `.toast-region` reservan espacio para la barra.
+- **Tablas como tarjetas**: solo con CSS (`ui.css`). El `thead` se oculta visualmente, cada `tr` es una tarjeta y cada `td` muestra su `data-label` como etiqueta (`td::before`). Toda tabla nueva debe poner `data-label` en cada celda (`Acciones` sin etiqueta). Toda tabla nueva debe llevar `role` explícitos (`table`, `rowgroup`, `row`, `columnheader`, `cell`) para conservar la semántica con `display` distinto de `table`.
 - **Objetivos táctiles**: en móvil botones, campos y filtros miden al menos 44 px (también los `btn-sm`).
 - **Agenda del Calendario**: en móvil se oculta la rejilla y el detalle y se muestra `.cal-agenda` (un bloque por día con cobros; `etiquetaAgenda` y `diaSemanaCorto` de `lib/calendario.js`).
 - **Cómo verificar a 360 px**: con sesión iniciada, inyectar en una pestaña de la app un `<iframe src="/" style="width:360px;height:740px">` (mismo origen) y medir ahí (`scrollWidth <= innerWidth`, objetivos < 44 px, contenido bajo la barra). El Dashboard sigue sin rediseñar (Fase 6).
@@ -96,7 +96,7 @@ Solo el Dashboard conserva estilos antiguos (clases Tailwind y estilos en línea
      mivista: <MiVista />,
    }
    ```
-3. Agregar el ítem al array `NAV` de `App.jsx` (`id`, `label`, `icon`); alimenta tanto el sidebar como la navegación móvil.
+3. Agregar el ítem al array `NAV` de `src/lib/navegacion.js` (`id`, `label`, `icon`); alimenta el sidebar y la navegación móvil. Un destino nuevo cae en el panel "Más" de la barra móvil salvo que su `id` se agregue a `IDS_BARRA_MOVIL` (la barra admite pocos ítems; ver `navegacion.test.js`).
 4. Encabezar la vista con `PageHeader` (único `h1`) dentro de `.pagina`.
 
 ## Patrón de llamadas a la API

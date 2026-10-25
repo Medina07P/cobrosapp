@@ -129,7 +129,7 @@ textarea.field-control { min-height: 5.5rem; resize: vertical; }
   .toast-region { left: auto; right: 1.25rem; justify-items: end; }
 }
 
-@media (max-width: 47.9375rem) {
+@media (width < 768px) {
   .toast-region { bottom: calc(3.5rem + env(safe-area-inset-bottom) + 0.75rem); }
 }
 
@@ -206,7 +206,7 @@ textarea.field-control { min-height: 5.5rem; resize: vertical; }
 .hist-pie p { margin: 0; }
 
 /* ---------- Móvil: tablas como tarjetas y objetivos táctiles de 44 px ---------- */
-@media (max-width: 47.9375rem) {
+@media (width < 768px) {
   .tabla-wrap { background: none; border: 0; border-radius: 0; overflow-x: visible; }
   .tabla thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
   .tabla, .tabla tbody { display: block; }
@@ -226,7 +226,7 @@ textarea.field-control { min-height: 5.5rem; resize: vertical; }
   .tabla td .celda-nota { flex: 0 0 100%; text-align: right; }
   .tabla td.num, .tabla td.hist-fecha { font-variant-numeric: tabular-nums; white-space: normal; }
   .tabla td.acciones {
-    flex-wrap: nowrap; justify-content: stretch; gap: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--line);
+    flex-wrap: nowrap; gap: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--line);
   }
   .tabla td.acciones::before { content: none; }
   .tabla td.acciones > * { flex: 1; margin-left: 0; }
@@ -272,7 +272,7 @@ button.cal-celda { cursor: pointer; border-color: var(--line-control); }
 .cal-item-monto { color: var(--ink); font-variant-numeric: tabular-nums; }
 .cal-item-fecha { color: var(--ink-2); font-size: 0.8125rem; }
 .cal-agenda { display: none; }
-@media (max-width: 47.9375rem) {
+@media (width < 768px) {
   .cal-panel { padding: 1rem; }
   .cal-agenda { display: grid; gap: 0.75rem; }
   .cal-semana, .cal-rejilla, .cal-detalle { display: none; }

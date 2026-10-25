@@ -15,7 +15,7 @@ Spec: `docs/superpowers/specs/2026-10-19-rediseno-visual-frontend-design.md` (sh
 - Rama `develop`. Un commit por tarea con el trailer final exacto `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`. Sin push.
 - Todo dentro de `sgcrc-frontend-export/` salvo este plan. Tailwind sigue por CDN (sin `tailwind.config.js`); `fetch`, no `axios`.
 - En lo que se toque no se añaden clases de Tailwind ni colores hardcodeados: clases de `src/styles/*.css` y `var(--...)`. Texto sobre marca: `var(--color-primario-contraste)`.
-- Punto de corte móvil único: `@media (max-width: 47.9375rem)` (todo lo que está bajo el breakpoint `768px` del shell, donde aparece la barra inferior). El Calendario conserva además su regla `max-width: 40rem` existente para la rejilla.
+- Punto de corte móvil único: `@media (width < 768px)` (complemento exacto del `@media (width >= 768px)` del shell, sin franja sin navegación; donde aparece la barra inferior).
 - Objetivos táctiles ≥ 44 px (`2.75rem`) en móvil, incluidos los botones `sm`; foco visible siempre; texto ≥ 13 px; contraste 4.5:1 en texto y 3:1 en componentes; sin emojis; iconos solo con `<Icon>` (`list` ya existe en `scripts/gen-icons.mjs`); textos en español con tildes.
 - Sin desbordamiento horizontal de la página a 360 px (`document.documentElement.scrollWidth <= window.innerWidth`).
 - Verificación de cada tarea (desde `sgcrc-frontend-export/`): `npm test` y `npm run build` en verde. Escritorio (≥768 px) no cambia visualmente.
@@ -137,8 +137,8 @@ Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 - Panel "Más": `<div id="panel-mas" className="panel-mas" hidden={!abierto}>` con los destinos de `mas` como botones (`.nav-item`, `aria-current` en el activo) y un botón "Salir" (`Button variante="secundario" icono="sign-out"`). Elegir un destino llama `onNavegar(id)` y cierra; "Salir" llama `onSalir` y cierra. Cierra con Escape (devolviendo el foco al botón "Más") y con clic fuera (un `mousedown` en `document` cuyo objetivo no esté dentro del contenedor del `NavMovil`). Al abrir, el foco pasa al primer destino del panel. No se atrapa el foco (no es modal); el panel se superpone justo encima de la barra.
 - Barra superior móvil (`.barra-movil`): solo marca + estado del servidor (se quita "Salir", que vive en "Más"; el escritorio conserva su "Salir" en `.lateral-pie`). Se elimina la fila `.nav-movil` y sus reglas.
 - `App.jsx`: sustituir `<nav className="nav-movil">` por `<NavMovil view={view} onNavegar={setView} onSalir={handleLogout} />` (dentro de `.shell`, fuera de `main`). El `h1` de la vista y el foco por vista existentes siguen funcionando sin cambios.
-- CSS en `shell.css` (solo bajo `@media (max-width: 47.9375rem)` salvo que se indique):
-  - `.nav-inferior { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: grid; grid-template-columns: repeat(5, 1fr); background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }` y `display: none` a partir de 768 px.
+- CSS en `shell.css` (solo bajo `@media (width < 768px)` salvo que se indique):
+  - `.nav-inferior { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: flex; justify-content: space-around; (ítems `flex: 1 1 auto; min-width: 2.75rem`); background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }` y `display: none` a partir de 768 px.
   - `.nav-inf-item`: columna centrada, `min-height: 3.5rem` (56 px, ≥48), `gap: 0.15rem`, `font-size: 0.8125rem`, color `var(--ink-2)`, sin borde; activo: color `var(--ink)`, `font-weight: 600` y barra superior de 3 px `var(--color-primario)` (pseudo-elemento, igual criterio que `.nav-item[aria-current]` del escritorio) y icono en `var(--color-primario)`.
   - `.panel-mas { position: fixed; left: 0.75rem; right: 0.75rem; bottom: calc(3.5rem + env(safe-area-inset-bottom) + 0.5rem); z-index: 45; ...superficie, borde var(--line), radio 8px, sombra como .dialog, padding 0.5rem, display grid, gap 0.25rem }` (con `hidden` debe quedar oculto: `.panel-mas[hidden] { display: none; }`).
   - `.contenido { padding-bottom: calc(3.5rem + env(safe-area-inset-bottom) + 1.5rem); }` para que la barra no tape contenido.
@@ -162,7 +162,7 @@ Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 
 **Files:** `src/styles/ui.css` (solo CSS; las celdas de Clientes, Planes, Suscripciones e Historial ya tienen `data-label`).
 
-**Requisitos (todo bajo `@media (max-width: 47.9375rem)`):**
+**Requisitos (todo bajo `@media (width < 768px)`):**
 - `.tabla-wrap`: sin borde ni fondo ni `overflow-x` (las tarjetas llevan el borde).
 - Cabecera oculta pero accesible: `.tabla thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }`.
 - `.tabla, .tabla tbody { display: block; }`; `.tabla tr { display: grid; gap: 0.5rem; margin-bottom: 0.75rem; padding: 0.75rem 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }`.
@@ -257,7 +257,7 @@ con `const diasConCobros = Object.keys(cobrosPorDia).map(Number).sort((a, b) => 
 
 - [ ] **Step 4: CSS** (`ui.css`):
   - Por defecto (escritorio): `.cal-agenda { display: none; }`.
-  - `@media (max-width: 47.9375rem)`: `.cal-agenda { display: grid; gap: 0.75rem; }`, `.cal-semana, .cal-rejilla, .cal-detalle { display: none; }`, `.cal-layout { grid-template-columns: minmax(0, 1fr); }`, `.cal-agenda-dia { padding: 0.75rem 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }`, `.cal-agenda-hoy { border: 2px solid var(--ink); padding: calc(0.75rem - 1px) calc(1rem - 1px); }`, `.cal-agenda-titulo { display: flex; justify-content: space-between; gap: 0.75rem; margin: 0 0 0.25rem; font-size: 1rem; font-family: var(--font-ui); }`, `.cal-agenda-total { font-variant-numeric: tabular-nums; font-weight: 700; }`. Los botones del navegador de mes (`.cal-nav`, `.cal-hoy`) ya miden 44 px. Quitar de la regla `max-width: 40rem` existente lo que quede sin uso (celdas ocultas), sin cambiar el comportamiento ≥ 41 rem.
+  - `@media (width < 768px)`: `.cal-agenda { display: grid; gap: 0.75rem; }`, `.cal-semana, .cal-rejilla, .cal-detalle { display: none; }`, `.cal-layout { grid-template-columns: minmax(0, 1fr); }`, `.cal-agenda-dia { padding: 0.75rem 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }`, `.cal-agenda-hoy { border: 2px solid var(--ink); padding: calc(0.75rem - 1px) calc(1rem - 1px); }`, `.cal-agenda-titulo { display: flex; justify-content: space-between; gap: 0.75rem; margin: 0 0 0.25rem; font-size: 1rem; font-family: var(--font-ui); }`, `.cal-agenda-total { font-variant-numeric: tabular-nums; font-weight: 700; }`. Los botones del navegador de mes (`.cal-nav`, `.cal-hoy`) ya miden 44 px. Quitar de la regla `max-width: 40rem` existente lo que quede sin uso (celdas ocultas), sin cambiar el comportamiento ≥ 41 rem.
   - En móvil el botón "Hoy" solo cambia el mes (la selección de un día no aplica); `irAHoy` no cambia.
 
 - [ ] **Step 5:** `npm test` y `npm run build` en verde.

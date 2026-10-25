@@ -141,6 +141,7 @@ export default function Calendario() {
                 <article key={dia} className={`cal-agenda-dia${esHoy ? ' cal-agenda-hoy' : ''}`} aria-current={esHoy ? 'date' : undefined}>
                   <h3 className="cal-agenda-titulo">
                     {etiquetaAgenda(view.year, view.month, dia)}{esHoy && ' (hoy)'}
+                    <span className="sr-only">, total </span>
                     <span className="cal-agenda-total">{fmt(datos.total)}</span>
                   </h3>
                   {datos.items.map((s, idx) => (

@@ -11,10 +11,10 @@
 .lateral {
   display: none; flex-direction: column; gap: 0.25rem;
   width: 16rem; flex-shrink: 0; height: 100vh; height: 100dvh; overflow-y: auto; position: sticky; top: 0;
-  padding: 1.25rem 1rem;
+  padding: 1.25rem 1rem 1.25rem calc(1rem + env(safe-area-inset-left));
   background: var(--surface); border-right: 1px solid var(--line);
 }
-@media (min-width: 768px) { .lateral { display: flex; } }
+@media (width >= 768px) { .lateral { display: flex; } }
 
 .marca { display: flex; align-items: center; gap: 0.6rem; font-family: var(--font-display); font-size: 1.375rem; font-weight: 600; color: var(--ink); }
 .marca svg { color: var(--color-primario); }
@@ -46,29 +46,29 @@
 .estado-server[data-ok="false"] i { background: var(--bad); }
 
 .principal { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.contenido { flex: 1; min-width: 0; padding: 1rem; }
+.contenido { flex: 1; min-width: 0; padding: 1rem calc(1rem + env(safe-area-inset-right)) 1rem calc(1rem + env(safe-area-inset-left)); }
 /* El foco programático va al h1 (conserva el anillo global de base.css). El contenedor main solo recibe
    foco como respaldo y no debe dibujar anillo: `.contenido:focus-visible` (0,2,0) supera por
    especificidad a `:focus-visible` (0,1,0) de base.css, ambos con !important, así que gana aquí. */
 .contenido:focus-visible { outline: none !important; box-shadow: none; }
-@media (min-width: 768px) { .contenido { padding: 2rem 2.5rem; } }
+@media (width >= 768px) { .contenido { padding: 2rem calc(2.5rem + env(safe-area-inset-right)) 2rem calc(2.5rem + env(safe-area-inset-left)); } }
 
 /* Móvil: barra superior (marca + estado) y barra de navegación inferior con panel "Más" */
-.barra-movil { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem 0.75rem; padding: 0.75rem 1rem; border-bottom: 1px solid var(--line); background: var(--surface); margin: 0; }
+.barra-movil { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem 0.75rem; padding: 0.75rem calc(1rem + env(safe-area-inset-right)) 0.75rem calc(1rem + env(safe-area-inset-left)); border-bottom: 1px solid var(--line); background: var(--surface); margin: 0; }
 .barra-movil .estado-server { padding: 0; min-width: 0; text-align: right; }
 .barra-movil .marca { font-size: 1.25rem; }
 .nav-inferior { display: none; }
 .panel-mas { display: none; }
-@media (max-width: 47.9375rem) {
+@media (width < 768px) {
   .nav-inferior {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
-    display: grid; grid-template-columns: repeat(5, 1fr);
+    display: flex; justify-content: space-around;
     background: var(--surface); border-top: 1px solid var(--line);
-    padding-bottom: env(safe-area-inset-bottom);
+    padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
   .nav-inf-item {
     position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 0.15rem; min-height: 3.5rem; min-width: 0; padding: 0.25rem;
+    gap: 0.15rem; min-height: 3.5rem; flex: 1 1 auto; min-width: 2.75rem; padding: 0.25rem 0.125rem; text-align: center;
     border: 0; background: transparent; font: inherit; font-size: 0.8125rem; color: var(--ink-2); cursor: pointer;
   }
   .nav-inf-item[aria-current="page"] { color: var(--ink); font-weight: 600; }
@@ -77,7 +77,7 @@
   }
   .nav-inf-item[aria-current="page"] svg { color: var(--color-primario); }
   .panel-mas {
-    position: fixed; left: 0.75rem; right: 0.75rem; z-index: 45;
+    position: fixed; left: calc(0.75rem + env(safe-area-inset-left)); right: calc(0.75rem + env(safe-area-inset-right)); z-index: 45;
     bottom: calc(3.5rem + env(safe-area-inset-bottom) + 0.5rem);
     display: grid; gap: 0.25rem; padding: 0.5rem;
     background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
@@ -86,7 +86,7 @@
   .panel-mas[hidden] { display: none; }
   .contenido { padding-bottom: calc(3.5rem + env(safe-area-inset-bottom) + 1.5rem); }
 }
-@media (min-width: 768px) { .barra-movil, .nav-inferior, .panel-mas { display: none; } }
+@media (width >= 768px) { .barra-movil, .nav-inferior, .panel-mas { display: none; } }
 
 /* Acceso: inicio de sesión y registro */
 .acceso { min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 1rem; background: var(--surface-page); }
