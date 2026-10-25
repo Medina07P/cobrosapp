@@ -5,8 +5,10 @@ import ErrorMsg from '../ui/ErrorMsg.jsx'
 import EmptyState from '../ui/EmptyState.jsx'
 import Button from '../ui/Button.jsx'
 import PageHeader from '../ui/PageHeader.jsx'
+import { EstadoBadge } from '../ui/Badge.jsx'
 import { fmt, fmtFecha } from '../lib/formato.js'
-import { MESES, rejillaMes, agruparCobrosPorDia, fechaLarga, etiquetaAgenda } from '../lib/calendario.js'
+import { MESES, rejillaMes, agruparCobrosPorDia, fechaLarga, etiquetaAgenda, indexarEnvios, estadoEnvio } from '../lib/calendario.js'
+import { aISOLocal } from '../lib/dashboard.js'
 import { useCarga } from '../lib/useCarga.js'
 
 const VACIO = []
@@ -14,17 +16,29 @@ const VACIO = []
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 const plural = (n) => `${n} ${n === 1 ? 'cobro' : 'cobros'}`
 
+// Estado de envío de un cobro pasado: icono y texto (nunca solo color). Los cobros futuros no muestran nada.
+function EstadoDia({ envios, s, iso, hoyISO }) {
+  const e = estadoEnvio(envios, s.id, iso, hoyISO)
+  if (!e) return null
+  return e === 'Sin registro'
+    ? <span className="cal-chip cal-chip-neutro">Sin registro de envío</span>
+    : <EstadoBadge estado={e} />
+}
+
 export default function Calendario() {
   const { datos, hayDatos: cargado, cargando, error, reintentar } = useCarga(async () => {
-    const [subs, clientes] = await Promise.all([api.getSuscripciones(), api.getClientes()])
-    return { subs: subs.filter((x) => x.activa), clientes }
+    const [subs, clientes, historial] = await Promise.all([api.getSuscripciones(), api.getClientes(), api.getHistorial()])
+    return { subs: subs.filter((x) => x.activa), clientes, historial }
   })
   const subs = datos?.subs ?? VACIO
   const clientes = datos?.clientes ?? VACIO
   const [selected, setSelected] = useState(null)
 
   const hoy = new Date()
+  const hoyISO = aISOLocal(hoy)
   const [view, setView] = useState({ month: hoy.getMonth(), year: hoy.getFullYear() })
+  const envios = useMemo(() => indexarEnvios(datos?.historial), [datos])
+  const isoDia = (dia) => `${view.year}-${String(view.month + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`
 
   const { dias: daysInMonth, desfase } = rejillaMes(view.year, view.month)
   const cobrosPorDia = useMemo(
@@ -133,7 +147,10 @@ export default function Calendario() {
                     <div key={`${s.id}-${idx}`} className="cal-item">
                       <div className="cal-item-cab">
                         <div className="cal-item-nombre">{s.cl?.nombre || 'Cliente eliminado'}</div>
-                        <span className="cal-chip">{s.frecuencia || 'mensual'}</span>
+                        <div className="cal-item-marcas">
+                          <span className="cal-chip">{s.frecuencia || 'mensual'}</span>
+                          <EstadoDia envios={envios} s={s} iso={isoDia(dia)} hoyISO={hoyISO} />
+                        </div>
                       </div>
                       <div className="cal-item-tipo">{s.tipo}</div>
                       <div className="cal-item-monto">{fmt(s.monto)}</div>
@@ -157,7 +174,10 @@ export default function Calendario() {
                 <div key={`${s.id}-${idx}`} className="cal-item">
                   <div className="cal-item-cab">
                     <div className="cal-item-nombre">{s.cl?.nombre || 'Cliente eliminado'}</div>
-                    <span className="cal-chip">{s.frecuencia || 'mensual'}</span>
+                    <div className="cal-item-marcas">
+                      <span className="cal-chip">{s.frecuencia || 'mensual'}</span>
+                      <EstadoDia envios={envios} s={s} iso={isoDia(selected)} hoyISO={hoyISO} />
+                    </div>
                   </div>
                   <div className="cal-item-tipo">{s.tipo}</div>
                   <div className="cal-item-monto">{fmt(s.monto)}</div>

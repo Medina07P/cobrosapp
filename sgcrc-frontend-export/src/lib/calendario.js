@@ -1,5 +1,7 @@
 // Lógica pura del Calendario de cobros: fechas locales, rejilla del mes y proyección de cobros por día.
 
+import { diaEnZona } from './formato.js'
+
 export const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
 // 'AAAA-MM-DD' (con o sin hora) -> Date a medianoche LOCAL (no UTC). Entrada no válida -> null.
@@ -83,3 +85,21 @@ export const agruparCobrosPorDia = (subs, clientes, anio, mes) => {
   }
   return mapa
 }
+
+// Envíos reales por suscripción y día (Bogotá): 'Enviado' o 'Fallido'. Si un día tiene ambos, gana 'Enviado'.
+export const indexarEnvios = (historial) => {
+  const mapa = new Map()
+  for (const h of Array.isArray(historial) ? historial : []) {
+    if (h.estado !== 'Enviado' && h.estado !== 'Fallido') continue
+    const dia = diaEnZona(h.fecha || h.fecha_envio)
+    if (!dia) continue
+    const clave = `${h.suscripcion_id}|${dia}`
+    if (mapa.get(clave) !== 'Enviado') mapa.set(clave, h.estado)
+  }
+  return mapa
+}
+
+// Estado de un cobro proyectado: null si es futuro; si no, lo que dice el historial ese día.
+// El historial guarda la fecha del envío (un reintento figura el día en que salió).
+export const estadoEnvio = (envios, subId, iso, hoyISO) =>
+  iso > hoyISO ? null : (envios.get(`${subId}|${iso}`) || 'Sin registro')

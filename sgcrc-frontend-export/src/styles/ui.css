@@ -266,6 +266,8 @@ button.cal-celda { cursor: pointer; border-color: var(--line-control); }
 .cal-detalle-vacio { margin: 0; color: var(--ink-2); text-align: center; }
 .cal-item { border-top: 1px solid var(--line); padding-top: 0.7rem; margin-top: 0.7rem; }
 .cal-item-cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; }
+.cal-item-marcas { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 0.375rem; min-width: 0; }
+.cal-chip-neutro { text-transform: none; }
 .cal-item-nombre { color: var(--ink); font-weight: 600; overflow-wrap: anywhere; }
 .cal-chip { flex-shrink: 0; font-size: 0.8125rem; color: var(--ink-2); border: 1px solid var(--line); padding: 0 6px; border-radius: 4px; text-transform: uppercase; }
 .cal-item-tipo { color: var(--ink-2); font-size: 0.875rem; }

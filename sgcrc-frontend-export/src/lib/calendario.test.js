@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
-import { parseFechaLocal, diasDelMes, rejillaMes, agruparCobrosPorDia, fechaLarga, tocaCobrarEn, diaSemanaCorto, etiquetaAgenda } from './calendario.js'
+import { parseFechaLocal, diasDelMes, rejillaMes, agruparCobrosPorDia, fechaLarga, tocaCobrarEn, diaSemanaCorto, etiquetaAgenda, indexarEnvios, estadoEnvio } from './calendario.js'
 
 test('parseFechaLocal interpreta AAAA-MM-DD como fecha local, no UTC', () => {
   const d = parseFechaLocal('2026-10-05')
@@ -138,4 +138,32 @@ test('diaSemanaCorto: usa el día local de la semana', () => {
 test('etiquetaAgenda: día corto, número y mes en minúscula, sin año', () => {
   assert.equal(etiquetaAgenda(2026, 9, 5), 'Lun 5 de octubre')
   assert.equal(etiquetaAgenda(2026, 11, 31), 'Jue 31 de diciembre')
+})
+
+const hist = [
+  { suscripcion_id: 1, estado: 'Fallido', fecha: '2026-10-20T13:00:00.000Z' },
+  { suscripcion_id: 1, estado: 'Enviado', fecha: '2026-10-20T14:00:00.000Z' },
+  { suscripcion_id: 2, estado: 'Fallido', fecha: '2026-10-21T13:00:00.000Z' },
+  { suscripcion_id: 3, estado: 'Pendiente', fecha: '2026-10-22T13:00:00.000Z' },
+]
+
+test('indexarEnvios: por suscripción y día de Bogotá; Enviado gana a Fallido', () => {
+  const m = indexarEnvios(hist)
+  assert.equal(m.get('1|2026-10-20'), 'Enviado')
+  assert.equal(m.get('2|2026-10-21'), 'Fallido')
+  assert.equal(m.has('3|2026-10-22'), false)
+})
+
+test('estadoEnvio: futuro null; pasado con envío, con fallo o sin registro', () => {
+  const m = indexarEnvios(hist)
+  assert.equal(estadoEnvio(m, 1, '2026-10-25', '2026-10-24'), null)
+  assert.equal(estadoEnvio(m, 1, '2026-10-20', '2026-10-24'), 'Enviado')
+  assert.equal(estadoEnvio(m, 2, '2026-10-21', '2026-10-24'), 'Fallido')
+  assert.equal(estadoEnvio(m, 2, '2026-10-19', '2026-10-24'), 'Sin registro')
+  assert.equal(estadoEnvio(m, 2, '2026-10-24', '2026-10-24'), 'Sin registro') // hoy aún sin envío
+})
+
+test('indexarEnvios tolera entrada no válida', () => {
+  assert.equal(indexarEnvios(undefined).size, 0)
+  assert.equal(indexarEnvios([{ suscripcion_id: 1, estado: 'Enviado', fecha: 'x' }]).size, 0)
 })
