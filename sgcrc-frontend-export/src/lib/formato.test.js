@@ -1,11 +1,10 @@
-// Zona fija (Colombia, UTC-5): en un CI con TZ=UTC la prueba de esHoyLocal a las 20:00 locales
-// (01:00 UTC del día siguiente) no discriminaría entre fecha local y fecha UTC.
+// Zona fija (Colombia, UTC-5) para que fmt/fmtFecha den el mismo resultado en cualquier CI.
 // Debe fijarse antes de crear cualquier Date.
 process.env.TZ = 'America/Bogota'
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { fmt, fmtFecha, esHoyLocal } from './formato.js'
+import { fmt, fmtFecha, diaEnZona, esDelDia } from './formato.js'
 
 test('fmt da pesos colombianos sin decimales', () => {
   const s = fmt(1234567).replace(/\s/g, ' ')
@@ -23,17 +22,18 @@ test('fmtFecha devuelve cadena vacía si no hay fecha válida', () => {
   assert.equal(fmtFecha('mañana'), '')
 })
 
-test('esHoyLocal: un envío a las 20:00 locales cuenta como hoy aunque en UTC sea mañana', () => {
-  const envio = new Date(2026, 9, 20, 20, 0)
-  const ahora = new Date(2026, 9, 20, 21, 30)
-  assert.equal(esHoyLocal(envio.toISOString(), ahora), true)
+test('diaEnZona: el día de Bogotá, no el UTC', () => {
+  assert.equal(diaEnZona('2026-10-25T03:30:00.000Z'), '2026-10-24') // 22:30 del 24 en Bogotá
+  assert.equal(diaEnZona('2026-10-25T05:00:00.000Z'), '2026-10-25') // 00:00 del 25 en Bogotá
 })
 
-test('esHoyLocal: otro día local, fecha inválida o vacía no cuentan', () => {
-  const ahora = new Date(2026, 9, 20, 9, 0)
-  assert.equal(esHoyLocal(new Date(2026, 9, 19, 23, 59).toISOString(), ahora), false)
-  assert.equal(esHoyLocal(new Date(2026, 9, 21, 0, 0).toISOString(), ahora), false)
-  assert.equal(esHoyLocal('no-es-fecha', ahora), false)
-  assert.equal(esHoyLocal(undefined, ahora), false)
-  assert.equal(esHoyLocal(null, ahora), false)
+test('diaEnZona: fecha inválida o vacía -> cadena vacía', () => {
+  assert.equal(diaEnZona('no es fecha'), '')
+  assert.equal(diaEnZona(''), '')
+  assert.equal(diaEnZona(undefined), '')
+})
+
+test('esDelDia compara contra el día dado', () => {
+  assert.equal(esDelDia('2026-10-25T03:30:00.000Z', '2026-10-24'), true)
+  assert.equal(esDelDia('2026-10-25T03:30:00.000Z', '2026-10-25'), false)
 })

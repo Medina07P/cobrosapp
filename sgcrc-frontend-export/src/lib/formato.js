@@ -7,12 +7,11 @@ export const fmtFecha = (iso) => {
   return m ? `${m[3]}/${m[2]}/${m[1]}` : ''
 }
 
-// ¿La fecha ISO (UTC) cae en el mismo día calendario LOCAL que `ahora`?
-export const esHoyLocal = (isoUtc, ahora = new Date()) => {
-  if (!isoUtc) return false
-  const d = new Date(isoUtc)
-  if (Number.isNaN(d.getTime())) return false
-  return d.getFullYear() === ahora.getFullYear()
-    && d.getMonth() === ahora.getMonth()
-    && d.getDate() === ahora.getDate()
+// Día calendario ('AAAA-MM-DD') de un instante ISO UTC en la zona de la app (Bogotá, igual que backend/cobros.js).
+export const diaEnZona = (isoUtc, zona = 'America/Bogota') => {
+  const t = isoUtc ? Date.parse(isoUtc) : NaN
+  if (Number.isNaN(t)) return ''
+  return new Intl.DateTimeFormat('en-CA', { timeZone: zona, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(t))
 }
+
+export const esDelDia = (isoUtc, diaISO, zona) => diaEnZona(isoUtc, zona) === diaISO

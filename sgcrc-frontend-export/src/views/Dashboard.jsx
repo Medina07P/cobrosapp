@@ -8,7 +8,7 @@ import PageHeader from '../ui/PageHeader.jsx'
 import ErrorMsg from '../ui/ErrorMsg.jsx'
 import Skeleton from '../ui/Skeleton.jsx'
 import EmptyState from '../ui/EmptyState.jsx'
-import { fmt, fmtFecha, esHoyLocal } from '../lib/formato.js'
+import { fmt, fmtFecha, esDelDia } from '../lib/formato.js'
 import { mensajeError } from '../lib/errores.js'
 import { aISOLocal, proximosCobros, textoDias } from '../lib/dashboard.js'
 import { useCarga } from '../lib/useCarga.js'
@@ -79,6 +79,7 @@ export default function Dashboard() {
     const { clientes, suscripciones, historial, resumen } = data
     const activas = suscripciones.filter((s) => s.activa)
     const ahora = new Date()
+    const hoyApp = resumen?.hoy || aISOLocal(ahora)
     const paraHoy = resumen?.paraHoy || []
     const vencidos = resumen?.vencidos || []
     const perdidos = resumen?.perdidos || []
@@ -86,14 +87,14 @@ export default function Dashboard() {
       clientes: clientes.length,
       activas: activas.length,
       ingresos: suma(activas),
-      enviados: historial.filter((h) => h.estado === 'Enviado' && esHoyLocal(h.fecha, ahora)).length,
-      fallidos: historial.filter((h) => h.estado === 'Fallido' && esHoyLocal(h.fecha, ahora)).length,
+      enviados: historial.filter((h) => h.estado === 'Enviado' && esDelDia(h.fecha, hoyApp)).length,
+      fallidos: historial.filter((h) => h.estado === 'Fallido' && esDelDia(h.fecha, hoyApp)).length,
       paraHoy,
       vencidos,
       perdidos,
       ventanaDias: resumen?.ventanaDias,
       pendientes: [...paraHoy, ...vencidos],
-      proximos: proximosCobros(suscripciones, clientes, resumen?.hoy || aISOLocal(ahora)),
+      proximos: proximosCobros(suscripciones, clientes, hoyApp),
     }
   }, [data])
 
