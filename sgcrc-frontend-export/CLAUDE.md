@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Subproyecto: Frontend
 
-React 18 + Vite. SPA que enruta por estado (sin React Router). El shell, `ui/*` y las vistas migradas usan CSS propio (`src/styles/`); ninguna vista usa ya Tailwind (el CDN de `index.html` queda sin uso; ver "Pendiente de migrar").
+React 18 + Vite. SPA que enruta por estado (sin React Router). El shell, `ui/*` y las vistas migradas usan CSS propio (`src/styles/`); Tailwind se retiró por completo (Fase 7); `base.css` incluye un reset propio.
 
 ## Comandos
 
@@ -29,7 +29,8 @@ npm run preview  # Preview del build local
 | `lib/navegacion.js` | `NAV` (los 7 destinos), `IDS_BARRA_MOVIL`, `particionarNav` (`{ barra, mas }`) y `vistaEnMas`: reparto de destinos entre la barra inferior y "Más" en móvil. Tests: `npm test` |
 | `lib/validaciones.js` | `validarCliente`, `validarPlan`, `validarSuscripcion`, `validarPerfil`: espejo de las reglas del backend; devuelven un objeto `{campo: mensaje}` (vacío si es válido) |
 | `lib/formularios.js` | `enfocarPrimerInvalido(contenedor)` (y `primerInvalido`): enfoca el primer campo con error |
-| `lib/formato.js` | `fmt` (moneda COP), `fmtFecha` (`AAAA-MM-DD` a `DD/MM/AAAA`, sin desfase de zona horaria) y `esHoyLocal` (¿una fecha ISO UTC cae hoy en el día calendario local?) |
+| `lib/formato.js` | `fmt` (moneda COP), `fmtFecha` (`AAAA-MM-DD` a `DD/MM/AAAA`, sin desfase de zona horaria) `diaEnZona(isoUtc, zona?)` (día `AAAA-MM-DD` en America/Bogota) y `esDelDia(isoUtc, diaISO, zona?)` |
+| `lib/carga.js`, `lib/useCarga.js` | `reducirCarga` (puro, con pruebas) y el hook `useCarga(cargador, { avisoConDatos })` → `{ datos, cargando, error, hayDatos, cargar, reintentar, setDatos }`; patrón de carga único de las vistas |
 | `lib/toastStore.js`, `lib/focoDialog.js` | Almacén de toasts y trampa de foco (con pruebas, `npm test`) |
 | `ui/Icon.jsx` | Componente de iconos; `npm run icons` regenera `ui/icons.generated.js` |
 | `ui/Logo.jsx` | Logo SGCRC en SVG |
@@ -59,14 +60,14 @@ npm run preview  # Preview del build local
 ## Dashboard (Fase 6)
 
 - Estructura: `PageHeader` con el botón secundario de acción, con tres estados: con pendientes (`paraHoy` o `vencidos`) "Revisar y enviar cobros de hoy" (abre el diálogo, no envía); sin pendientes pero con envíos 'Enviado' hoy, "Reenviar cobros de hoy" (llama directo a `handleForzarCobros(false)`: el 409 `requiereConfirmacion` abre el diálogo de reenvío; es la única vía del reenvío manual); sin ninguno, `disabled` con la razón visible "No hay cobros pendientes de enviar hoy." enlazada con `aria-describedby`. Tras un envío correcto el foco pasa a `h2#dash-hoy` (`tabIndex={-1}`). `desdeISO` de los próximos cobros es `resumen.hoy` (fecha de la app, America/Bogota); tres `section` con `h2` (`Hoy`, `Tu negocio`, `Próximos cobros`). Carga con `Promise.all` de clientes, suscripciones, historial y `getResumenCobros`; si el refresco posterior falla, `ErrorMsg` sin perder los datos (excepción a "`toast.error` en recargas": el Dashboard no usa toast ahí).
-- Cifras: `dl` con `.cifra` (`dt.cifra-rotulo`, `dd.cifra-valor` en `--font-display`, `dd.cifra-sub`). `.hoy-franja` (cifras grandes, `.cifra-mal` solo con vencidos > 0) y `.negocio` (cifras discretas). "Enviados hoy" y "Fallidos" salen del historial con `esHoyLocal`; "Fallidos" cuenta registros del historial de hoy, no suscripciones. `.dash-aviso` para el aviso de cobros perdidos (fuera de la ventana de reintento) y el de "sin pendientes".
+- Cifras: `dl` con `.cifra` (`dt.cifra-rotulo`, `dd.cifra-valor` en `--font-display`, `dd.cifra-sub`). `.hoy-franja` (cifras grandes, `.cifra-mal` solo con vencidos > 0) y `.negocio` (cifras discretas). "Enviados hoy" y "Fallidos" salen del historial con `esDelDia` contra `resumen.hoy` (día de Bogotá); "Fallidos" cuenta registros del historial de hoy, no suscripciones. `.dash-aviso` para el aviso de cobros perdidos (fuera de la ventana de reintento) y el de "sin pendientes".
 - Libro de próximos cobros: `ol.libro` > `li.libro-fila` (fecha + `textoDias` o `Badge` "Hoy" con `bell` | cliente + plan y frecuencia | monto), 3 columnas que a `width < 768px` pasan a dos líneas. Vacío: `EmptyState` (h3, para no repetir nivel dentro de la sección h2).
 - Diálogo de resumen (`ConfirmDialog` "Enviar cobros de hoy"): lista `.resumen-envio` con cliente, plan, monto y "vencido hace N días", total y botón "Enviar N cobros"; solo se cierra al terminar. El diálogo de reenvío (409 `requiereConfirmacion`) se conserva.
 - Al probar en navegador NO pulsar "Enviar" (envía correos reales); basta abrir y cerrar el diálogo.
 
 ## Pendiente de migrar
 
-Nada: todas las vistas usan CSS propio. Queda por retirar el `<script>` de Tailwind CDN de `index.html` (ya sin uso) y el preflight asociado.
+Nada: todas las vistas usan CSS propio y Tailwind CDN ya no se carga.
 
 ## Componentes base
 
@@ -92,7 +93,8 @@ Nada: todas las vistas usan CSS propio. Queda por retirar el `<script>` de Tailw
 
 ### Listas y carga
 
-- `Skeleton` solo en la carga inicial; si falla, `ErrorMsg` con `onRetry`. `reintentar` vuelve a poner `cargando`.
+- Toda vista que carga datos usa `useCarga`: `Skeleton` mientras `!hayDatos`; si la primera carga falla, `ErrorMsg msg onRetry={reintentar} cargando={cargando}` (el botón conserva el foco mientras reintenta y, al cargar bien, el foco pasa al `h1`). Con datos previos, un fallo de recarga muestra `toast.error` (o `ErrorMsg` si se usa `{ avisoConDatos: 'error' }`, como el Dashboard). Calendario: los cobros pasados muestran su estado real (`indexarEnvios`/`estadoEnvio` de `lib/calendario.js`).
+- `api.js` marca los fallos de red (`esRed`) y las respuestas OK no JSON (`respuestaInvalida`); `mensajeError` solo traduce esos; un `TypeError`/`SyntaxError` sin marca (bug) da el mensaje genérico.
 - Un fallo de recarga posterior (tras guardar o eliminar) muestra `toast.error` y conserva la lista.
 
 ## Cómo agregar una vista
@@ -140,7 +142,7 @@ Tailwind sigue cargándose desde CDN en `index.html`, pero ninguna vista lo usa 
 - `api.js` guarda el token en memoria (variable `runtimeToken`) mediante `setApiKey(token)`; no lee `localStorage`. `App.jsx` lo establece al restaurar la sesión desde `sgcrc_session` y en el login, y lo vacía al cerrar sesión.
 - En cualquier respuesta 401, `api.js` elimina `sgcrc_session` del localStorage pero NO recarga la página ni redirige (el `reload` está comentado); `App.jsx` cierra sesión (`handleLogout`) cuando `getPerfil` o el health check fallan con 401.
 - Al guardar Configuración, `onGuardado(payload)` actualiza `session.user` y `sgcrc_session`, de modo que el nombre del shell se refleja sin recargar.
-- Antes de desplegar, probar `npm run build && npm run preview`: el preflight de Tailwind CDN puede interactuar con las clases de `ui.css`.
+- Antes de desplegar, probar `npm run build && npm run preview`.
 
 ## Gotchas
 
