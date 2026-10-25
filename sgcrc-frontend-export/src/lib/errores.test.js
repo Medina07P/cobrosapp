@@ -2,9 +2,11 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { mensajeError, MSG_RED, MSG_INESPERADO, MSG_RESPUESTA_INVALIDA } from './errores.js'
 
-test('un TypeError de red se traduce al español', () => {
-  assert.equal(mensajeError(new TypeError('Failed to fetch')), MSG_RED)
-  assert.equal(mensajeError(new TypeError('Load failed')), MSG_RED)
+const marcar = (e, marca) => Object.assign(e, { [marca]: true })
+
+test('un error de red marcado por api.js se traduce al español', () => {
+  assert.equal(mensajeError(marcar(new TypeError('Failed to fetch'), 'esRed')), MSG_RED)
+  assert.equal(mensajeError(marcar(new TypeError('Load failed'), 'esRed')), MSG_RED)
   assert.equal(MSG_RED, 'No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.')
 })
 
@@ -21,10 +23,15 @@ test('valores sin mensaje usan el texto genérico', () => {
   assert.equal(MSG_INESPERADO, 'Ocurrió un error inesperado.')
 })
 
-test('un SyntaxError (respuesta no JSON, p. ej. HTML del túnel) se traduce al español', () => {
+test('una respuesta no JSON marcada por api.js (p. ej. HTML del túnel) se traduce al español', () => {
   const esperado = 'El servidor respondió algo inesperado. Inténtalo de nuevo en un momento.'
-  assert.equal(mensajeError(new SyntaxError("Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON")), esperado)
+  assert.equal(mensajeError(marcar(new SyntaxError("Unexpected token '<'"), 'respuestaInvalida')), esperado)
   assert.equal(MSG_RESPUESTA_INVALIDA, esperado)
+})
+
+test('un TypeError o SyntaxError sin marca es un bug de programación: no se muestra su texto técnico', () => {
+  assert.equal(mensajeError(new TypeError("Cannot read properties of undefined (reading 'map')")), MSG_INESPERADO)
+  assert.equal(mensajeError(new SyntaxError('Unexpected token')), MSG_INESPERADO)
 })
 
 test('"Error NNN" (código HTTP sin cuerpo JSON) se traduce al español', () => {

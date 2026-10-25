@@ -19,39 +19,39 @@ async function req(method, path, body) {
       : `Bearer ${runtimeToken}`;
   }
 
+  let res;
   try {
-    const res = await fetch(BASE + path, {
+    res = await fetch(BASE + path, {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
     });
-
-    // Manejo de sesión expirada
-    if (res.status === 401) {
-      localStorage.removeItem('sgcrc_session');
-      // Opcional: window.location.reload(); o redirección
-    }
-
-    // --- CORRECCIÓN CRÍTICA PARA EL ERROR 409 Y OTROS ---
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      
-      const error = new Error(errData.error || `Error ${res.status}`);
-      
-      error.response = {
-        status: res.status,
-        data: errData
-      };
-      
-      throw error;
-    }
-
-    if (res.status === 204) return null;
-    return res.json();
   } catch (error) {
-    if (!error.response) {
-      console.error("Network/Runtime Error:", error.message);
-    }
+    console.error('Network Error:', error.message);
+    error.esRed = true;
+    throw error;
+  }
+
+  // Manejo de sesión expirada
+  if (res.status === 401) {
+    localStorage.removeItem('sgcrc_session');
+  }
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    const error = new Error(errData.error || `Error ${res.status}`);
+    error.response = {
+      status: res.status,
+      data: errData
+    };
+    throw error;
+  }
+
+  if (res.status === 204) return null;
+  try {
+    return await res.json();
+  } catch (error) {
+    error.respuestaInvalida = true;
     throw error;
   }
 }

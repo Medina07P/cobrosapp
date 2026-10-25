@@ -3,11 +3,13 @@ export const MSG_RESPUESTA_INVALIDA = 'El servidor respondió algo inesperado. I
 export const MSG_INESPERADO = 'Ocurrió un error inesperado.'
 
 // Texto en español para mostrar al usuario a partir de cualquier error capturado.
-// fetch lanza TypeError ("Failed to fetch", "Load failed"...) cuando falla la red; res.json() lanza
-// SyntaxError si el túnel responde HTML; src/api.js construye "Error NNN" cuando no hay cuerpo JSON.
+// api.js marca los fallos de red (fetch rechaza) con `esRed` y las respuestas OK que no son JSON con
+// `respuestaInvalida`. Un TypeError/SyntaxError sin marca es un error de programación y no se muestra.
+// src/api.js construye "Error NNN" cuando no hay cuerpo JSON.
 export function mensajeError(e) {
-  if (e instanceof TypeError) return MSG_RED
-  if (e instanceof SyntaxError) return MSG_RESPUESTA_INVALIDA
+  if (e && e.esRed) return MSG_RED
+  if (e && e.respuestaInvalida) return MSG_RESPUESTA_INVALIDA
+  if (e instanceof TypeError || e instanceof SyntaxError) return MSG_INESPERADO
   const m = e && typeof e === 'object' ? e.message : undefined
   if (typeof m !== 'string' || !m) return MSG_INESPERADO
   const http = /^Error (\d{3})$/.exec(m)
