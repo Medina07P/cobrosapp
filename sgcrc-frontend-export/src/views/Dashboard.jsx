@@ -1,46 +1,27 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api.js'
-import Icon from '../ui/Icon.jsx'
+import Badge from '../ui/Badge.jsx'
 import ConfirmDialog from '../ui/ConfirmDialog.jsx'
 import { toast } from '../ui/Toast.jsx'
 import Button from '../ui/Button.jsx'
 import PageHeader from '../ui/PageHeader.jsx'
 import ErrorMsg from '../ui/ErrorMsg.jsx'
 import Skeleton from '../ui/Skeleton.jsx'
-import { esHoyLocal } from '../lib/formato.js'
+import EmptyState from '../ui/EmptyState.jsx'
+import { fmt, fmtFecha, esHoyLocal } from '../lib/formato.js'
 import { mensajeError } from '../lib/errores.js'
+import { aISOLocal, proximosCobros, textoDias } from '../lib/dashboard.js'
 
-// Formateador de moneda colombiana
-const fmt = (n) => new Intl.NumberFormat('es-CO', { 
-  style: 'currency', 
-  currency: 'COP', 
-  maximumFractionDigits: 0 
-}).format(n)
+const suma = (items) => items.reduce((a, i) => a + (Number(i.monto) || 0), 0)
 
-// --- FUNCIÓN CALCULAR DÍAS (Igual que antes) ---
-function calcularDiasFaltantes(fechaAlta, diaCobroPlan) {
-  const hoy = new Date()
-  const year = hoy.getFullYear()
-  const month = hoy.getMonth()
-  let diaReal = diaCobroPlan;
-  if (fechaAlta) {
-    const partes = fechaAlta.split('-');
-    diaReal = parseInt(partes[2]);
-  }
-  const diasMesActual = new Date(year, month + 1, 0).getDate()
-  const diaActual = hoy.getDate()
-  const diaObjetivoMesActual = Math.min(diaReal, diasMesActual)
-  const inicioSuscripcion = fechaAlta ? new Date(fechaAlta + "T00:00:00") : hoy;
-  if (inicioSuscripcion > hoy) {
-    const diffTime = Math.abs(inicioSuscripcion - hoy);
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  }
-  if (diaObjetivoMesActual >= diaActual) {
-    return diaObjetivoMesActual - diaActual
-  }
-  const diasMesSiguiente = new Date(year, month + 2, 0).getDate()
-  const diaObjetivoMesSiguiente = Math.min(diaReal, diasMesSiguiente)
-  return (diasMesActual - diaActual) + diaObjetivoMesSiguiente
+function Cifra({ rotulo, valor, sub, mal = false }) {
+  return (
+    <div className={`cifra${mal ? ' cifra-mal' : ''}`}>
+      <dt className="cifra-rotulo">{rotulo}</dt>
+      <dd className="cifra-valor">{valor}</dd>
+      {sub && <dd className="cifra-sub">{sub}</dd>}
+    </div>
+  )
 }
 
 export default function Dashboard() {
@@ -48,18 +29,21 @@ export default function Dashboard() {
   const [error, setError] = useState('')
   const [loadingProceso, setLoadingProceso] = useState(false)
   const [reenvio, setReenvio] = useState(null)
+  const [resumenAbierto, setResumenAbierto] = useState(false)
+  const montado = useRef(true)
 
   const cargar = async () => {
     setError('')
     try {
-      const [clientes, suscripciones, historial] = await Promise.all([
-        api.getClientes(), 
-        api.getSuscripciones(), 
-        api.getHistorial()
+      const [clientes, suscripciones, historial, resumen] = await Promise.all([
+        api.getClientes(),
+        api.getSuscripciones(),
+        api.getHistorial(),
+        api.getResumenCobros(),
       ])
-      setData({ clientes, suscripciones, historial })
+      if (montado.current) setData({ clientes, suscripciones, historial, resumen })
     } catch (e) {
-      setError(mensajeError(e))
+      if (montado.current) setError(mensajeError(e))
     }
   }
 
@@ -68,6 +52,7 @@ export default function Dashboard() {
     try {
       const res = await api.runCobros({ confirmarReenvio })
       setReenvio(null)
+      setResumenAbierto(false)
       setLoadingProceso(false)
       toast.exito(res.message || 'Proceso completado exitosamente')
       await cargar()
@@ -75,129 +60,150 @@ export default function Dashboard() {
       const errorStatus = err.response?.status || err.status
       const errorData = err.response?.data || err.data
       if (errorStatus === 409 && errorData?.requiereConfirmacion) {
+        setResumenAbierto(false)
         setReenvio(errorData?.mensaje || 'Ya se procesaron cobros hoy.')
       } else {
         setReenvio(null)
+        setResumenAbierto(false)
         toast.error(errorData?.error || mensajeError(err))
       }
     } finally {
-      setLoadingProceso(false)
+      if (montado.current) setLoadingProceso(false)
     }
   }
 
   useEffect(() => {
+    montado.current = true
     cargar()
+    return () => { montado.current = false }
   }, [])
 
   const stats = useMemo(() => {
     if (!data) return null
-    const { clientes, suscripciones, historial } = data
+    const { clientes, suscripciones, historial, resumen } = data
     const activas = suscripciones.filter((s) => s.activa)
     const ahora = new Date()
-
+    const paraHoy = resumen?.paraHoy || []
+    const vencidos = resumen?.vencidos || []
+    const perdidos = resumen?.perdidos || []
     return {
       clientes: clientes.length,
       activas: activas.length,
-      ingresos: activas.reduce((a, s) => a + s.monto, 0),
+      ingresos: suma(activas),
       enviados: historial.filter((h) => h.estado === 'Enviado' && esHoyLocal(h.fecha, ahora)).length,
-      fallidos: historial.filter((h) => h.estado === 'Fallido').length,
-      proximos: activas.map((s) => ({ 
-        ...s, 
-        dias: calcularDiasFaltantes(s.fecha_alta, s.dia_cobro), 
-        cliente: clientes.find((c) => c.id === s.cliente_id) || { nombre: 'Desconocido' }
-      }))
-      .filter(s => s.dias >= 0)
-      .sort((a, b) => a.dias - b.dias)
-      .slice(0, 5),
+      fallidos: historial.filter((h) => h.estado === 'Fallido' && esHoyLocal(h.fecha, ahora)).length,
+      paraHoy,
+      vencidos,
+      perdidos,
+      ventanaDias: resumen?.ventanaDias,
+      pendientes: [...paraHoy, ...vencidos],
+      proximos: proximosCobros(suscripciones, clientes, aISOLocal(ahora)),
     }
   }, [data])
 
   if (!data) return (
-    <>
+    <div className="pagina">
       <PageHeader titulo="Dashboard" />
       {error ? <ErrorMsg msg={error} onRetry={cargar} /> : <Skeleton />}
-    </>
+    </div>
   )
 
+  const hayPendientes = stats.pendientes.length > 0
+  const mes = new Date().toLocaleDateString('es-CO', { month: 'long', year: 'numeric' })
+
   return (
-    <div className="space-y-6">
-      {/* Header Section */}
+    <div className="pagina">
       <PageHeader
         titulo="Dashboard"
-        descripcion={`Resumen de ${new Date().toLocaleDateString('es-CO', {month:'long', year:'numeric'})}`}
+        descripcion={`Resumen de ${mes}`}
         acciones={
-          <Button icono="paper-plane-tilt" cargando={loadingProceso && !reenvio} onClick={() => handleForzarCobros(false)}>
-            {loadingProceso && !reenvio ? 'Procesando...' : 'Forzar Cobros de Hoy'}
+          <Button
+            variante="secundario" icono="paper-plane-tilt"
+            disabled={!hayPendientes} onClick={() => setResumenAbierto(true)}
+          >
+            Revisar y enviar cobros de hoy
           </Button>
         }
       />
+      {!hayPendientes && <p className="dash-aviso">No hay cobros pendientes de enviar hoy.</p>}
 
       {error && <ErrorMsg msg={error} onRetry={cargar} />}
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        {[
-          { label: 'Total Clientes', value: stats.clientes, icon: 'users', color: 'text-blue-600' },
-          { label: 'Suscripciones', value: stats.activas, icon: 'arrows-clockwise', color: 'text-purple-600' },
-          { label: 'Ingresos/Mes', value: fmt(stats.ingresos), icon: 'coins', color: 'text-emerald-600' },
-          { label: 'Enviados Hoy', value: stats.enviados, icon: 'envelope-simple', color: 'text-sky-600' },
-          { label: 'Errores', value: stats.fallidos, icon: 'warning-circle', color: 'text-rose-600' },
-        ].map((item) => (
-          <div key={item.label} className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-2">
-              <Icon name={item.icon} size={28} className={item.color} />
-            </div>
-            <p className="text-sm text-slate-500 font-medium">{item.label}</p>
-            <p className="text-xl font-bold text-slate-800">{item.value}</p>
-          </div>
-        ))}
-      </div>
+      <section aria-labelledby="dash-hoy">
+        <h2 id="dash-hoy" className="panel-titulo">Hoy</h2>
+        <dl className="hoy-franja">
+          <Cifra rotulo="A cobrar hoy" valor={stats.paraHoy.length} sub={fmt(suma(stats.paraHoy))} />
+          <Cifra rotulo="Vencidos" valor={stats.vencidos.length} mal={stats.vencidos.length > 0} />
+          <Cifra rotulo="Enviados hoy" valor={stats.enviados} />
+          <Cifra rotulo="Fallidos" valor={stats.fallidos} />
+        </dl>
+        {stats.perdidos.length > 0 && (
+          <p className="dash-aviso">
+            {stats.perdidos.length} {stats.perdidos.length === 1 ? 'cobro quedó fuera' : 'cobros quedaron fuera'} de la
+            ventana de reintento ({stats.ventanaDias} días) y ya no se reenvían.
+          </p>
+        )}
+      </section>
 
-      {/* Proximos Cobros List */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-        <div className="flex items-center mb-6">
-          <div className="p-2 bg-amber-50 rounded-lg mr-3 text-amber-700"><Icon name="calendar-blank" size={24} /></div>
-          <h3 className="text-lg font-bold text-slate-800">Próximos cobros basados en fecha de inicio</h3>
-        </div>
-        
-        <div className="space-y-3">
-          {stats.proximos.length > 0 ? (
-            stats.proximos.map((s) => (
-              <div key={s.id} className="flex items-center justify-between p-4 rounded-xl bg-slate-50 hover:bg-slate-100 transition-all border border-transparent hover:border-slate-200">
-                <div className="flex items-center space-x-4">
-                  {/* INICIAL DEL CLIENTE CON COLOR DINÁMICO */}
-                  <div 
-                    style={{ color: 'var(--color-primario-texto)', borderColor: 'var(--color-primario-glow)' }}
-                    className="h-10 w-10 rounded-full bg-white flex items-center justify-center font-bold shadow-sm border uppercase"
-                  >
-                    {s.cliente?.nombre?.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-800">{s.cliente?.nombre}</p>
-                    <p className="text-sm font-bold uppercase tracking-widest" style={{ color: 'var(--ink-2)' }}>
-                      Inició: {s.fecha_alta || 'Sin fecha'}
-                    </p>
-                  </div>
+      <section aria-labelledby="dash-resumen">
+        <h2 id="dash-resumen" className="panel-titulo">Tu negocio</h2>
+        <dl className="negocio">
+          <Cifra rotulo="Clientes" valor={stats.clientes} />
+          <Cifra rotulo="Suscripciones activas" valor={stats.activas} />
+          <Cifra rotulo="Ingresos mensuales activos" valor={fmt(stats.ingresos)} />
+        </dl>
+      </section>
+
+      <section aria-labelledby="dash-proximos" className="panel">
+        <h2 id="dash-proximos" className="panel-titulo">Próximos cobros</h2>
+        <p className="pagina-desc">Las próximas 5 suscripciones activas según su calendario de cobro.</p>
+        {stats.proximos.length > 0 ? (
+          <ol className="libro">
+            {stats.proximos.map((f) => (
+              <li key={f.id} className="libro-fila">
+                <div className="libro-fecha">
+                  <span>{fmtFecha(f.fecha)}</span>
+                  {f.dias === 0
+                    ? <Badge tono="warn" icono="bell">Hoy</Badge>
+                    : <span className="libro-detalle">{textoDias(f.dias)}</span>}
                 </div>
-                <div className="text-right">
-                  <p className="font-bold text-slate-800">{fmt(s.monto)}</p>
-                  {/* TEXTO DE DÍAS DINÁMICO */}
-                  <p 
-                    style={s.dias !== 0 ? { color: 'var(--color-primario-texto)' } : {}}
-                    className={`text-sm font-bold inline-flex items-center gap-1 ${s.dias === 0 ? 'text-rose-700' : ''}`}
-                  >
-                    {s.dias === 0 ? <><Icon name="bell" size={14} />TOCA COBRAR HOY</> : `en ${s.dias} días`}
-                  </p>
+                <div>
+                  <p className="libro-cliente">{f.cliente}</p>
+                  <p className="libro-detalle">{f.plan} · {f.frecuencia}</p>
                 </div>
-              </div>
-            ))
-          ) : (
-            <div className="text-center py-8">
-              <p className="text-slate-400 italic">No hay cobros proyectados para esta semana</p>
-            </div>
-          )}
-        </div>
-      </div>
+                <p className="libro-monto">{fmt(f.monto)}</p>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <EmptyState nivel={3} icono="calendar-blank" titulo="Sin cobros próximos">
+            No hay cobros en los próximos 60 días.
+          </EmptyState>
+        )}
+      </section>
+
+      <ConfirmDialog
+        abierto={resumenAbierto}
+        titulo="Enviar cobros de hoy"
+        textoConfirmar={`Enviar ${stats.pendientes.length} ${stats.pendientes.length === 1 ? 'cobro' : 'cobros'}`}
+        cargando={loadingProceso && !reenvio}
+        onConfirmar={() => handleForzarCobros(false)}
+        onCancelar={() => setResumenAbierto(false)}
+      >
+        <p>Se enviará un recordatorio por correo a:</p>
+        <ul className="resumen-envio">
+          {stats.pendientes.map((i) => (
+            <li key={`${i.suscripcion_id}-${i.fechaCobro}`}>
+              <span className="libro-cliente">{i.cliente}</span>
+              <span className="libro-detalle">
+                {i.plan} · {fmt(i.monto)}
+                {i.diasVencido > 0 && ` · vencido hace ${i.diasVencido} ${i.diasVencido === 1 ? 'día' : 'días'}`}
+              </span>
+            </li>
+          ))}
+        </ul>
+        <p className="resumen-total">Total: {fmt(suma(stats.pendientes))}</p>
+      </ConfirmDialog>
 
       <ConfirmDialog
         abierto={reenvio !== null}

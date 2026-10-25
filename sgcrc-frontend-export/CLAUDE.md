@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Subproyecto: Frontend
 
-React 18 + Vite. SPA que enruta por estado (sin React Router). El shell, `ui/*` y las vistas migradas usan CSS propio (`src/styles/`); Tailwind por CDN solo sigue en el Dashboard, pendiente de migrar (ver "Pendiente de migrar").
+React 18 + Vite. SPA que enruta por estado (sin React Router). El shell, `ui/*` y las vistas migradas usan CSS propio (`src/styles/`); ninguna vista usa ya Tailwind (el CDN de `index.html` queda sin uso; ver "Pendiente de migrar").
 
 ## Comandos
 
@@ -25,6 +25,7 @@ npm run preview  # Preview del build local
 | `lib/errores.js` | `mensajeError(e)`: texto en español para cualquier error capturado (red/`TypeError`, `SyntaxError` por respuesta no JSON, `Error NNN` sin cuerpo JSON como lo construye `api.js`; el resto conserva el mensaje del backend) |
 | `lib/historial.js` | Lógica pura del Historial: `enriquecerHistorial`, `indexarPorId`, `limitarFilas` (`LIMITE_FILAS` = 100), `fechaHistorial`, `textoRegistros` |
 | `lib/calendario.js` | Lógica pura del Calendario: fechas locales, rejilla del mes, `agruparCobrosPorDia` y `tocaCobrarEn`, réplica exacta de `backend/cobros.js` (una prueba de paridad en `calendario.test.js` las compara) |
+| `lib/dashboard.js` | Lógica pura del Dashboard: `aISOLocal`, `sumarDiasISO`, `proximosCobros(subs, clientes, desdeISO, { max, ventana })` (una fila por suscripción activa, primera fecha de cobro en la ventana de 60 días según `tocaCobrarEn`) y `textoDias` (`Hoy`, `Mañana`, `En N días`). Tests: `npm test` |
 | `lib/navegacion.js` | `NAV` (los 7 destinos), `IDS_BARRA_MOVIL`, `particionarNav` (`{ barra, mas }`) y `vistaEnMas`: reparto de destinos entre la barra inferior y "Más" en móvil. Tests: `npm test` |
 | `lib/validaciones.js` | `validarCliente`, `validarPlan`, `validarSuscripcion`, `validarPerfil`: espejo de las reglas del backend; devuelven un objeto `{campo: mensaje}` (vacío si es válido) |
 | `lib/formularios.js` | `enfocarPrimerInvalido(contenedor)` (y `primerInvalido`): enfoca el primer campo con error |
@@ -38,7 +39,7 @@ npm run preview  # Preview del build local
 | `App.jsx` | Shell de la SPA: estado `view`, `NAV` y objeto `VIEWS`. Escritorio: sidebar clara (`.lateral`) con `aria-current="page"` en el ítem activo. Móvil: barra superior (`.barra-movil`) y `NavMovil` (barra inferior fija); `div.principal` envuelve la barra superior y `main#contenido`. `NAV` vive en `lib/navegacion.js`. Enlace "Saltar al contenido" (`.saltar`) hacia `main#contenido`. Al cambiar de vista actualiza `document.title` y mueve el foco al `h1` de la vista (o a `main` si no hay; no lo hace en el primer render ni sin sesión). El estado del servidor se anuncia con una región `role="status"` `sr-only` siempre montada, una sola vez en el shell; el texto visible (`.estado-server`) no lleva `role`. Ya no usa Tailwind |
 | `api.js` | Cliente HTTP con `fetch`, base `/api`, inyecta `Authorization: Bearer <token>`, borra la sesión del localStorage en 401 (sin recargar) |
 | `views/Login.jsx` | Login y registro (toggle en la misma vista); usa `.acceso*` de `shell.css` |
-| `views/Dashboard.jsx` | KPIs + próximos cobros + botón "ejecutar cobros del día" (estilos antiguos, pendiente de migrar en la Fase 6) |
+| `views/Dashboard.jsx` | Migrado (Fase 6): franja "Hoy" (`.hoy-franja`: a cobrar hoy, vencidos, enviados y fallidos de hoy, alimentada por `api.getResumenCobros()` = `GET /cobros/resumen`), "Tu negocio", libro de próximos cobros (`ol.libro`) y diálogo de resumen de envío; ver "Dashboard (Fase 6)" |
 | `views/Clientes.jsx` | ABM de clientes con búsqueda (patrón de formulario de referencia) |
 | `views/Planes.jsx` | ABM del catálogo de planes (se llama "Planes" en el menú) |
 | `views/Suscripciones.jsx` | ABM de suscripciones (vincula cliente + plan) con filtros |
@@ -53,11 +54,19 @@ npm run preview  # Preview del build local
 - **Tablas como tarjetas**: solo con CSS (`ui.css`). El `thead` se oculta visualmente, cada `tr` es una tarjeta y cada `td` muestra su `data-label` como etiqueta (`td::before`). Toda tabla nueva debe poner `data-label` en cada celda (`Acciones` sin etiqueta). Toda tabla nueva debe llevar `role` explícitos (`table`, `rowgroup`, `row`, `columnheader`, `cell`) para conservar la semántica con `display` distinto de `table`.
 - **Objetivos táctiles**: en móvil botones, campos y filtros miden al menos 44 px (también los `btn-sm`).
 - **Agenda del Calendario**: en móvil se oculta la rejilla y el detalle y se muestra `.cal-agenda` (un bloque por día con cobros; `etiquetaAgenda` y `diaSemanaCorto` de `lib/calendario.js`).
-- **Cómo verificar a 360 px**: con sesión iniciada, inyectar en una pestaña de la app un `<iframe src="/" style="width:360px;height:740px">` (mismo origen) y medir ahí (`scrollWidth <= innerWidth`, objetivos < 44 px, contenido bajo la barra). El Dashboard sigue sin rediseñar (Fase 6).
+- **Cómo verificar a 360 px**: con sesión iniciada, inyectar en una pestaña de la app un `<iframe src="/" style="width:360px;height:740px">` (mismo origen) y medir ahí (`scrollWidth <= innerWidth`, objetivos < 44 px, contenido bajo la barra).
+
+## Dashboard (Fase 6)
+
+- Estructura: `PageHeader` con el botón secundario "Revisar y enviar cobros de hoy" (abre el diálogo, no envía; `disabled` con la razón visible "No hay cobros pendientes de enviar hoy." si no hay `paraHoy` ni `vencidos`); tres `section` con `h2` (`Hoy`, `Tu negocio`, `Próximos cobros`). Carga con `Promise.all` de clientes, suscripciones, historial y `getResumenCobros`; si el refresco posterior falla, `ErrorMsg` sin perder los datos.
+- Cifras: `dl` con `.cifra` (`dt.cifra-rotulo`, `dd.cifra-valor` en `--font-display`, `dd.cifra-sub`). `.hoy-franja` (cifras grandes, `.cifra-mal` solo con vencidos > 0) y `.negocio` (cifras discretas). "Enviados hoy" y "Fallidos" salen del historial con `esHoyLocal`. `.dash-aviso` para el aviso de cobros perdidos (fuera de la ventana de reintento) y el de "sin pendientes".
+- Libro de próximos cobros: `ol.libro` > `li.libro-fila` (fecha + `textoDias` o `Badge` "Hoy" con `bell` | cliente + plan y frecuencia | monto), 3 columnas que a `width < 768px` pasan a dos líneas. Vacío: `EmptyState` (h3, para no repetir nivel dentro de la sección h2).
+- Diálogo de resumen (`ConfirmDialog` "Enviar cobros de hoy"): lista `.resumen-envio` con cliente, plan, monto y "vencido hace N días", total y botón "Enviar N cobros"; solo se cierra al terminar. El diálogo de reenvío (409 `requiereConfirmacion`) se conserva.
+- Al probar en navegador NO pulsar "Enviar" (envía correos reales); basta abrir y cerrar el diálogo.
 
 ## Pendiente de migrar
 
-Solo el Dashboard conserva estilos antiguos (clases Tailwind y estilos en línea) hasta la Fase 6 del rediseño; por eso `index.html` aún carga Tailwind por CDN. El resto del frontend (shell, `ui/*`, Login, Clientes, Planes, Suscripciones, Historial, Calendario, Configuración) ya no usa Tailwind.
+Nada: todas las vistas usan CSS propio. Queda por retirar el `<script>` de Tailwind CDN de `index.html` (ya sin uso) y el preflight asociado.
 
 ## Componentes base
 
@@ -119,11 +128,11 @@ createMiRecurso: (data) => req('POST', '/mi-recurso', data),
 - La vista previa en vivo de Configuración usa `aplicarColorTema(previaRef.current, color)` sobre su propio elemento (`.vista-previa`), no sobre `documentElement`: el color de la app solo cambia al guardar.
 - Regla del correo (`backend/perfil.js` y `backend/mailer.js`): el botón lleva `textoSobre(color)` (blanco o `#1F2421`) y el monto lleva el color de marca si contrasta >= 4.5 con blanco, si no `#1F2421`. Configuración usa `estadoContrasteCorreo` (contraste del texto del botón, mínimo 4.5), avisa cuando el monto se oscurece y dibuja la vista previa sobre una tarjeta blanca (`.vista-previa-correo`, como el correo). La app usa `--color-primario-contraste` para el texto sobre el color de marca.
 - Nunca llamar a `setProperty('--color-primario', ...)` directamente. No hardcodear colores de marca.
-- En `ui/*`, el shell y las vistas migradas se usan las clases de `ui.css`/`shell.css` y variables CSS, sin Tailwind. Solo el Dashboard (pendiente de migrar) usa estilos en línea con `var(--color-primario)` o clases Tailwind.
+- En `ui/*`, el shell y las vistas migradas se usan las clases de `ui.css`/`shell.css` y variables CSS, sin Tailwind. El Dashboard ya sigue el mismo patrón.
 
 ## Tailwind por CDN
 
-Tailwind se carga desde CDN en `index.html` únicamente por el Dashboard, pendiente de migrar. **No hay `tailwind.config.js` ni PostCSS instalado.** No agregar esos archivos esperando que funcionen — el build de Vite los ignorará ya que Tailwind no está en las dependencias. No usar Tailwind en código nuevo.
+Tailwind sigue cargándose desde CDN en `index.html`, pero ninguna vista lo usa ya (pendiente retirarlo). **No hay `tailwind.config.js` ni PostCSS instalado.** No agregar esos archivos esperando que funcionen — el build de Vite los ignorará ya que Tailwind no está en las dependencias. No usar Tailwind en código nuevo.
 
 ## Sesión / Auth
 

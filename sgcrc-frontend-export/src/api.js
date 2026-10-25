@@ -88,6 +88,7 @@ export const api = {
   // --- PROCESOS Y OTROS ---
   getHistorial: () => req('GET', '/historial'),
   runCobros: (data) => req('POST', '/run', data),
+  getResumenCobros: () => req('GET', '/cobros/resumen'),
   runIndividual: (ids) => req('POST', '/run-individual', { ids }), // Para reenvíos manuales
   health: () => req('GET', '/health'),
 };

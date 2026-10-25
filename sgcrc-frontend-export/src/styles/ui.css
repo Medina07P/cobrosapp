@@ -285,3 +285,45 @@ button.cal-celda { cursor: pointer; border-color: var(--line-control); }
 
 /* Selección: relleno sólido (distinto del borde de "hoy") con texto invertido */
 .cal-celda-sel .cal-num, .cal-celda-sel .cal-importe, .cal-celda-sel .cal-cuenta { color: var(--surface); }
+
+/* ---------- Dashboard ---------- */
+.hoy-franja, .negocio { display: grid; gap: 0.75rem; margin: 0; }
+.hoy-franja { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
+.negocio { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
+.cifra { margin: 0; padding: 0.9rem 1.1rem; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+.cifra-rotulo { margin: 0; font-size: 0.875rem; font-weight: 600; color: var(--ink-2); }
+.cifra-valor {
+  margin: 0.2rem 0 0; font-family: var(--font-display); font-size: 2rem; line-height: 1.15; color: var(--ink);
+  font-variant-numeric: tabular-nums; overflow-wrap: anywhere;
+}
+.cifra-sub { margin: 0.1rem 0 0; font-size: 0.875rem; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.cifra-mal { border-color: var(--bad); }
+.cifra-mal .cifra-valor { color: var(--bad); }
+.negocio .cifra { background: var(--surface-alt); padding: 0.7rem 1rem; }
+.negocio .cifra-valor { font-size: 1.375rem; }
+.dash-aviso { margin: 0.75rem 0 0; color: var(--ink-2); }
+.pagina > .dash-aviso { margin: -0.5rem 0 0; }
+
+.libro { list-style: none; margin: 0.75rem 0 0; padding: 0; }
+.libro-fila {
+  display: grid; grid-template-columns: 13rem minmax(0, 1fr) auto; align-items: center; gap: 0.25rem 1rem;
+  padding: 0.85rem 0; border-top: 1px solid var(--line);
+}
+.libro-fila:first-child { border-top: 0; }
+.libro-fila p { margin: 0; }
+.libro-fecha { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.6rem; font-variant-numeric: tabular-nums; font-weight: 600; }
+.libro-cliente { font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.libro-detalle { font-size: 0.875rem; font-weight: 400; color: var(--ink-2); overflow-wrap: anywhere; }
+.libro-monto { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.resumen-envio { list-style: none; margin: 0.75rem 0; padding: 0; max-height: 40vh; overflow: auto; border-top: 1px solid var(--line); }
+.resumen-envio li { display: grid; gap: 0.1rem; padding: 0.6rem 0; border-bottom: 1px solid var(--line); }
+.resumen-total { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+@media (width < 768px) {
+  .hoy-franja { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cifra { padding: 0.75rem 0.85rem; }
+  .libro-fila { grid-template-columns: minmax(0, 1fr) auto; }
+  .libro-fecha { grid-column: 1 / -1; }
+  .libro-monto { grid-column: 2; grid-row: 2; }
+}
