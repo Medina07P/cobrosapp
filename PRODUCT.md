@@ -20,13 +20,13 @@ Herramienta de cobros recurrentes por correo pensada para negocios pequeños de 
 
 ## Operating Context
 
-Aplicación multi-empresa (SaaS): cada negocio se registra y ve solo sus datos, aislados por `usuario_id`. Backend Node.js con SQLite y un scheduler diario, desplegado en un servidor Ubuntu local con Starlink y expuesto por túnel Cloudflare, por lo que conviene autoalojar fuentes y mantener los recursos livianos.
+Aplicación multi-empresa (SaaS): cada negocio se registra y ve solo sus datos, aislados por `usuario_id`. Backend Node.js con SQLite y un scheduler diario, desplegado en una VPS con Docker detrás del Caddy que ya corría allí, por lo que conviene autoalojar fuentes y mantener los recursos livianos.
 
 ## Capabilities and Constraints
 
 - Vistas: Dashboard, Clientes, Planes, Suscripciones, Calendario, Historial y Configuración, más login y registro.
 - Cada usuario elige un color de marca (`color_tema`) que se aplica en tiempo de ejecución con CSS custom properties; debe seguir siendo configurable.
-- Frontend React 18 + Vite con enrutamiento por estado y Tailwind por CDN, sin configuración local; no usar axios.
+- Frontend React 18 + Vite con enrutamiento por estado y CSS propio con tokens (`src/styles/`), sin Tailwind ni PostCSS; no usar axios.
 - Terminología: "Cobros", "Suscripciones", "Planes", "Clientes", "Historial".
 - Decisión abierta: si el registro abierto se mantiene tal cual o se controla.
 

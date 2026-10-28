@@ -69,6 +69,7 @@ async function run() {
     const r2 = await procesarCobrosDelDia(usuarioId, false);
     assert.strictEqual(r2.enviados, 0);
     assert.strictEqual(r2.omitidos, 1);
+    assert.strictEqual(r2.omitidosRebote, 0);
     assert.deepStrictEqual(enviados, []);
 
     // 4. Con confirmarReenvio solo se reenvía lo que toca hoy
@@ -95,6 +96,16 @@ async function run() {
     const r5 = await procesarSeleccionados(usuarioId, [propia.id, propia.id, String(propia.id)]);
     assert.strictEqual(r5.enviados, 1);
     assert.deepStrictEqual(enviados, ['duplicado']);
+
+    // 7. Un correo rebotado no se envía y se cuenta aparte de los ya enviados
+    const rebotado = suscribir('rebotado', semanal, hace(15));
+    database.prepare('UPDATE clientes SET correo_rebotado = correo WHERE id = ?').run(rebotado.cliente_id);
+    enviados.length = 0;
+    const r6 = await procesarCobrosDelDia(usuarioId, false);
+    assert.deepStrictEqual(enviados, []);
+    assert.strictEqual(r6.enviados, 0);
+    assert.strictEqual(r6.omitidosRebote, 1);
+    assert.strictEqual(r6.omitidos, 1); // el de 'dehoy', ya enviado hoy; el rebotado no se suma aquí
 
     console.log('OK integración de cobros vencidos');
   } finally {

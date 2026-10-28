@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { api } from '../api.js'
 import PageHeader from '../ui/PageHeader.jsx'
+import Badge from '../ui/Badge.jsx'
 import { mensajeError } from '../lib/errores.js'
 import Field from '../ui/Field.jsx'
 import Button from '../ui/Button.jsx'
@@ -10,6 +11,7 @@ import ErrorMsg from '../ui/ErrorMsg.jsx'
 import Skeleton from '../ui/Skeleton.jsx'
 import { toast } from '../ui/Toast.jsx'
 import { validarCliente } from '../lib/validaciones.js'
+import { esReboteActivo } from '../lib/rebotes.js'
 import { enfocarPrimerInvalido } from '../lib/formularios.js'
 import { useCarga } from '../lib/useCarga.js'
 
@@ -17,6 +19,21 @@ const VACIO = []
 const FORM_VACIO = { nombre: '', correo: '' }
 
 const enfocarNombre = () => document.getElementById('cliente-nombre')?.focus()
+
+// La marca solo aparece mientras el correo rebotado siga siendo el correo actual:
+// al corregir la dirección desaparece sin tocar la columna.
+function CeldaCorreo({ cliente }) {
+  if (!esReboteActivo(cliente)) return cliente.correo
+  return (
+    <>
+      {cliente.correo}
+      <span className="celda-nota">
+        <Badge tono="warn" icono="warning-circle">Correo rebotado</Badge>
+      </span>
+      <span className="celda-nota">No recibe cobros hasta que corrijas la dirección.</span>
+    </>
+  )
+}
 
 export default function Clientes() {
   const { datos, cargando, hayDatos, error: errorCarga, cargar, reintentar } = useCarga(async () => {
@@ -34,6 +51,17 @@ export default function Clientes() {
   const [eliminando, setEliminando] = useState(false)
   const [nombreEliminar, setNombreEliminar] = useState('')
   const formRef = useRef(null)
+
+  const alternarRebote = async (c) => {
+    const marcar = !esReboteActivo(c)
+    try {
+      await api.setReboteCliente(c.id, marcar)
+      toast.exito(marcar ? `${c.nombre} no recibirá cobros hasta que corrijas su correo.` : `${c.nombre} volverá a recibir cobros.`)
+      await cargar()
+    } catch (err) {
+      toast.error(mensajeError(err))
+    }
+  }
 
   const pedirEliminar = (c) => {
     setNombreEliminar(c.nombre)
@@ -179,10 +207,11 @@ export default function Clientes() {
                 {filtrados.map((c) => (
                   <tr role="row" key={c.id}>
                     <td role="cell" data-label="Nombre">{c.nombre}</td>
-                    <td role="cell" data-label="Correo">{c.correo}</td>
+                    <td role="cell" data-label="Correo"><CeldaCorreo cliente={c} /></td>
                     <td role="cell" data-label="Suscripciones activas" className="num">{porCliente[c.id] || 0}</td>
                     <td role="cell" data-label="Acciones" className="acciones">
                       <Button variante="secundario" tam="sm" icono="pencil-simple" aria-label={`Editar a ${c.nombre}`} disabled={guardando} onClick={() => editar(c)}>Editar</Button>
+                      <Button variante="secundario" tam="sm" icono={esReboteActivo(c) ? 'check' : 'warning-circle'} aria-label={`${esReboteActivo(c) ? 'Quitar marca de rebote a' : 'Marcar como rebotado a'} ${c.nombre}`} disabled={guardando} onClick={() => alternarRebote(c)}>{esReboteActivo(c) ? 'Quitar rebote' : 'Marcar rebotado'}</Button>
                       <Button variante="peligro" tam="sm" icono="trash" aria-label={`Eliminar a ${c.nombre}`} disabled={guardando} onClick={() => pedirEliminar(c)}>Eliminar</Button>
                     </td>
                   </tr>

@@ -121,7 +121,7 @@ export default function App() {
 
   // 3. REGISTRO DE VISTAS (sin memoizar: así onGuardado nunca queda obsoleto)
   const VIEWS = {
-    dashboard: <Dashboard />,
+    dashboard: <Dashboard onNavegar={setView} />,
     clientes: <Clientes />,
     planes: <Planes />,
     suscripciones: <Suscripciones />,

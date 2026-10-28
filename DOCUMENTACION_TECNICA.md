@@ -1,6 +1,6 @@
 # Documentación Técnica: Arquitectura del Sistema de Cobros (SGCRC)
 
-*Versión: 2026-05-25*
+*Versión: 2026-10-28*
 
 ## 1. Introducción
 
@@ -8,11 +8,13 @@ El presente documento describe la arquitectura de software del sistema "SGCRC" (
 
 ## 2. Arquitectura de Red
 
-El servidor corre en una máquina local Ubuntu ubicada en la Vereda Miravalle con conectividad via Starlink. Para exponer el dashboard de forma segura sin abrir puertos en el router, se utiliza un túnel **Cloudflare Tunnel** que enruta el tráfico HTTPS externo al servidor local. Esto elimina la necesidad de IP fija o configuración de firewall.
+La aplicación corre en una VPS con Docker Compose. El stack **no publica puertos en el host**: los dos contenedores de SGCRC viven en una red interna y el contenedor de Caddy que ya existe en la VPS los alcanza por una red Docker compartida (`sgcrc`). Caddy termina TLS y emite el certificado del dominio.
 
 ```
-Usuario remoto → HTTPS → Cloudflare → Túnel → Servidor local Ubuntu
+Usuario remoto → HTTPS → Caddy (contenedor, 80/443) → sgcrc-web (nginx, 80) → sgcrc-api (Node, 3000)
 ```
+
+Ningún puerto del host pertenece a SGCRC, así que convive con los demás servicios de la VPS sin colisiones. El detalle operativo —primer despliegue, conexión de Caddy, migración de la base y backups— está en [`docs/despliegue-docker.md`](docs/despliegue-docker.md).
 
 ## 3. Stack Tecnológico
 
@@ -23,13 +25,14 @@ Usuario remoto → HTTPS → Cloudflare → Túnel → Servidor local Ubuntu
 | Autenticación | JWT (`jsonwebtoken`) + bcrypt (`bcryptjs`) |
 | Correo | Nodemailer (SMTP, configurado para Gmail) |
 | Scheduler | `node-cron` (timezone America/Bogota) |
-| Gestor de procesos | PM2 (modo fork, instancia única) |
+| Contenedores | Docker Compose: Node 22 (`sgcrc-api`) + nginx 1.27 (`sgcrc-web`) |
+| Proxy y TLS | Caddy, en un contenedor que ya existía en la VPS |
 | Frontend | React 18 + Vite |
 | Estilos | CSS propio (`src/styles/`, tokens y reset) |
 
 ## 4. Modelo de Datos (SQLite)
 
-La base de datos reside en `backend/data/sgcrc.db` con foreign keys habilitadas.
+La base reside en `backend/data/sgcrc.db` en local y en el volumen `sgcrc_data` (montado en `/app/data/sgcrc.db`) dentro del contenedor. La ruta es fija en `backend/database.js`: la variable `DB_PATH` del `.env.example` no se lee. Foreign keys habilitadas.
 
 ```
 usuarios
@@ -39,6 +42,7 @@ usuarios
 
 clientes
 ├── id, nombre, correo
+├── correo_rebotado (copia del correo que rebotó de forma permanente; si coincide con `correo`, no se le envía)
 └── usuario_id → usuarios(id) CASCADE
 
 planes  ← catálogo reutilizable
@@ -72,14 +76,16 @@ Las migraciones se aplican como sentencias `ALTER TABLE … try/catch` en `backe
 
 1. `node-cron` dispara `procesarCobrosDelDia()` a las 08:00 America/Bogota (configurable).
 2. Se obtienen todas las suscripciones activas del usuario.
-3. `tocaCobrarEn()` / `planificarCobros()` (`backend/cobros.js`) determinan si cada suscripción corresponde al día actual según su frecuencia (`mensual`, `quincenal`, `semanal`, `anual`) y `fecha_alta`.
-4. Se omiten las suscripciones ya enviadas en el día (idempotencia).
-5. Para cada suscripción elegible: `mailer.enviarCobro()` genera y envía el HTML del correo.
+3. `tocaCobrarEn()` / `planificarCobros()` (`backend/cobros.js`) determinan si cada suscripción corresponde al día actual según su frecuencia (`mensual`, `quincenal`, `semanal`, `anual`) y `fecha_alta`. También incluyen los cobros vencidos sin enviar hasta `COBROS_REINTENTO_DIAS` días atrás (7 por defecto; `0` = solo los de hoy).
+4. Se omiten las suscripciones ya enviadas en el día (idempotencia) y los clientes cuyo `correo_rebotado` coincide con su `correo` actual.
+5. Para cada suscripción elegible: `mailer.enviarCobro()` envía el correo con versión HTML y alternativa en texto plano.
 6. Se registra el resultado (`Enviado` o `Fallido`) en la tabla `historial`.
+7. Si el fallo es un rebote permanente de dirección (SMTP 5.1.x), se guarda `clientes.correo_rebotado`: ese cliente queda omitido en los envíos siguientes hasta que se corrija su correo.
 
 ## 7. Referencias
 
 - Node.js HTTP module documentation
 - better-sqlite3 documentation
-- Cloudflare Tunnel documentation
+- Docker Compose documentation
+- Caddy documentation
 - IEEE Standards for Software Engineering Documentation

@@ -4,6 +4,7 @@ const auth = require("./auth");
 const jwt = require('jsonwebtoken');
 const { colorValido, normalizarWhatsapp } = require("./perfil");
 const { procesarCobrosDelDia, estaProcesandoCobros, procesarSeleccionados, previsualizarCobros, resumenCobros } = require("./scheduler");
+const { mensajeProceso } = require("./mensajes");
 
 const { jwtSecret } = require("./config");
 
@@ -111,6 +112,16 @@ async function handler(req, res) {
         catch (e) { return errorDeDatos(res, e); }
       }
       
+      if (method === "PUT" && id && pathname.split("/")[3] === "rebote") {
+        let cuerpo;
+        try { cuerpo = await parseBodyObjeto(req); }
+        catch (e) { return errorDeDatos(res, e); }
+        if (typeof cuerpo.rebotado !== "boolean") return json(res, 400, { error: "'rebotado' debe ser true o false" });
+        const cliente = db.clientes.fijarRebote(Number(id), cuerpo.rebotado, usuario.id);
+        if (!cliente) return json(res, 404, { error: "Cliente no encontrado" });
+        return json(res, 200, cliente);
+      }
+
       if (method === "PUT" && id) {
         let actualizado;
         try { actualizado = db.clientes.update(Number(id), await parseBodyObjeto(req), usuario.id); }
@@ -276,14 +287,13 @@ async function handler(req, res) {
       const resultado = await procesarCobrosDelDia(usuario.id, body.confirmarReenvio === true);
       if (!resultado.success) return json(res, 409, { error: resultado.message });
 
-      let message = `Proceso completado: ${resultado.enviados} enviados`;
-      if (resultado.vencidosEnviados > 0) message += ` (${resultado.vencidosEnviados} vencidos)`;
-      if (resultado.omitidos > 0) message += `. ${resultado.omitidos} ya enviados hoy se omitieron`;
+      const message = mensajeProceso(resultado);
       return json(res, 200, {
         message,
         enviados: resultado.enviados,
         vencidosEnviados: resultado.vencidosEnviados,
-        omitidos: resultado.omitidos
+        omitidos: resultado.omitidos,
+        omitidosRebote: resultado.omitidosRebote
       });
     }
 

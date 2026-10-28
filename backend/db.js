@@ -212,6 +212,12 @@ const clientes = {
     marcarRebote(id, correo) {
         db.prepare('UPDATE clientes SET correo_rebotado = ? WHERE id = ?').run(correo, id);
     },
+    // Marca o desmarca a mano (rebotes tardíos que Gmail avisa por correo y el SMTP no rechazó)
+    fijarRebote(id, rebotado, usuarioId) {
+        if (!existePropia('clientes', id, usuarioId)) return null;
+        db.prepare('UPDATE clientes SET correo_rebotado = CASE WHEN ? THEN correo ELSE NULL END WHERE id = ?').run(rebotado ? 1 : 0, id);
+        return this.find(id);
+    },
     update(id, campos, usuarioId) {
         if (!existePropia('clientes', id, usuarioId)) return null;
         ejecutarUpdate('clientes', id, validar('clientes', campos, false), usuarioId);

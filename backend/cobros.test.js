@@ -183,3 +183,4 @@ test('planificar: con cobro_desde posterior a hoy no se envía ni se reporta com
   assert.deepEqual(plan.yaEnviadosHoy, []);
   assert.deepEqual(plan.perdidos, []);
 });
+
