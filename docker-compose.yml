@@ -1,0 +1,52 @@
+name: sgcrc
+
+services:
+  api:
+    build:
+      context: ./backend
+    image: sgcrc-api:latest
+    container_name: sgcrc-api
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      TZ: America/Bogota
+    volumes:
+      - sgcrc_data:/app/data
+    networks:
+      - interna
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  web:
+    build:
+      context: ./sgcrc-frontend-export
+    image: sgcrc-web:latest
+    container_name: sgcrc-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - interna
+      - sgcrc
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  sgcrc_data:
+    name: sgcrc_data
+
+networks:
+  interna:
+  sgcrc:
+    external: true
+    name: sgcrc
