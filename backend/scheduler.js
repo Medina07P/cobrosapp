@@ -106,7 +106,7 @@ async function procesarCobrosDelDia(usuarioIdFijo = null, confirmarReenvio = fal
   if (procesandoCobros) return { success: false, message: "Ejecución en curso" };
 
   procesandoCobros = true;
-  const resumen = { success: true, enviados: 0, vencidosEnviados: 0, omitidos: 0, perdidos: 0 };
+  const resumen = { success: true, enviados: 0, vencidosEnviados: 0, omitidos: 0, omitidosRebote: 0, perdidos: 0 };
 
   try {
     const usuarios = usuarioIdFijo
@@ -130,7 +130,7 @@ async function procesarCobrosDelDia(usuarioIdFijo = null, confirmarReenvio = fal
 
           if (cliente.correo_rebotado && cliente.correo_rebotado === cliente.correo) {
             console.warn(`⚠ ${cliente.nombre}: correo con rebote permanente, se omite hasta que se corrija la dirección`);
-            resumen.omitidos++;
+            resumen.omitidosRebote++;
             continue;
           }
 

@@ -4,6 +4,7 @@ const auth = require("./auth");
 const jwt = require('jsonwebtoken');
 const { colorValido, normalizarWhatsapp } = require("./perfil");
 const { procesarCobrosDelDia, estaProcesandoCobros, procesarSeleccionados, previsualizarCobros, resumenCobros } = require("./scheduler");
+const { mensajeProceso } = require("./cobros");
 
 const { jwtSecret } = require("./config");
 
@@ -276,14 +277,13 @@ async function handler(req, res) {
       const resultado = await procesarCobrosDelDia(usuario.id, body.confirmarReenvio === true);
       if (!resultado.success) return json(res, 409, { error: resultado.message });
 
-      let message = `Proceso completado: ${resultado.enviados} enviados`;
-      if (resultado.vencidosEnviados > 0) message += ` (${resultado.vencidosEnviados} vencidos)`;
-      if (resultado.omitidos > 0) message += `. ${resultado.omitidos} ya enviados hoy se omitieron`;
+      const message = mensajeProceso(resultado);
       return json(res, 200, {
         message,
         enviados: resultado.enviados,
         vencidosEnviados: resultado.vencidosEnviados,
-        omitidos: resultado.omitidos
+        omitidos: resultado.omitidos,
+        omitidosRebote: resultado.omitidosRebote
       });
     }
 

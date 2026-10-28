@@ -69,6 +69,7 @@ async function run() {
     const r2 = await procesarCobrosDelDia(usuarioId, false);
     assert.strictEqual(r2.enviados, 0);
     assert.strictEqual(r2.omitidos, 1);
+    assert.strictEqual(r2.omitidosRebote, 0);
     assert.deepStrictEqual(enviados, []);
 
     // 4. Con confirmarReenvio solo se reenvía lo que toca hoy

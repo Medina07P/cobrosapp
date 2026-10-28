@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  aISO, hoyISO, sumarDias, tocaCobrarEn, ultimoCobroSinEnviar, planificarCobros, ventanaReintento,
+  aISO, hoyISO, sumarDias, tocaCobrarEn, ultimoCobroSinEnviar, planificarCobros, ventanaReintento, mensajeProceso,
 } = require('./cobros');
 
 const sus = (extra) => ({ id: 1, frecuencia: 'mensual', dia_cobro: 15, ...extra });
@@ -182,4 +182,21 @@ test('planificar: con cobro_desde posterior a hoy no se envía ni se reporta com
   assert.deepEqual(plan.enviar, []);
   assert.deepEqual(plan.yaEnviadosHoy, []);
   assert.deepEqual(plan.perdidos, []);
+});
+
+test('mensajeProceso: solo enviados', () => {
+  assert.equal(mensajeProceso({ enviados: 3 }), 'Proceso completado: 3 enviados');
+});
+
+test('mensajeProceso: vencidos y ya enviados', () => {
+  assert.equal(
+    mensajeProceso({ enviados: 2, vencidosEnviados: 1, omitidos: 4 }),
+    'Proceso completado: 2 enviados (1 vencidos). 4 ya enviados hoy se omitieron'
+  );
+});
+
+test('mensajeProceso: los omitidos por rebote no se presentan como enviados', () => {
+  const m = mensajeProceso({ enviados: 0, omitidosRebote: 2 });
+  assert.equal(m, 'Proceso completado: 0 enviados. 2 con correo rebotado no se enviaron');
+  assert.ok(!m.includes('ya enviados'));
 });
