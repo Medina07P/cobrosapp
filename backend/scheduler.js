@@ -4,6 +4,7 @@ const db = require("./db");
 const mailer = require("./mailer");
 const database = require("./database");
 const cobros = require("./cobros");
+const { esReboteActivo } = require("./rebotes");
 
 let procesandoCobros = false;
 
@@ -74,7 +75,7 @@ async function procesarSeleccionados(usuarioId, listaIds) {
       const sus = propias.get(susId);
       const cliente = sus && clientes.get(sus.cliente_id);
       if (!sus || !cliente) continue;
-      if (cliente.correo_rebotado && cliente.correo_rebotado === cliente.correo) {
+      if (esReboteActivo(cliente)) {
         console.warn(`⚠ ${cliente.nombre}: correo con rebote permanente, corrige la dirección antes de reenviar`);
         continue;
       }
@@ -129,7 +130,7 @@ async function procesarCobrosDelDia(usuarioIdFijo = null, confirmarReenvio = fal
 
           const sufijo = diasVencido > 0 ? ` (vencido desde ${fechaCobro})` : "";
 
-          if (cliente.correo_rebotado && cliente.correo_rebotado === cliente.correo) {
+          if (esReboteActivo(cliente)) {
             console.warn(`⚠ ${cliente.nombre}: correo con rebote permanente, se omite hasta que se corrija la dirección`);
             resumen.omitidosRebote++;
             continue;

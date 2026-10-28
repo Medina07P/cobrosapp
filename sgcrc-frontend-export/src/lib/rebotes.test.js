@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { createRequire } from 'node:module'
 import { esReboteActivo, clientesEnRebote, separarPendientesPorRebote } from './rebotes.js'
 
 const cliente = (id, nombre, correo, correo_rebotado = null) => ({ id, nombre, correo, correo_rebotado })
@@ -60,4 +61,26 @@ test('separarPendientesPorRebote sin rebotes deja todo enviable', () => {
   const r = separarPendientesPorRebote(pendientes, [])
   assert.equal(r.enviables.length, 1)
   assert.deepEqual(r.rebotados, [])
+})
+
+test('PARIDAD: esReboteActivo del frontend es idéntico al del backend', (t) => {
+  let backend
+  try {
+    backend = createRequire(import.meta.url)('../../../backend/rebotes.js')
+  } catch {
+    t.skip('backend no disponible')
+    return
+  }
+  const correos = ['ana@x.com', 'Ana@X.com', 'ana@x.com ', '', null, undefined, 'a@b.co']
+  let comparaciones = 0
+  for (const correo of correos) for (const correo_rebotado of correos) {
+    const cliente = { correo, correo_rebotado }
+    assert.equal(
+      esReboteActivo(cliente),
+      backend.esReboteActivo(cliente),
+      `correo=${JSON.stringify(correo)} rebotado=${JSON.stringify(correo_rebotado)}`
+    )
+    comparaciones++
+  }
+  assert.equal(comparaciones, 49)
 })
