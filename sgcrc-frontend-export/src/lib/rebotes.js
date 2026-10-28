@@ -29,3 +29,13 @@ export const clientesEnRebote = (clientes, suscripciones) => {
     }))
     .sort((a, b) => b.monto - a.monto || a.nombre.localeCompare(b.nombre, 'es') || a.id - b.id)
 }
+
+// Los cobros pendientes de hoy se parten en dos: los que saldrán y los que el scheduler
+// va a omitir por rebote. El diálogo de envío solo puede prometer los primeros.
+export const separarPendientesPorRebote = (pendientes, rebotes) => {
+  const ids = new Set(rebotes.map((r) => r.id))
+  const enviables = []
+  const rebotados = []
+  for (const p of pendientes) (ids.has(p.cliente_id) ? rebotados : enviables).push(p)
+  return { enviables, rebotados }
+}

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { esReboteActivo, clientesEnRebote } from './rebotes.js'
+import { esReboteActivo, clientesEnRebote, separarPendientesPorRebote } from './rebotes.js'
 
 const cliente = (id, nombre, correo, correo_rebotado = null) => ({ id, nombre, correo, correo_rebotado })
 const sub = (id, cliente_id, monto, activa = 1) => ({ id, cliente_id, monto, activa })
@@ -41,4 +41,23 @@ test('clientesEnRebote suma varias suscripciones activas y ordena por monto', ()
 test('clientesEnRebote no produce NaN con montos nulos', () => {
   const r = clientesEnRebote([cliente(1, 'Ana', 'ana@x.com', 'ana@x.com')], [sub(10, 1, null), sub(11, 1, 10000)])
   assert.equal(r[0].monto, 10000)
+})
+
+test('separarPendientesPorRebote aparta los cobros cuyo cliente tiene el correo rebotado', () => {
+  const rebotes = [{ id: 2, nombre: 'Beto', correo: 'b@x.com', suscripciones: 1, monto: 5000 }]
+  const pendientes = [
+    { suscripcion_id: 10, cliente_id: 1, cliente: 'Ana', monto: 1000 },
+    { suscripcion_id: 11, cliente_id: 2, cliente: 'Beto', monto: 5000 },
+    { suscripcion_id: 12, cliente_id: 3, cliente: 'Caro', monto: 2000 },
+  ]
+  const r = separarPendientesPorRebote(pendientes, rebotes)
+  assert.deepEqual(r.enviables.map((p) => p.suscripcion_id), [10, 12])
+  assert.deepEqual(r.rebotados.map((p) => p.suscripcion_id), [11])
+})
+
+test('separarPendientesPorRebote sin rebotes deja todo enviable', () => {
+  const pendientes = [{ suscripcion_id: 10, cliente_id: 1, cliente: 'Ana', monto: 1000 }]
+  const r = separarPendientesPorRebote(pendientes, [])
+  assert.equal(r.enviables.length, 1)
+  assert.deepEqual(r.rebotados, [])
 })

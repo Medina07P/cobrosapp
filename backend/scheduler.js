@@ -38,6 +38,7 @@ function resumenCobros(usuarioId) {
   const clientes = clientesDe(usuarioId);
   const detallar = ({ sus, fechaCobro, diasVencido }) => ({
     suscripcion_id: sus.id,
+    cliente_id: sus.cliente_id,
     cliente: clientes.get(sus.cliente_id)?.nombre || "Desconocido",
     plan: sus.tipo,
     monto: sus.monto,

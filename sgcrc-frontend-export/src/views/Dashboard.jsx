@@ -11,7 +11,7 @@ import EmptyState from '../ui/EmptyState.jsx'
 import { fmt, fmtFecha, esDelDia } from '../lib/formato.js'
 import { mensajeError } from '../lib/errores.js'
 import { aISOLocal, proximosCobros, textoDias } from '../lib/dashboard.js'
-import { clientesEnRebote } from '../lib/rebotes.js'
+import { clientesEnRebote, separarPendientesPorRebote } from '../lib/rebotes.js'
 import { useCarga } from '../lib/useCarga.js'
 
 const suma = (items) => items.reduce((a, i) => a + (Number(i.monto) || 0), 0)
@@ -107,9 +107,11 @@ export default function Dashboard({ onNavegar }) {
     </div>
   )
 
-  const hayPendientes = stats.pendientes.length > 0
-  const puedeReenviar = !hayPendientes && stats.enviados > 0
-  const sinAccion = !hayPendientes && !puedeReenviar
+  const { enviables: pendientesEnvio, rebotados: pendientesRebote } =
+    separarPendientesPorRebote(stats.pendientes, stats.rebotes)
+  const hayEnviables = pendientesEnvio.length > 0
+  const puedeReenviar = !hayEnviables && stats.enviados > 0
+  const sinAccion = !hayEnviables && !puedeReenviar
   const nSubsRebote = stats.rebotes.reduce((a, r) => a + r.suscripciones, 0)
   const totalRebote = suma(stats.rebotes)
   const mes = new Date().toLocaleDateString('es-CO', { month: 'long', year: 'numeric' })
@@ -124,7 +126,7 @@ export default function Dashboard({ onNavegar }) {
             variante="secundario" icono="paper-plane-tilt"
             disabled={sinAccion} cargando={loadingProceso && puedeReenviar}
             aria-describedby={sinAccion ? 'dash-sin-pendientes' : undefined}
-            onClick={() => (hayPendientes ? setResumenAbierto(true) : handleForzarCobros(false))}
+            onClick={() => (hayEnviables ? setResumenAbierto(true) : handleForzarCobros(false))}
           >
             {puedeReenviar ? 'Reenviar cobros de hoy' : 'Revisar y enviar cobros de hoy'}
           </Button>
@@ -156,7 +158,7 @@ export default function Dashboard({ onNavegar }) {
             <div>
               <h2 id="dash-rebotes" className="panel-titulo">Clientes que no reciben cobros</h2>
               <p className="pagina-desc">
-                {`${nSubsRebote === 1 ? '1 suscripción activa no está enviando' : `${nSubsRebote} suscripciones activas no están enviando`} recordatorios porque el correo rebotó (${fmt(totalRebote)} en total). Se reanudan al corregir la dirección.`}
+                {`${stats.rebotes.length === 1 ? '1 cliente con' : `${stats.rebotes.length} clientes con`} ${nSubsRebote === 1 ? '1 suscripción activa no está enviando' : `${nSubsRebote} suscripciones activas no están enviando`} recordatorios porque el correo rebotó (${fmt(totalRebote)} en total). Se reanudan al corregir la dirección.`}
               </p>
             </div>
             <Button variante="secundario" icono="pencil-simple" onClick={() => onNavegar('clientes')}>
@@ -220,14 +222,14 @@ export default function Dashboard({ onNavegar }) {
       <ConfirmDialog
         abierto={resumenAbierto}
         titulo="Enviar cobros de hoy"
-        textoConfirmar={`Enviar ${stats.pendientes.length} ${stats.pendientes.length === 1 ? 'cobro' : 'cobros'}`}
+        textoConfirmar={`Enviar ${pendientesEnvio.length} ${pendientesEnvio.length === 1 ? 'cobro' : 'cobros'}`}
         cargando={loadingProceso && !reenvio}
         onConfirmar={() => handleForzarCobros(false)}
         onCancelar={() => setResumenAbierto(false)}
       >
         <p>Se enviará un recordatorio por correo a:</p>
         <ul className="resumen-envio">
-          {stats.pendientes.map((i) => (
+          {pendientesEnvio.map((i) => (
             <li key={`${i.suscripcion_id}-${i.fechaCobro}`}>
               <span className="libro-cliente">{i.cliente}</span>
               <span className="libro-detalle">
@@ -237,7 +239,13 @@ export default function Dashboard({ onNavegar }) {
             </li>
           ))}
         </ul>
-        <p className="resumen-total">Total: {fmt(suma(stats.pendientes))}</p>
+        <p className="resumen-total">Total: {fmt(suma(pendientesEnvio))}</p>
+        {pendientesRebote.length > 0 && (
+          <p className="dash-aviso">
+            {pendientesRebote.length === 1 ? '1 cobro no se enviará' : `${pendientesRebote.length} cobros no se enviarán`}
+            {' '}porque el correo del cliente rebotó.
+          </p>
+        )}
       </ConfirmDialog>
 
       <ConfirmDialog
