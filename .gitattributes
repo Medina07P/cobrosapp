@@ -1,0 +1,5 @@
+# Los archivos que consumen Docker y nginx deben viajar con LF, sin importar el SO.
+* text=auto
+Dockerfile text eol=lf
+*.conf text eol=lf
+docker-compose.yml text eol=lf
