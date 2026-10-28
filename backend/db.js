@@ -209,6 +209,9 @@ const clientes = {
         const info = stmt.run(nombre, correo, usuarioId);
         return { id: info.lastInsertRowid, nombre, correo };
     },
+    marcarRebote(id, correo) {
+        db.prepare('UPDATE clientes SET correo_rebotado = ? WHERE id = ?').run(correo, id);
+    },
     update(id, campos, usuarioId) {
         if (!existePropia('clientes', id, usuarioId)) return null;
         ejecutarUpdate('clientes', id, validar('clientes', campos, false), usuarioId);

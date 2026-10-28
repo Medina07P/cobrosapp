@@ -73,6 +73,10 @@ async function procesarSeleccionados(usuarioId, listaIds) {
       const sus = propias.get(susId);
       const cliente = sus && clientes.get(sus.cliente_id);
       if (!sus || !cliente) continue;
+      if (cliente.correo_rebotado && cliente.correo_rebotado === cliente.correo) {
+        console.warn(`⚠ ${cliente.nombre}: correo con rebote permanente, corrige la dirección antes de reenviar`);
+        continue;
+      }
 
       try {
         await mailer.enviarCobro({ cliente, suscripcion: sus, usuarioConfig: usuario });
@@ -87,6 +91,7 @@ async function procesarSeleccionados(usuarioId, listaIds) {
 
         totalEnviados++;
       } catch (err) {
+        if (mailer.esReboteDireccion(err)) db.clientes.marcarRebote(cliente.id, cliente.correo);
         console.error(`❌ Error individual → ${cliente.nombre}: ${err.message}`);
       }
     }
@@ -123,6 +128,12 @@ async function procesarCobrosDelDia(usuarioIdFijo = null, confirmarReenvio = fal
 
           const sufijo = diasVencido > 0 ? ` (vencido desde ${fechaCobro})` : "";
 
+          if (cliente.correo_rebotado && cliente.correo_rebotado === cliente.correo) {
+            console.warn(`⚠ ${cliente.nombre}: correo con rebote permanente, se omite hasta que se corrija la dirección`);
+            resumen.omitidos++;
+            continue;
+          }
+
           try {
             await mailer.enviarCobro({ cliente, suscripcion: sus, usuarioConfig: usuario });
 
@@ -137,11 +148,15 @@ async function procesarCobrosDelDia(usuarioIdFijo = null, confirmarReenvio = fal
             resumen.enviados++;
             if (diasVencido > 0) resumen.vencidosEnviados++;
           } catch (err) {
+            const rebote = mailer.esReboteDireccion(err);
+            if (rebote) db.clientes.marcarRebote(cliente.id, cliente.correo);
             db.historial.create({
               suscripcion_id: sus.id,
               fecha: new Date().toISOString(),
               estado: "Fallido",
-              detalles: `Error${sufijo}: ${err.message}`,
+              detalles: rebote
+                ? `Error${sufijo}: la dirección ${cliente.correo} no existe. No se volverá a intentar hasta corregirla.`
+                : `Error${sufijo}: ${err.message}`,
               monto: sus.monto
             }, usuario.id);
           }

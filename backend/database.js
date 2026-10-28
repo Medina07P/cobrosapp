@@ -91,6 +91,8 @@ db.prepare(`
  * porque la tabla vieja no tiene 'plan_id'. 
  */
 try { db.prepare("ALTER TABLE planes ADD COLUMN descripcion TEXT").run(); } catch(e) {}
+// Dirección del cliente que rebotó de forma permanente: mientras coincida con `correo` no se le envía
+try { db.prepare("ALTER TABLE clientes ADD COLUMN correo_rebotado TEXT").run(); } catch(e) {}
 try { db.prepare("ALTER TABLE historial ADD COLUMN monto REAL").run(); } catch(e) {}
 try { db.prepare("ALTER TABLE suscripciones ADD COLUMN descripcion TEXT").run(); } catch(e) {}
 // Bloque de migración por si ya existe la tabla sin esa columna
