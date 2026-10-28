@@ -11,7 +11,7 @@ Backend minimalista: **Node.js HTTP nativo + SQLite (`better-sqlite3`) + Nodemai
 npm install
 cp .env.example .env
 # Editar .env con credenciales SMTP y JWT_SECRET
-node index.js
+npm run dev          # node --watch; alternativa: npm start
 ```
 
 ---
@@ -32,6 +32,10 @@ PORT=3000
 # Scheduler (hora local Colombia)
 CRON_HORA=08
 CRON_MIN=00
+APP_TZ=America/Bogota
+
+# Cobros vencidos: días hacia atrás que se reintentan (0 = solo los de hoy)
+COBROS_REINTENTO_DIAS=7
 
 # Seguridad — OBLIGATORIO: el servidor no arranca sin JWT_SECRET (sin clave por defecto).
 # Generar: node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
@@ -39,8 +43,10 @@ CRON_MIN=00
 JWT_SECRET=clave_larga_y_aleatoria_aqui
 
 # Opcionales
-SMTP_REQUIRED=true          # Falla al arrancar si SMTP no conecta
+SMTP_REQUIRED=false         # true = falla al arrancar si SMTP no conecta
 ```
+
+`DB_PATH` y `CORS_ORIGIN` aparecen en `.env.example` pero **no se leen**: `database.js` usa siempre `data/sgcrc.db` y `api.js` responde `Access-Control-Allow-Origin: *`.
 
 Para Gmail: activar 2FA y crear una "Contraseña de aplicación" (no usar la contraseña de la cuenta).
 
@@ -187,6 +193,17 @@ SQLite en `backend/data/sgcrc.db` (modo WAL, foreign keys ON).
 
 Tablas: `usuarios`, `clientes`, `planes`, `suscripciones`, `historial`.  
 Migraciones defensivas en `database.js` mediante bloques `ALTER TABLE … try/catch`.
+
+---
+
+## Despliegue
+
+En producción corre en Docker, dentro del stack de la VPS: el contenedor `sgcrc-api` monta el volumen `sgcrc_data` en `/app/data` y el frontend se sirve desde `sgcrc-web`. Guía completa: [`../docs/despliegue-docker.md`](../docs/despliegue-docker.md).
+
+```bash
+docker compose up -d --build
+docker compose logs -f api
+```
 
 ---
 

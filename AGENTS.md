@@ -2,7 +2,7 @@
 
 SGCRC: recordatorios de cobro recurrentes. Backend Node.js con `http` nativo + SQLite; frontend React 18 + Vite. UI, mensajes de error, comentarios y commits van en **español** (`feat(frontend): ...`, `fix: ...`).
 
-Documentación detallada por subproyecto: `backend/CLAUDE.md` y `sgcrc-frontend-export/CLAUDE.md`. Son la referencia más fiable. `README.md`, `PRODUCT.md` y `DOCUMENTACION_TECNICA.md` tienen afirmaciones obsoletas (Tailwind CDN, axios): ante conflicto, manda el código.
+Referencia por subproyecto: `backend/CLAUDE.md` y `sgcrc-frontend-export/CLAUDE.md`. Despliegue en la VPS: `docs/despliegue-docker.md`. Ante conflicto con el código, manda el código.
 
 ## Estructura
 
@@ -45,9 +45,11 @@ No hay linter, formatter, typecheck ni CI. La verificación es `npm test` en cad
 ## Gotchas
 
 - **No ejecutar `POST /run` ni pulsar "Enviar" en el Dashboard** salvo que se quieran mandar correos reales. Para probar UI, abrir y cerrar el diálogo.
-- **Nunca correr tests del backend contra producción**: todos excepto `test:unit` escriben usuarios temporales en `backend/data/sgcrc.db`, y `database.js` ignora `DB_PATH` (siempre usa esa ruta).
+- **Nunca correr tests del backend contra producción**: todos excepto `test:unit` escriben usuarios temporales en la base real (`backend/data/sgcrc.db` en local, `/app/data/sgcrc.db` en el contenedor). `database.js` ignora `DB_PATH`: la ruta es fija.
 - `JWT_SECRET` es obligatorio: sin él el proceso sale con código 1. Avisa si mide menos de 32 caracteres.
 - `CORS_ORIGIN` del `.env.example` no está implementado; `api.js` responde `Access-Control-Allow-Origin: *`.
 - `src/ui/icons.generated.js` es generado: para añadir un icono, editar `ICONOS` en `scripts/gen-icons.mjs` y correr `npm run icons`.
 - `backend/auth/login/` y `backend/auth/register/` están vacías (restos de un refactor).
-- Despliegue: `npm run build`, copiar `dist/*` a `/var/www/cobrosapp/frontend/`, `pm2 restart sgcrc-backend`.
+- **Despliegue**: `docker compose up -d --build` en la VPS y `docker compose ps` hasta ver `sgcrc-api` y `sgcrc-web` en `healthy`. El stack no publica puertos: lo expone el Caddy que ya corre allí. Detalle en `docs/despliegue-docker.md`.
+- **Una sola réplica de `api`**: el mutex del scheduler es en memoria, así que dos contenedores duplicarían correos. No usar `docker compose up --scale`.
+- **`docker compose down -v` borra el volumen `sgcrc_data`** y con él la base. Para bajar el stack, `docker compose down` sin `-v`.

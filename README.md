@@ -9,7 +9,7 @@ Automatiza el envío de recordatorios de cobro y la gestión de suscripciones re
 - **Catálogo de planes:** Planes reutilizables con frecuencia mensual, quincenal, semanal o anual.
 - **Historial de envíos:** Registro de cada correo con monto, estado y trazabilidad.
 - **Multi-tenant:** Múltiples usuarios con datos completamente aislados.
-- **Infraestructura local:** Desplegado en servidor Ubuntu con conectividad Starlink en la Vereda Miravalle, expuesto mediante túnel Cloudflare.
+- **Despliegue en contenedores:** dos contenedores Docker (API y nginx) en una VPS, detrás del Caddy que ya corre allí. No publica puertos en el host.
 
 ## Stack tecnológico
 
@@ -19,15 +19,18 @@ Automatiza el envío de recordatorios de cobro y la gestión de suscripciones re
 - JWT (`jsonwebtoken`) + bcrypt para autenticación
 - Nodemailer (SMTP, por defecto Gmail)
 - node-cron (scheduler diario)
-- PM2 (gestor de procesos en producción)
 
 **Frontend**
 - React 18 + Vite
-- Tailwind CSS (CDN)
+- CSS propio con tokens (`src/styles/`), sin Tailwind
 - SPA con navegación por estado (sin React Router)
 - JWT almacenado en `localStorage`
 
-## Instalación
+**Infraestructura**
+- Docker Compose: `sgcrc-api` (Node 22) y `sgcrc-web` (nginx 1.27)
+- Caddy existente en la VPS: terminación TLS y proxy hacia `sgcrc-web:80`
+
+## Instalación (desarrollo)
 
 ```bash
 # Backend
@@ -48,22 +51,22 @@ Ver `backend/README.md` para documentación completa de la API y configuración 
 
 ## Despliegue en producción
 
-```bash
-# 1. Build del frontend
-cd sgcrc-frontend-export
-npm run build
-sudo cp -r dist/* /var/www/cobrosapp/frontend/
+El despliegue es con Docker en la VPS, detrás del Caddy que ya corre allí. Guía completa, con migración de la base, backups y diagnóstico: [`docs/despliegue-docker.md`](docs/despliegue-docker.md).
 
-# 2. Reiniciar backend
-cd backend
-pm2 restart sgcrc-backend
+```bash
+docker compose up -d --build
+docker compose ps
 ```
 
 ## Tests
 
 ```bash
-cd backend && npm test    # Smoke test de la API (requiere backend detenido)
+cd backend && npm run test:unit   # lógica pura: cobros, perfil, mailer, config
+cd backend && npm test            # smoke de la API (levanta su propio servidor)
+cd sgcrc-frontend-export && npm test
 ```
+
+`test:security`, `test:integration` y `npm test` del backend escriben usuarios temporales en `backend/data/sgcrc.db`. No ejecutarlos contra la base de producción.
 
 ---
 

@@ -147,4 +147,4 @@ Tailwind ya no se usa ni se carga (no hay `tailwind.config.js` ni PostCSS). No u
 ## Gotchas
 
 - `axios` está declarado en `package.json` pero **no se usa** — el código usa `fetch` nativo en `api.js`. No mezclar los dos en código nuevo.
-- El proxy Vite (`/api` → `:3000`) solo funciona en desarrollo. En producción, el frontend sirve desde nginx/apache y el backend en `:3000` debe ser accesible directamente o vía proxy reverso.
+- El proxy Vite (`/api` → `:3000`) solo funciona en desarrollo. En producción el SPA lo sirve nginx (`sgcrc-web`), que reenvía `/api/*` a `api:3000` quitando el prefijo: la capa `src/api.js` usa siempre `BASE = '/api'` y no debe apuntar a otra ruta. Detalle en `docs/despliegue-docker.md`.
