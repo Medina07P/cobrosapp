@@ -75,3 +75,11 @@ test('con color inválido el verde por defecto usa texto blanco', () => {
   assert.ok(html.includes('background-color: #1F6B4F;'));
   assert.ok(html.includes('color: #FFFFFF !important'));
 });
+
+test('esReboteDireccion distingue dirección inexistente de cuota o bloqueo', () => {
+  const { esReboteDireccion } = require('./mailer');
+  assert.equal(esReboteDireccion({ responseCode: 550, response: '550 5.1.1 The email account that you tried to reach does not exist' }), true);
+  assert.equal(esReboteDireccion({ responseCode: 550, response: '550 5.4.5 Daily user sending limit exceeded' }), false);
+  assert.equal(esReboteDireccion({ responseCode: 554, response: '554 5.7.1 rejected as spam' }), false);
+  assert.equal(esReboteDireccion({ code: 'ETIMEDOUT', message: 'timeout' }), false);
+});
