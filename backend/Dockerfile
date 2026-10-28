@@ -17,7 +17,7 @@ ENV NODE_ENV=production \
 WORKDIR /app
 COPY --from=deps --chown=node:node /app/node_modules ./node_modules
 COPY --chown=node:node package.json ./
-COPY --chown=node:node index.js api.js auth.js cobros.js config.js database.js db.js mailer.js perfil.js scheduler.js ./
+COPY --chown=node:node index.js api.js auth.js cobros.js config.js database.js db.js mailer.js mensajes.js perfil.js rebotes.js scheduler.js ./
 RUN mkdir -p /app/data && chown node:node /app/data
 USER node
 VOLUME ["/app/data"]
