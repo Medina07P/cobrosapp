@@ -4,7 +4,7 @@ const auth = require("./auth");
 const jwt = require('jsonwebtoken');
 const { colorValido, normalizarWhatsapp } = require("./perfil");
 const { procesarCobrosDelDia, estaProcesandoCobros, procesarSeleccionados, previsualizarCobros, resumenCobros } = require("./scheduler");
-const { mensajeProceso } = require("./cobros");
+const { mensajeProceso } = require("./mensajes");
 
 const { jwtSecret } = require("./config");
 

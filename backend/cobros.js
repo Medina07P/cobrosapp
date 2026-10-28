@@ -123,14 +123,4 @@ function ventanaReintento() {
   return Number.isNaN(v) || v < 0 ? VENTANA_REINTENTO_POR_DEFECTO : v;
 }
 
-// Mensaje del panel tras POST /run. Los dos motivos de omisión se informan por separado:
-// "ya enviados hoy" (el cobro salió antes) y "correo rebotado" (nunca salió).
-function mensajeProceso({ enviados = 0, vencidosEnviados = 0, omitidos = 0, omitidosRebote = 0 } = {}) {
-  let message = `Proceso completado: ${enviados} ${enviados === 1 ? 'enviado' : 'enviados'}`;
-  if (vencidosEnviados > 0) message += ` (${vencidosEnviados} ${vencidosEnviados === 1 ? 'vencido' : 'vencidos'})`;
-  if (omitidos > 0) message += `. ${omitidos} ya ${omitidos === 1 ? 'enviado' : 'enviados'} hoy se ${omitidos === 1 ? 'omitió' : 'omitieron'}`;
-  if (omitidosRebote > 0) message += `. ${omitidosRebote} con correo rebotado no se ${omitidosRebote === 1 ? 'envió' : 'enviaron'}`;
-  return message;
-}
-
-module.exports = { ZONA, aISO, hoyISO, sumarDias, tocaCobrarEn, ultimoCobroSinEnviar, planificarCobros, ventanaReintento, mensajeProceso };
+module.exports = { ZONA, aISO, hoyISO, sumarDias, tocaCobrarEn, ultimoCobroSinEnviar, planificarCobros, ventanaReintento };
