@@ -11,6 +11,7 @@ import EmptyState from '../ui/EmptyState.jsx'
 import { fmt, fmtFecha, esDelDia } from '../lib/formato.js'
 import { mensajeError } from '../lib/errores.js'
 import { aISOLocal, proximosCobros, textoDias } from '../lib/dashboard.js'
+import { clientesEnRebote } from '../lib/rebotes.js'
 import { useCarga } from '../lib/useCarga.js'
 
 const suma = (items) => items.reduce((a, i) => a + (Number(i.monto) || 0), 0)
@@ -25,7 +26,7 @@ function Cifra({ rotulo, valor, sub, mal = false }) {
   )
 }
 
-export default function Dashboard() {
+export default function Dashboard({ onNavegar }) {
   const { datos: data, cargando, error, cargar, reintentar } = useCarga(async () => {
     const [clientes, suscripciones, historial, resumen] = await Promise.all([
       api.getClientes(), api.getSuscripciones(), api.getHistorial(), api.getResumenCobros(),
@@ -95,6 +96,7 @@ export default function Dashboard() {
       ventanaDias: resumen?.ventanaDias,
       pendientes: [...paraHoy, ...vencidos],
       proximos: proximosCobros(suscripciones, clientes, hoyApp),
+      rebotes: clientesEnRebote(clientes, suscripciones),
     }
   }, [data])
 
@@ -108,6 +110,8 @@ export default function Dashboard() {
   const hayPendientes = stats.pendientes.length > 0
   const puedeReenviar = !hayPendientes && stats.enviados > 0
   const sinAccion = !hayPendientes && !puedeReenviar
+  const nSubsRebote = stats.rebotes.reduce((a, r) => a + r.suscripciones, 0)
+  const totalRebote = suma(stats.rebotes)
   const mes = new Date().toLocaleDateString('es-CO', { month: 'long', year: 'numeric' })
 
   return (
@@ -145,6 +149,36 @@ export default function Dashboard() {
           </p>
         )}
       </section>
+
+      {stats.rebotes.length > 0 && (
+        <section aria-labelledby="dash-rebotes" className="panel">
+          <div className="seccion-cab">
+            <div>
+              <h2 id="dash-rebotes" className="panel-titulo">Clientes que no reciben cobros</h2>
+              <p className="pagina-desc">
+                {`${nSubsRebote === 1 ? '1 suscripción activa no está enviando' : `${nSubsRebote} suscripciones activas no están enviando`} recordatorios porque el correo rebotó (${fmt(totalRebote)} en total). Se reanudan al corregir la dirección.`}
+              </p>
+            </div>
+            <Button variante="secundario" icono="pencil-simple" onClick={() => onNavegar('clientes')}>
+              Corregir correos
+            </Button>
+          </div>
+          <ul className="libro">
+            {stats.rebotes.map((r) => (
+              <li key={r.id} className="libro-fila">
+                <div className="libro-fecha"><span className="libro-cliente">{r.nombre}</span></div>
+                <div>
+                  <p className="libro-detalle">{r.correo}</p>
+                  <p className="libro-detalle">
+                    {r.suscripciones === 1 ? '1 suscripción activa' : `${r.suscripciones} suscripciones activas`}
+                  </p>
+                </div>
+                <p className="libro-monto">{fmt(r.monto)}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section aria-labelledby="dash-resumen">
         <h2 id="dash-resumen" className="panel-titulo">Tu negocio</h2>

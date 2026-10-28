@@ -141,6 +141,8 @@ textarea.field-control { min-height: 5.5rem; resize: vertical; }
 
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 1.25rem; }
 .panel-titulo { margin: 0 0 1rem; font-size: 1.125rem; }
+.seccion-cab { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 0.75rem; }
+.seccion-cab .panel-titulo { margin-bottom: 0.25rem; }
 
 .form-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); align-items: start; }
 .form-acciones { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1rem; }
