@@ -1,6 +1,6 @@
 # Despliegue de SGCRC con Docker
 
-SGCRC corre en dos contenedores detrás del Caddy que ya existe en la VPS. **No publica ningún puerto en el host**: el único acceso es `https://sgcr.myconnectfibraoptica.com`.
+SGCRC corre en dos contenedores detrás del Caddy que ya existe en la VPS. **No publica ningún puerto en el host**: el único acceso es `https://sgcrc.myconnectfibraoptica.com`.
 
 | Contenedor | Imagen | Red | Puerto interno |
 |---|---|---|---|
@@ -15,7 +15,7 @@ SGCRC corre en dos contenedores detrás del Caddy que ya existe en la VPS. **No 
 
 - Docker y Docker Compose en la VPS.
 - La red `sgcrc` (se crea una sola vez, ver abajo).
-- El DNS de `sgcr.myconnectfibraoptica.com` apuntando a la VPS. Sin eso, Caddy no puede emitir el certificado.
+- El DNS de `sgcrc.myconnectfibraoptica.com` apuntando a la VPS. Sin eso, Caddy no puede emitir el certificado.
 
 ## Primer despliegue
 
@@ -65,7 +65,7 @@ docker exec myconnect-caddy-1 caddy reload --config /etc/caddy/Caddyfile
 El bloque del Caddyfile (gestionado en el repo de myconnect):
 
 ```
-sgcr.myconnectfibraoptica.com {
+sgcrc.myconnectfibraoptica.com {
     encode zstd gzip
     reverse_proxy sgcrc-web:80
 }
