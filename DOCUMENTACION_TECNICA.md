@@ -42,6 +42,7 @@ usuarios
 
 clientes
 ├── id, nombre, correo
+├── correo_rebotado (copia del correo que rebotó de forma permanente; si coincide con `correo`, no se le envía)
 └── usuario_id → usuarios(id) CASCADE
 
 planes  ← catálogo reutilizable
@@ -76,9 +77,10 @@ Las migraciones se aplican como sentencias `ALTER TABLE … try/catch` en `backe
 1. `node-cron` dispara `procesarCobrosDelDia()` a las 08:00 America/Bogota (configurable).
 2. Se obtienen todas las suscripciones activas del usuario.
 3. `tocaCobrarEn()` / `planificarCobros()` (`backend/cobros.js`) determinan si cada suscripción corresponde al día actual según su frecuencia (`mensual`, `quincenal`, `semanal`, `anual`) y `fecha_alta`. También incluyen los cobros vencidos sin enviar hasta `COBROS_REINTENTO_DIAS` días atrás (7 por defecto; `0` = solo los de hoy).
-4. Se omiten las suscripciones ya enviadas en el día (idempotencia).
-5. Para cada suscripción elegible: `mailer.enviarCobro()` genera y envía el HTML del correo.
+4. Se omiten las suscripciones ya enviadas en el día (idempotencia) y los clientes cuyo `correo_rebotado` coincide con su `correo` actual.
+5. Para cada suscripción elegible: `mailer.enviarCobro()` envía el correo con versión HTML y alternativa en texto plano.
 6. Se registra el resultado (`Enviado` o `Fallido`) en la tabla `historial`.
+7. Si el fallo es un rebote permanente de dirección (SMTP 5.1.x), se guarda `clientes.correo_rebotado`: ese cliente queda omitido en los envíos siguientes hasta que se corrija su correo.
 
 ## 7. Referencias
 

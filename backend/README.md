@@ -181,6 +181,7 @@ Ejecuta `procesarCobrosDelDia()` cada día a la hora configurada (timezone `Amer
 
 - `cobros.js` (`tocaCobrarEn` y `planificarCobros`) usa `fecha_alta` como día base si existe; de lo contrario, usa `dia_cobro` del plan.
 - Cobros vencidos: el scheduler reintenta cada día los cobros pasados sin enviar hasta `COBROS_REINTENTO_DIAS` días (7 por defecto).
+- Rebotes: si el SMTP responde que la dirección no existe (5.1.x), se guarda en `clientes.correo_rebotado` y ese cliente se omite —en el cron y en el reenvío manual— hasta que su `correo` cambie. La cuota (5.4.5), los bloqueos de reputación (5.7.x) y los fallos de red no marcan rebote.
 - Los envíos ya procesados en el día se omiten para evitar duplicados (idempotencia).
 - El endpoint `/run` responde 409 y requiere `{ confirmarReenvio: true }` solo cuando no hay nada nuevo que enviar y sí hay cobros de hoy ya enviados.
 - El mutex `procesandoCobros` evita ejecuciones concurrentes del mismo proceso.
