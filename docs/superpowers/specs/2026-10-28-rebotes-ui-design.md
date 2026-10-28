@@ -12,7 +12,7 @@ Que al entrar al panel se vea, sin revisar la tabla, qué clientes con suscripci
 
 ## No objetivos
 
-- No cambia el scheduler ni la detección de rebotes.
+- No cambia el comportamiento del scheduler ni la detección de rebotes. La comparación se extrae a `backend/rebotes.js` para compartirla con el frontend y cubrirla con una prueba de paridad.
 - No hay webhook de rebotes, ni fecha del rebote, ni envío forzado a una dirección marcada.
 - No se añade teléfono ni canal de contacto por cliente: la comunicación externa ocurre fuera de la app.
 

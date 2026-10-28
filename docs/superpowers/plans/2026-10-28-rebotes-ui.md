@@ -1,6 +1,6 @@
 # Aviso de rebotes de correo — Plan de implementación
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Que el panel muestre qué clientes con suscripciones activas dejaron de recibir cobros por correo rebotado, y corregir el mensaje de `POST /run` que los cuenta como enviados.
 
@@ -44,7 +44,7 @@
   - `esReboteActivo(cliente) -> boolean`
   - `clientesEnRebote(clientes, suscripciones) -> Array<{ id, nombre, correo, suscripciones, monto }>`, ordenado por `monto` descendente y luego `nombre` ascendente.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `sgcrc-frontend-export/src/lib/rebotes.test.js`:
 
@@ -95,21 +95,21 @@ test('clientesEnRebote no produce NaN con montos nulos', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd sgcrc-frontend-export && npm test`
 Expected: FAIL — `Cannot find module .../rebotes.js`.
 
-- [ ] **Step 3: Implement `sgcrc-frontend-export/src/lib/rebotes.js`**
+- [x] **Step 3: Implement `sgcrc-frontend-export/src/lib/rebotes.js`**
 
 Encabezado en español explicando que replica la comparación de `scheduler.js`. Acumular por `cliente_id` solo las suscripciones con `activa` verdadera (`{ suscripciones, monto }`, con `Number(s.monto) || 0`), filtrar los clientes que tienen acumulado y rebote activo, y ordenar con `b.monto - a.monto || a.nombre.localeCompare(b.nombre, 'es') || a.id - b.id`.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `cd sgcrc-frontend-export && npm test`
 Expected: PASS, los 5 tests nuevos y los existentes.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add sgcrc-frontend-export/src/lib/rebotes.js sgcrc-frontend-export/src/lib/rebotes.test.js
@@ -129,17 +129,17 @@ git commit -m "feat(frontend): helper de clientes con correo rebotado"
 - Consumes: `clientesEnRebote(clientes, suscripciones)` de Task 1.
 - Produces: `<Dashboard onNavegar={(id) => void} />`; `onNavegar` recibe el id de vista `'clientes'`.
 
-- [ ] **Step 1: Pasar la navegación desde `App.jsx`**
+- [x] **Step 1: Pasar la navegación desde `App.jsx`**
 
 En `App.jsx:124`, cambiar `dashboard: <Dashboard />,` por `dashboard: <Dashboard onNavegar={setView} />,`.
 
-- [ ] **Step 2: Calcular el conjunto en `Dashboard.jsx`**
+- [x] **Step 2: Calcular el conjunto en `Dashboard.jsx`**
 
 - Importar `clientesEnRebote` desde `../lib/rebotes.js`.
 - Cambiar la firma a `export default function Dashboard({ onNavegar })`.
 - Dentro del `useMemo` de `stats`, añadir `rebotes: clientesEnRebote(clientes, suscripciones),` (usa las variables ya desestructuradas de `data`).
 
-- [ ] **Step 3: Renderizar la sección**
+- [x] **Step 3: Renderizar la sección**
 
 Insertar justo después de la sección `<section aria-labelledby="dash-hoy">` y antes de `<section aria-labelledby="dash-resumen">`. Solo se renderiza si `stats.rebotes.length > 0`:
 
@@ -182,7 +182,7 @@ const nSubsRebote = stats.rebotes.reduce((a, r) => a + r.suscripciones, 0)
 const totalRebote = suma(stats.rebotes)
 ```
 
-- [ ] **Step 4: Añadir el bloque CSS de la cabecera**
+- [x] **Step 4: Añadir el bloque CSS de la cabecera**
 
 En `src/styles/ui.css`, justo después de `.panel-titulo` (línea 143):
 
@@ -191,7 +191,7 @@ En `src/styles/ui.css`, justo después de `.panel-titulo` (línea 143):
 .seccion-cab .panel-titulo { margin-bottom: 0.25rem; }
 ```
 
-- [ ] **Step 5: Verificar build y revisión visual**
+- [x] **Step 5: Verificar build y revisión visual**
 
 Run: `cd sgcrc-frontend-export && npm run build`
 Expected: build sin errores.
@@ -201,7 +201,7 @@ Con `npm run dev`, en escritorio y a 360 px de ancho:
 - Sin clientes rebotados: la sección no existe.
 - En móvil el nombre ocupa su propia línea y el monto queda a la derecha, como en "Próximos cobros".
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add sgcrc-frontend-export/src/views/Dashboard.jsx sgcrc-frontend-export/src/App.jsx sgcrc-frontend-export/src/styles/ui.css
@@ -219,7 +219,7 @@ git commit -m "feat(frontend): aviso de clientes que no reciben cobros en el Das
 - Consumes: `esReboteActivo(cliente)` de Task 1; `Badge` de `../ui/Badge.jsx`.
 - Produces: nada para otras tareas.
 
-- [ ] **Step 1: Añadir imports y el componente de celda**
+- [x] **Step 1: Añadir imports y el componente de celda**
 
 En `Clientes.jsx`, importar `Badge` desde `../ui/Badge.jsx` y `esReboteActivo` desde `../lib/rebotes.js`. Antes del `export default`, definir:
 
@@ -238,7 +238,7 @@ function CeldaCorreo({ cliente }) {
 }
 ```
 
-- [ ] **Step 2: Usarlo en la celda**
+- [x] **Step 2: Usarlo en la celda**
 
 Sustituir `<td role="cell" data-label="Correo">{c.correo}</td>` por:
 
@@ -246,14 +246,14 @@ Sustituir `<td role="cell" data-label="Correo">{c.correo}</td>` por:
 <td role="cell" data-label="Correo"><CeldaCorreo cliente={c} /></td>
 ```
 
-- [ ] **Step 3: Verificar build y revisión visual**
+- [x] **Step 3: Verificar build y revisión visual**
 
 Run: `cd sgcrc-frontend-export && npm run build`
 Expected: build sin errores.
 
 Con `npm run dev`, en escritorio y a 360 px: la fila rebotada muestra el correo, debajo el badge "Correo rebotado" con icono y debajo la nota; el resto de filas no cambia. Al editar el correo y guardar, el badge desaparece de esa fila.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add sgcrc-frontend-export/src/views/Clientes.jsx
@@ -277,7 +277,7 @@ git commit -m "feat(frontend): marca de correo rebotado en la tabla de clientes"
   - `mensajeProceso({ enviados, vencidosEnviados, omitidos, omitidosRebote }) -> string` en `backend/cobros.js`.
   - `procesarCobrosDelDia()` devuelve además `omitidosRebote: number`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Añadir a `backend/cobros.test.js` (e importar `mensajeProceso` en el `require` de la línea 3-5):
 
@@ -300,12 +300,12 @@ test('mensajeProceso: los omitidos por rebote no se presentan como enviados', ()
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd backend && npm run test:unit`
 Expected: FAIL — `mensajeProceso is not a function`.
 
-- [ ] **Step 3: Implementar `mensajeProceso` en `backend/cobros.js`**
+- [x] **Step 3: Implementar `mensajeProceso` en `backend/cobros.js`**
 
 Añadir antes del `module.exports`, con un comentario en español que explique que distingue los dos motivos de omisión, y exportarla:
 
@@ -319,25 +319,25 @@ function mensajeProceso({ enviados = 0, vencidosEnviados = 0, omitidos = 0, omit
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `cd backend && npm run test:unit`
 Expected: PASS.
 
-- [ ] **Step 5: Separar el contador en el scheduler**
+- [x] **Step 5: Separar el contador en el scheduler**
 
 - `scheduler.js:109`: añadir `omitidosRebote: 0` al objeto `resumen`.
 - `scheduler.js:133`: cambiar `resumen.omitidos++;` por `resumen.omitidosRebote++;`.
 
 `resumen.omitidos` queda solo con los ya enviados hoy (`:122`), que es lo que ya asume `tests_cobros_integration.js:71`.
 
-- [ ] **Step 6: Usar la función en la API**
+- [x] **Step 6: Usar la función en la API**
 
 - En `api.js`, añadir `const { mensajeProceso } = require("./cobros");` junto a los requires de la cabecera (después de la línea 6).
 - Sustituir las líneas 279-281 (`let message = ...` y los dos `if`) por `const message = mensajeProceso(resultado);`.
 - Añadir `omitidosRebote: resultado.omitidosRebote` al objeto de respuesta de las líneas 282-287.
 
-- [ ] **Step 7: Cubrir el contador nuevo en la integración**
+- [x] **Step 7: Cubrir el contador nuevo en la integración**
 
 En `tests_cobros_integration.js`, tras `assert.strictEqual(r2.omitidos, 1);` (línea 71), añadir:
 
@@ -345,12 +345,12 @@ En `tests_cobros_integration.js`, tras `assert.strictEqual(r2.omitidos, 1);` (l�
 assert.strictEqual(r2.omitidosRebote, 0);
 ```
 
-- [ ] **Step 8: Run integration test**
+- [x] **Step 8: Run integration test**
 
 Run: `cd backend && npm run test:integration`
 Expected: PASS. Escribe usuarios temporales en `backend/data/sgcrc.db` (base local, no producción) y usa el mailer simulado: no envía correos reales.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add backend/scheduler.js backend/cobros.js backend/api.js backend/cobros.test.js backend/tests_cobros_integration.js
@@ -361,9 +361,9 @@ git commit -m "fix: distinguir los cobros omitidos por rebote de los ya enviados
 
 ## Verificación final
 
-- [ ] `cd sgcrc-frontend-export && npm test`
-- [ ] `cd sgcrc-frontend-export && npm run build`
-- [ ] `cd backend && npm run test:unit`
-- [ ] `cd backend && npm run test:integration`
-- [ ] Revisión visual a 360 px y escritorio, con y sin rebotes.
-- [ ] `npx impeccable detect` sobre los archivos de UI cambiados (una sola pasada al terminar).
+- [x] `cd sgcrc-frontend-export && npm test`
+- [x] `cd sgcrc-frontend-export && npm run build`
+- [x] `cd backend && npm run test:unit`
+- [x] `cd backend && npm run test:integration`
+- [x] Revisión visual a 360 px y escritorio, con y sin rebotes.
+- [x] `npx impeccable detect` sobre los archivos de UI cambiados (una sola pasada al terminar).
