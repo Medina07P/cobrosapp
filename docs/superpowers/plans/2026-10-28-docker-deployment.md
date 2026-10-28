@@ -84,7 +84,7 @@ RUN mkdir -p /app/data && chown node:node /app/data
 USER node
 VOLUME ["/app/data"]
 EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=150s --retries=5 \
   CMD node -e "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 CMD ["node", "index.js"]
 ```
@@ -166,7 +166,7 @@ server {
     location /api/ {
         set $api_upstream http://api:3000;
         rewrite ^/api/(.*)$ /$1 break;
-        proxy_pass $api_upstream;
+        proxy_pass $api_upstream$uri$is_args$args;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
