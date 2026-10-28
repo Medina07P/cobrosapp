@@ -65,6 +65,7 @@ export const api = {
   createCliente: (data) => req('POST', '/clientes', data),
   updateCliente: (id, data) => req('PUT', `/clientes/${id}`, data),
   deleteCliente: (id) => req('DELETE', `/clientes/${id}`),
+  setReboteCliente: (id, rebotado) => req('PUT', `/clientes/${id}/rebote`, { rebotado }),
 
   // --- CATÁLOGO DE PLANES ---
   getPlanes: () => req('GET', '/planes'),

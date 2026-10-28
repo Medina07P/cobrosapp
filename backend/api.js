@@ -112,6 +112,16 @@ async function handler(req, res) {
         catch (e) { return errorDeDatos(res, e); }
       }
       
+      if (method === "PUT" && id && pathname.split("/")[3] === "rebote") {
+        let cuerpo;
+        try { cuerpo = await parseBodyObjeto(req); }
+        catch (e) { return errorDeDatos(res, e); }
+        if (typeof cuerpo.rebotado !== "boolean") return json(res, 400, { error: "'rebotado' debe ser true o false" });
+        const cliente = db.clientes.fijarRebote(Number(id), cuerpo.rebotado, usuario.id);
+        if (!cliente) return json(res, 404, { error: "Cliente no encontrado" });
+        return json(res, 200, cliente);
+      }
+
       if (method === "PUT" && id) {
         let actualizado;
         try { actualizado = db.clientes.update(Number(id), await parseBodyObjeto(req), usuario.id); }

@@ -52,6 +52,17 @@ export default function Clientes() {
   const [nombreEliminar, setNombreEliminar] = useState('')
   const formRef = useRef(null)
 
+  const alternarRebote = async (c) => {
+    const marcar = !esReboteActivo(c)
+    try {
+      await api.setReboteCliente(c.id, marcar)
+      toast.exito(marcar ? `${c.nombre} no recibirá cobros hasta que corrijas su correo.` : `${c.nombre} volverá a recibir cobros.`)
+      await cargar()
+    } catch (err) {
+      toast.error(mensajeError(err))
+    }
+  }
+
   const pedirEliminar = (c) => {
     setNombreEliminar(c.nombre)
     setAEliminar(c)
@@ -200,6 +211,7 @@ export default function Clientes() {
                     <td role="cell" data-label="Suscripciones activas" className="num">{porCliente[c.id] || 0}</td>
                     <td role="cell" data-label="Acciones" className="acciones">
                       <Button variante="secundario" tam="sm" icono="pencil-simple" aria-label={`Editar a ${c.nombre}`} disabled={guardando} onClick={() => editar(c)}>Editar</Button>
+                      <Button variante="secundario" tam="sm" icono={esReboteActivo(c) ? 'check' : 'warning-circle'} aria-label={`${esReboteActivo(c) ? 'Quitar marca de rebote a' : 'Marcar como rebotado a'} ${c.nombre}`} disabled={guardando} onClick={() => alternarRebote(c)}>{esReboteActivo(c) ? 'Quitar rebote' : 'Marcar rebotado'}</Button>
                       <Button variante="peligro" tam="sm" icono="trash" aria-label={`Eliminar a ${c.nombre}`} disabled={guardando} onClick={() => pedirEliminar(c)}>Eliminar</Button>
                     </td>
                   </tr>
