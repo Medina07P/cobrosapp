@@ -191,7 +191,14 @@ test('mensajeProceso: solo enviados', () => {
 test('mensajeProceso: vencidos y ya enviados', () => {
   assert.equal(
     mensajeProceso({ enviados: 2, vencidosEnviados: 1, omitidos: 4 }),
-    'Proceso completado: 2 enviados (1 vencidos). 4 ya enviados hoy se omitieron'
+    'Proceso completado: 2 enviados (1 vencido). 4 ya enviados hoy se omitieron'
+  );
+});
+
+test('mensajeProceso: singular cuando hay un solo cobro de cada tipo', () => {
+  assert.equal(
+    mensajeProceso({ enviados: 1, vencidosEnviados: 1, omitidos: 1, omitidosRebote: 1 }),
+    'Proceso completado: 1 enviado (1 vencido). 1 ya enviado hoy se omitió. 1 con correo rebotado no se envió'
   );
 });
 
