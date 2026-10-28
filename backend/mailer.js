@@ -132,13 +132,37 @@ function buildHtml({ cliente, suscripcion, nombreVendedor = "SGCRC", color: colo
         ${bloqueWhatsapp}
       </div>
       <div class="footer">
-        Este es un mensaje automático generado por <strong>SGCRC</strong>.<br>
+        Recibes este correo porque eres cliente de ${escapeHtml(nombreVendedor)}. Si ya no deseas recibirlo, responde a este mensaje.<br>
+        Mensaje generado por <strong>SGCRC</strong>.<br>
         &copy; ${new Date().getFullYear()} ${escapeHtml(nombreVendedor)}. Todos los derechos reservados.
       </div>
     </div>
   </div>
 </body>
 </html>`;
+}
+
+// Versión texto plano: los filtros de spam penalizan los correos solo-HTML
+function buildText({ cliente, suscripcion, nombreVendedor = "SGCRC", whatsapp = null }) {
+  const fecha = new Date().toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" });
+  const monto = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(suscripcion.monto);
+  const frecuencia = (suscripcion.frecuencia || "Mensual").toLowerCase();
+  const numeroWa = normalizarWhatsapp(whatsapp);
+  const lineas = [
+    `Hola, ${cliente.nombre}`,
+    "",
+    `Te informamos que se generó el cobro ${frecuencia} de tu suscripción con ${nombreVendedor}.`,
+    "",
+    `Servicio: ${suscripcion.tipo}`,
+    `Monto: ${monto}`,
+    `Fecha: ${fecha}`,
+  ];
+  if (suscripcion.descripcion) lineas.push(`Referencia: ${suscripcion.descripcion}`);
+  if (numeroWa) {
+    lineas.push("", "Para reportar tu pago por WhatsApp:", `https://wa.me/${numeroWa}?text=${encodeURIComponent(`Hola, envío el comprobante de mi pago de ${suscripcion.tipo} por valor de ${monto}.`)}`);
+  }
+  lineas.push("", "Recibes este correo porque eres cliente de " + nombreVendedor + ". Si ya no deseas recibirlo, responde a este mensaje y te quitamos de la lista.");
+  return lineas.join("\n");
 }
 
 // Remitente como objeto (nodemailer lo codifica): el nombre nunca puede inyectar direcciones ni cabeceras
@@ -165,7 +189,8 @@ async function enviarCobro({ cliente, suscripcion, usuarioConfig }) {
   await transporter.sendMail({
     from: construirRemitente(usuarioConfig, fromEmail),
     to: cliente.correo,
-    subject: `Recibo de Cobro ${frecuencia} — ${monto}`,
+    subject: `Tu cobro ${frecuencia.toLowerCase()} de ${suscripcion.tipo}`,
+    text: buildText({ cliente, suscripcion, nombreVendedor: usuarioConfig.nombre, whatsapp: usuarioConfig.whatsapp }),
     html: buildHtml({ 
         cliente, 
         suscripcion, 
@@ -188,4 +213,11 @@ async function verificarConexion() {
   }
 }
 
-module.exports = { enviarCobro, verificarConexion, buildHtml, construirRemitente };
+// Rebote permanente por dirección inexistente (5.1.x). No incluye cuota (5.4.5) ni bloqueos de reputación (5.7.x)
+function esReboteDireccion(err) {
+  const code = Number(err?.responseCode);
+  if (![550, 551, 553].includes(code)) return false;
+  return /\b5\.1\.(1|2|3|6|10)\b|user unknown|no such user|does not exist|invalid recipient/i.test(String(err?.response || err?.message || ""));
+}
+
+module.exports = { esReboteDireccion, enviarCobro, verificarConexion, buildHtml, buildText, construirRemitente };
