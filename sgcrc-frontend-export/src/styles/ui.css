@@ -237,7 +237,11 @@ textarea.field-control { min-height: 5.5rem; resize: vertical; }
 
   .btn-sm { min-height: 2.75rem; }
   .hist-filtros { flex-wrap: wrap; }
+  /* Tres tarjetas en una fila de 360 px dejan ~100 px por tarjeta y el monto se sale: el total ocupa su propia fila */
+  .hist-resumen { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .hist-tarjeta { min-width: 0; }
+  .hist-tarjeta:first-child { grid-column: 1 / -1; }
+  .hist-cifra { overflow-wrap: anywhere; }
 }
 
 /* Calendario */
