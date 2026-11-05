@@ -228,10 +228,11 @@ textarea.field-control { min-height: 5.5rem; resize: vertical; }
   .tabla td .celda-nota { flex: 0 0 100%; text-align: right; }
   .tabla td.num, .tabla td.hist-fecha { font-variant-numeric: tabular-nums; white-space: normal; }
   .tabla td.acciones {
-    flex-wrap: nowrap; gap: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--line);
+    flex-wrap: wrap; gap: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--line);
   }
   .tabla td.acciones::before { content: none; }
-  .tabla td.acciones > * { flex: 1; margin-left: 0; }
+  /* Con 3 botones (Clientes) no caben en una línea a 360 px: pasan a la siguiente en vez de desbordar la tarjeta */
+  .tabla td.acciones > * { flex: 1 1 auto; margin-left: 0; }
   .tabla td.acciones > * + * { margin-left: 0; }
 
   .btn-sm { min-height: 2.75rem; }
