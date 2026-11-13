@@ -144,7 +144,7 @@ textarea.field-control { min-height: 5.5rem; resize: vertical; }
 .seccion-cab { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 0.75rem; }
 .seccion-cab .panel-titulo { margin-bottom: 0.25rem; }
 
-.form-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); align-items: start; }
+.form-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); align-items: start; }
 .form-acciones { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1rem; }
 .check {
   display: inline-flex; align-items: center; gap: 0.6rem; min-height: 2.75rem;
@@ -228,15 +228,20 @@ textarea.field-control { min-height: 5.5rem; resize: vertical; }
   .tabla td .celda-nota { flex: 0 0 100%; text-align: right; }
   .tabla td.num, .tabla td.hist-fecha { font-variant-numeric: tabular-nums; white-space: normal; }
   .tabla td.acciones {
-    flex-wrap: nowrap; gap: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--line);
+    flex-wrap: wrap; gap: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--line);
   }
   .tabla td.acciones::before { content: none; }
-  .tabla td.acciones > * { flex: 1; margin-left: 0; }
+  /* Con 3 botones (Clientes) no caben en una línea a 360 px: pasan a la siguiente en vez de desbordar la tarjeta */
+  .tabla td.acciones > * { flex: 1 1 auto; margin-left: 0; }
   .tabla td.acciones > * + * { margin-left: 0; }
 
   .btn-sm { min-height: 2.75rem; }
   .hist-filtros { flex-wrap: wrap; }
+  /* Tres tarjetas en una fila de 360 px dejan ~100 px por tarjeta y el monto se sale: el total ocupa su propia fila */
+  .hist-resumen { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .hist-tarjeta { min-width: 0; }
+  .hist-tarjeta:first-child { grid-column: 1 / -1; }
+  .hist-cifra { overflow-wrap: anywhere; }
 }
 
 /* Calendario */
@@ -267,10 +272,10 @@ button.cal-celda { cursor: pointer; border-color: var(--line-control); }
 .cal-detalle-total { color: var(--ink); font-variant-numeric: tabular-nums; font-weight: 800; font-size: 1.125rem; margin-bottom: 1rem; }
 .cal-detalle-vacio { margin: 0; color: var(--ink-2); text-align: center; }
 .cal-item { border-top: 1px solid var(--line); padding-top: 0.7rem; margin-top: 0.7rem; }
-.cal-item-cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; }
+.cal-item-cab { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 0.25rem 0.5rem; }
 .cal-item-marcas { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 0.375rem; min-width: 0; }
 .cal-chip-neutro { text-transform: none; }
-.cal-item-nombre { color: var(--ink); font-weight: 600; overflow-wrap: anywhere; }
+.cal-item-nombre { flex: 1 1 10rem; min-width: 0; color: var(--ink); font-weight: 600; overflow-wrap: anywhere; } /* si no caben nombre y chips, los chips bajan de línea */
 .cal-chip { flex-shrink: 0; font-size: 0.8125rem; color: var(--ink-2); border: 1px solid var(--line); padding: 0 6px; border-radius: 4px; text-transform: uppercase; }
 .cal-item-tipo { color: var(--ink-2); font-size: 0.875rem; }
 .cal-item-monto { color: var(--ink); font-variant-numeric: tabular-nums; }
@@ -278,12 +283,12 @@ button.cal-celda { cursor: pointer; border-color: var(--line-control); }
 .cal-agenda { display: none; }
 @media (width < 768px) {
   .cal-panel { padding: 1rem; }
-  .cal-agenda { display: grid; gap: 0.75rem; }
+  .cal-agenda { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.75rem; }
   .cal-semana, .cal-rejilla, .cal-detalle { display: none; }
   .cal-layout { grid-template-columns: minmax(0, 1fr); }
   .cal-agenda-dia { padding: 0.75rem 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
   .cal-agenda-hoy { border: 2px solid var(--ink); padding: calc(0.75rem - 1px) calc(1rem - 1px); }
-  .cal-agenda-titulo { display: flex; justify-content: space-between; gap: 0.75rem; margin: 0 0 0.25rem; font-size: 1rem; font-family: var(--font-ui); }
+  .cal-agenda-titulo { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.75rem; margin: 0 0 0.25rem; font-size: 1rem; font-family: var(--font-ui); }
   .cal-agenda-total { font-variant-numeric: tabular-nums; font-weight: 700; }
 }
 
